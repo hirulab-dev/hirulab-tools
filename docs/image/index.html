@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>画像リサイズ・圧縮 — アップロードしない画像圧縮</title>
+<meta name="description" content="画像のリサイズと圧縮を、ブラウザの中だけで行います。ファイルはどこにもアップロードされません。JPEG/PNG/WebPに変換、複数枚まとめて処理、圧縮率もその場で確認。AI(Claude)が作ったツール。">
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --text:#1a1a1a; --sub:#666;
+    --accent:#2563eb; --border:#e2e2df; --ok:#16a34a; --warn:#d97706; --err:#dc2626;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --text:#e8e8e6; --sub:#9a9a97;
+      --accent:#60a5fa; --border:#33363e; --ok:#4ade80; --warn:#fbbf24; --err:#f87171; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif; line-height:1.6; }
+  .wrap { max-width:900px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:1.4rem; margin:0 0 4px; }
+  .tagline { color:var(--sub); font-size:.85rem; margin-bottom:8px; }
+  .privacy { background:var(--panel); border:1px solid var(--ok); border-left-width:4px;
+    border-radius:8px; padding:10px 14px; font-size:.82rem; margin-bottom:20px; }
+  .privacy strong { color:var(--ok); }
+
+  .drop { border:2px dashed var(--border); border-radius:12px; padding:36px 20px; text-align:center;
+    background:var(--panel); cursor:pointer; transition:border-color .15s, background .15s; }
+  .drop.over { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+  .drop .big { font-size:1rem; margin-bottom:4px; }
+  .drop .sub { font-size:.8rem; color:var(--sub); }
+
+  .controls { background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px; margin-top:16px; display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; }
+  .ctl .label { font-size:.75rem; color:var(--sub); margin-bottom:4px; }
+  .ctl .row { display:flex; gap:6px; align-items:center; }
+  input[type=number], select { border:1px solid var(--border); border-radius:8px; background:var(--bg);
+    color:var(--text); padding:8px 9px; font-size:.9rem; font-family:inherit; width:100%; min-width:0; }
+  input[type=range] { width:100%; }
+  label.chk { font-size:.82rem; display:flex; align-items:center; gap:6px; cursor:pointer; }
+  .ctl .hint { font-size:.7rem; color:var(--sub); margin-top:3px; }
+
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; align-items:center; }
+  button.act { border:1px solid var(--border); background:var(--panel); color:var(--text);
+    border-radius:8px; padding:9px 14px; font-size:.85rem; cursor:pointer; font-family:inherit; }
+  button.act:hover:not(:disabled) { border-color:var(--accent); }
+  button.act:disabled { opacity:.45; cursor:default; }
+  button.act.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .status { font-size:.82rem; color:var(--sub); }
+
+  .items { margin-top:20px; display:grid; gap:10px; }
+  .item { background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:12px; display:grid; grid-template-columns:76px 1fr auto; gap:12px; align-items:center; }
+  @media (max-width:560px) { .item { grid-template-columns:60px 1fr; } .item .dl { grid-column:1/-1; } }
+  .item img { width:100%; border-radius:6px; display:block; background:var(--bg); }
+  .item .name { font-size:.85rem; word-break:break-all; }
+  .item .meta { font-size:.74rem; color:var(--sub); font-variant-numeric:tabular-nums; }
+  .item .saved { color:var(--ok); font-weight:600; }
+  .item .grew { color:var(--warn); font-weight:600; }
+  .item .bad { color:var(--err); }
+  .item a.dl { border:1px solid var(--border); border-radius:8px; padding:7px 12px; font-size:.8rem;
+    text-decoration:none; color:var(--text); white-space:nowrap; }
+  .item a.dl:hover { border-color:var(--accent); }
+
+  details { margin-top:28px; font-size:.85rem; }
+  summary { cursor:pointer; color:var(--sub); }
+  details p { color:var(--sub); }
+  footer { color:var(--sub); font-size:.78rem; margin-top:32px; border-top:1px solid var(--border); padding-top:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>画像リサイズ・圧縮</h1>
+  <div class="tagline">サイズを変えて、軽くして、形式を変換します。複数枚まとめて処理できます。</div>
+  <div class="privacy">
+    <strong>画像はアップロードされません。</strong>
+    このページには通信するコードが1行も入っていません(fetch も XMLHttpRequest も使っていません)。
+    処理はすべてあなたの端末の中で完結し、画像がこの端末から出ることはありません。
+    <strong>読み込んだあとは、機内モードにしても普通に動きます。</strong>試してみてください。
+  </div>
+
+  <div class="drop" id="drop" tabindex="0" role="button" aria-label="画像を選ぶ">
+    <div class="big">画像をドロップ、またはクリックして選択</div>
+    <div class="sub">JPEG / PNG / WebP / GIF / BMP — 複数枚まとめてOK</div>
+    <input type="file" id="file" accept="image/*" multiple hidden>
+  </div>
+
+  <div class="controls">
+    <div class="ctl">
+      <div class="label">サイズの決め方</div>
+      <select id="mode">
+        <option value="longest">長辺を指定</option>
+        <option value="width">幅を指定</option>
+        <option value="height">高さを指定</option>
+        <option value="percent">元のサイズの%</option>
+        <option value="none">変えない(圧縮だけ)</option>
+      </select>
+    </div>
+    <div class="ctl">
+      <div class="label" id="size-label">長辺(px)</div>
+      <input type="number" id="size" value="1600" min="1" max="20000">
+      <div class="hint" id="size-hint">元より大きくは引き伸ばしません</div>
+    </div>
+    <div class="ctl">
+      <div class="label">出力形式</div>
+      <select id="format">
+        <option value="image/jpeg">JPEG(写真向き・軽い)</option>
+        <option value="image/webp">WebP(いちばん軽い)</option>
+        <option value="image/png">PNG(透過を残す・重い)</option>
+      </select>
+    </div>
+    <div class="ctl">
+      <div class="label">画質 <span id="q-val">0.82</span></div>
+      <input type="range" id="quality" min="0.3" max="1" step="0.01" value="0.82">
+      <div class="hint">PNGでは無視されます</div>
+    </div>
+    <div class="ctl">
+      <div class="label">その他</div>
+      <label class="chk"><input type="checkbox" id="keep-alpha" checked> 透過を保つ(JPEGは白で埋める)</label>
+      <label class="chk" style="margin-top:5px"><input type="checkbox" id="strip" checked> 位置情報などのメタデータを落とす</label>
+      <div class="hint">再描画するため、Exifは自動的に消えます</div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="act primary" id="run" disabled>変換する</button>
+    <button class="act" id="clear" disabled>クリア</button>
+    <span class="status" id="status">画像を選んでください。</span>
+  </div>
+
+  <div class="items" id="items"></div>
+
+  <details>
+    <summary>形式と画質の選び方(迷ったとき)</summary>
+    <p>
+      <strong>写真なら WebP、画質 0.8 前後</strong>がだいたい正解です。JPEGより2〜3割軽くなり、主要なブラウザはすべて対応しています。
+      相手の環境が分からない場所に置くなら JPEG が無難です。<br>
+      <strong>PNG は「透過が必要なとき」と「文字やイラストで輪郭をぼかしたくないとき」だけ</strong>にしてください。写真をPNGにすると数倍重くなります。<br>
+      画質を 0.9 より上げても、ファイルサイズが増えるわりに見た目はほとんど変わりません。逆に 0.6 を下回ると、平坦な面にモヤ(ブロックノイズ)が出はじめます。
+    </p>
+  </details>
+
+  <footer>
+    処理には canvas を使っています。<strong>元画像を一度描き直すため、Exif(撮影日時・位置情報・カメラ情報)は出力に引き継がれません。</strong>
+    位置情報を消したいときはこれが役に立ちますが、残したい場合はこのツールを使わないでください。
+    ICCプロファイルや色空間も同様に引き継がれないため、色が厳密に一致しないことがあります。
+    アニメーションGIFは1コマ目だけが変換されます。
+    <br>作: <strong>クロードの昼ラボ</strong>(AIのClaudeが書いています) — このページは通信を一切行いません。
+  </footer>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const files = [];       // {file, url, blob, outName, w, h, ow, oh}
+const MAXW = 20000;
+
+const fmtBytes = n => n < 1024 ? n + " B"
+  : n < 1024*1024 ? (n/1024).toFixed(1) + " KB"
+  : (n/1024/1024).toFixed(2) + " MB";
+
+/** 削減率の表示。四捨五入で 100% になっても「ゼロになった」と誤読されないよう 99% で止める */
+const pctText = (before, after) => {
+  if (!before) return "";
+  const d = 1 - after / before;
+  if (d >= 0) return Math.min(99, Math.round(d * 100)) + "%削減";
+  return Math.round(-d * 100) + "%増加";
+};
+
+/* ---------- 入力 ---------- */
+const drop = $("drop"), input = $("file");
+drop.addEventListener("click", () => input.click());
+drop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } });
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add("over");
+}));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.remove("over");
+}));
+drop.addEventListener("drop", e => addFiles(e.dataTransfer.files));
+input.addEventListener("change", () => { addFiles(input.files); input.value = ""; });
+
+function addFiles(list) {
+  let skipped = 0;
+  for (const f of list) {
+    if (!f.type.startsWith("image/")) { skipped++; continue; }
+    files.push({ file: f, url: URL.createObjectURL(f), blob: null });
+  }
+  $("run").disabled = files.length === 0;
+  $("clear").disabled = files.length === 0;
+  $("status").textContent = `${files.length}枚を読み込みました。`
+    + (skipped ? `(画像でないファイル${skipped}件は無視しました)` : "");
+  renderItems();
+}
+
+$("clear").addEventListener("click", () => {
+  files.forEach(f => { URL.revokeObjectURL(f.url); if (f.outUrl) URL.revokeObjectURL(f.outUrl); });
+  files.length = 0;
+  $("items").innerHTML = "";
+  $("run").disabled = true; $("clear").disabled = true;
+  $("status").textContent = "画像を選んでください。";
+});
+
+/* ---------- コントロールの連動 ---------- */
+const LABELS = { longest:["長辺(px)","元より大きくは引き伸ばしません"], width:["幅(px)","高さは比率を保って決まります"],
+  height:["高さ(px)","幅は比率を保って決まります"], percent:["割合(%)","100%より大きくもできます"],
+  none:["(使いません)","サイズはそのままで、圧縮と形式変換だけ行います"] };
+$("mode").addEventListener("change", () => {
+  const m = $("mode").value;
+  $("size-label").textContent = LABELS[m][0];
+  $("size-hint").textContent = LABELS[m][1];
+  $("size").disabled = (m === "none");
+  if (m === "percent" && +$("size").value > 400) $("size").value = 50;
+  if (m !== "percent" && +$("size").value <= 400) $("size").value = 1600;
+});
+$("quality").addEventListener("input", () => { $("q-val").textContent = (+$("quality").value).toFixed(2); });
+$("format").addEventListener("change", () => {
+  const png = $("format").value === "image/png";
+  $("quality").disabled = png;
+});
+
+/* ---------- 変換 ---------- */
+function targetSize(ow, oh) {
+  const m = $("mode").value, n = +$("size").value;
+  if (m === "none" || !Number.isFinite(n) || n <= 0) return [ow, oh];
+  let w, h;
+  if (m === "percent") { w = ow * n / 100; h = oh * n / 100; }
+  else if (m === "width")  { w = n; h = oh * (n / ow); }
+  else if (m === "height") { h = n; w = ow * (n / oh); }
+  else {                                        // longest
+    const scale = n / Math.max(ow, oh);
+    if (scale >= 1) return [ow, oh];            // 引き伸ばさない
+    w = ow * scale; h = oh * scale;
+  }
+  w = Math.max(1, Math.min(MAXW, Math.round(w)));
+  h = Math.max(1, Math.min(MAXW, Math.round(h)));
+  return [w, h];
+}
+
+const loadImage = url => new Promise((res, rej) => {
+  const img = new Image();
+  img.onload = () => res(img);
+  img.onerror = () => rej(new Error("画像として読み込めませんでした"));
+  img.src = url;
+});
+
+/** 大きく縮めるときは半分ずつ段階的に縮小する(一発で縮めるとジャギる) */
+function drawScaled(img, tw, th, fillWhite) {
+  let cw = img.naturalWidth, ch = img.naturalHeight;
+  let canvas = document.createElement("canvas");
+  canvas.width = cw; canvas.height = ch;
+  let ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+  while (cw > tw * 2 && ch > th * 2) {
+    const nw = Math.max(tw, Math.round(cw/2)), nh = Math.max(th, Math.round(ch/2));
+    const c2 = document.createElement("canvas");
+    c2.width = nw; c2.height = nh;
+    const x2 = c2.getContext("2d");
+    x2.imageSmoothingEnabled = true; x2.imageSmoothingQuality = "high";
+    x2.drawImage(canvas, 0, 0, nw, nh);
+    canvas = c2; cw = nw; ch = nh;
+  }
+  const out = document.createElement("canvas");
+  out.width = tw; out.height = th;
+  const octx = out.getContext("2d");
+  if (fillWhite) { octx.fillStyle = "#ffffff"; octx.fillRect(0, 0, tw, th); }
+  octx.imageSmoothingEnabled = true; octx.imageSmoothingQuality = "high";
+  octx.drawImage(canvas, 0, 0, tw, th);
+  return out;
+}
+
+const toBlob = (canvas, type, q) => new Promise((res, rej) => {
+  canvas.toBlob(b => b ? res(b) : rej(new Error("この形式に変換できませんでした")), type, q);
+});
+
+$("run").addEventListener("click", async () => {
+  const type = $("format").value, q = +$("quality").value;
+  const fillWhite = (type === "image/jpeg") || !$("keep-alpha").checked;
+  $("run").disabled = true;
+  let done = 0, failed = 0;
+  for (const item of files) {
+    $("status").textContent = `変換中… ${done+1}/${files.length}`;
+    try {
+      const img = await loadImage(item.url);
+      const [tw, th] = targetSize(img.naturalWidth, img.naturalHeight);
+      const canvas = drawScaled(img, tw, th, fillWhite);
+      const blob = await toBlob(canvas, type, q);
+      // 実際に要求した形式で出たか(未対応だとPNGで返るブラウザがある)
+      if (blob.type !== type) item.warn = `このブラウザは ${type.split("/")[1].toUpperCase()} の書き出しに未対応でした(${blob.type.split("/")[1].toUpperCase()}で出力)`;
+      if (item.outUrl) URL.revokeObjectURL(item.outUrl);
+      item.blob = blob;
+      item.outUrl = URL.createObjectURL(blob);
+      item.w = tw; item.h = th;
+      item.ow = img.naturalWidth; item.oh = img.naturalHeight;
+      const ext = (blob.type.split("/")[1] || "img").replace("jpeg","jpg");
+      item.outName = item.file.name.replace(/\.[^.]+$/, "") + `_${tw}x${th}.${ext}`;
+      item.err = null;
+    } catch (e) {
+      item.err = e.message; failed++;
+    }
+    done++;
+    renderItems();
+    await new Promise(r => setTimeout(r, 0));   // UIを描き直させる
+  }
+  const total = files.reduce((s,f) => s + (f.blob ? f.blob.size : 0), 0);
+  const orig  = files.filter(f => f.blob).reduce((s,f) => s + f.file.size, 0);
+  $("status").textContent = failed
+    ? `完了(${files.length - failed}枚成功 / ${failed}枚失敗)`
+    : `完了。合計 ${fmtBytes(orig)} → ${fmtBytes(total)}` +
+      (orig ? `(${pctText(orig, total)})` : "");
+  $("run").disabled = false;
+});
+
+function renderItems() {
+  $("items").innerHTML = files.map((f, i) => {
+    let meta, dl = "";
+    if (f.err) {
+      meta = `<div class="meta bad">${f.err}</div>`;
+    } else if (f.blob) {
+      const cls = f.blob.size <= f.file.size ? "saved" : "grew";
+      const word = pctText(f.file.size, f.blob.size);
+      meta = `<div class="meta">${f.ow}×${f.oh} → ${f.w}×${f.h}</div>
+        <div class="meta">${fmtBytes(f.file.size)} → ${fmtBytes(f.blob.size)}
+        <span class="${cls}">${word}</span></div>
+        ${f.warn ? `<div class="meta bad">${f.warn}</div>` : ""}`;
+      dl = `<a class="dl" href="${f.outUrl}" download="${f.outName}">保存</a>`;
+    } else {
+      meta = `<div class="meta">${fmtBytes(f.file.size)} — 未変換</div>`;
+    }
+    return `<div class="item">
+      <img src="${f.outUrl || f.url}" alt="">
+      <div><div class="name">${f.file.name}</div>${meta}</div>
+      ${dl}
+    </div>`;
+  }).join("");
+}
+</script>
+</body>
+</html>
