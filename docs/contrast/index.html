@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コントラスト比チェッカー — WCAG 2.1 / 3.0(APCA)対応</title>
+<meta name="description" content="文字色と背景色のコントラスト比をその場で判定。WCAG 2.1のAA/AAA基準に加え、色覚特性シミュレーションと自動修正提案つき。AI(Claude)が作ったブラウザ完結ツール。データは送信されません。">
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --text:#1a1a1a; --sub:#666;
+    --accent:#2563eb; --border:#e2e2df; --ok:#16a34a; --warn:#d97706; --err:#dc2626;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --text:#e8e8e6; --sub:#9a9a97;
+      --accent:#60a5fa; --border:#33363e; --ok:#4ade80; --warn:#fbbf24; --err:#f87171; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif; line-height:1.6; }
+  .wrap { max-width:860px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:1.4rem; margin:0 0 4px; }
+  .tagline { color:var(--sub); font-size:.85rem; margin-bottom:20px; }
+  h2 { font-size:.95rem; margin:28px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+
+  .pickers { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:560px) { .pickers { grid-template-columns:1fr; } }
+  .picker { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
+  .picker .label { font-size:.75rem; color:var(--sub); margin-bottom:6px; }
+  .row { display:flex; gap:8px; align-items:center; }
+  input[type=color] { width:46px; height:38px; padding:0; border:1px solid var(--border);
+    border-radius:8px; background:var(--panel); cursor:pointer; flex:none; }
+  input[type=text] { flex:1; min-width:0; border:1px solid var(--border); border-radius:8px;
+    background:var(--bg); color:var(--text); padding:9px 10px; font-size:.95rem;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  input[type=text].bad { border-color:var(--err); }
+  button { border:1px solid var(--border); background:var(--panel); color:var(--text);
+    border-radius:8px; padding:8px 12px; font-size:.82rem; cursor:pointer; font-family:inherit; }
+  button:hover { border-color:var(--accent); }
+  .btnrow { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+
+  .score { background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:18px 20px; margin-top:16px; display:flex; gap:24px; align-items:center; flex-wrap:wrap; }
+  .ratio { font-size:2.6rem; font-variant-numeric:tabular-nums; line-height:1; }
+  .ratio small { font-size:1rem; color:var(--sub); }
+  .badges { display:grid; grid-template-columns:repeat(2,auto); gap:6px 10px; }
+  .badge { font-size:.78rem; display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  .pill { display:inline-block; min-width:38px; text-align:center; border-radius:999px;
+    padding:1px 8px; font-size:.7rem; font-weight:700; color:#fff; }
+  .pill.pass { background:var(--ok); } .pill.fail { background:var(--err); }
+
+  .preview { border:1px solid var(--border); border-radius:10px; padding:20px 22px; margin-top:16px; }
+  .preview .big { font-size:1.5rem; font-weight:700; margin-bottom:8px; }
+  .preview .small { font-size:.9rem; }
+  .preview .tiny { font-size:.75rem; opacity:.85; margin-top:6px; }
+
+  .grid3 { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; }
+  .sim { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px; }
+  .sim .name { font-size:.72rem; color:var(--sub); margin-bottom:6px; }
+  .sim .swatch { border-radius:6px; padding:12px; font-size:.85rem; text-align:center; }
+  .sim .val { font-size:.72rem; color:var(--sub); margin-top:6px; font-variant-numeric:tabular-nums; }
+
+  .fixes { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; }
+  .fix { background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:12px; cursor:pointer; text-align:left; }
+  .fix:hover { border-color:var(--accent); }
+  .fix .name { font-size:.72rem; color:var(--sub); }
+  .fix .sample { border-radius:6px; padding:10px; margin:6px 0; text-align:center; font-size:.85rem; }
+  .fix .val { font-size:.75rem; font-variant-numeric:tabular-nums; }
+  .empty { color:var(--sub); font-size:.85rem; }
+
+  table { width:100%; border-collapse:collapse; font-size:.8rem; margin-top:6px; }
+  th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--border); }
+  th { color:var(--sub); font-weight:400; }
+  footer { color:var(--sub); font-size:.78rem; margin-top:32px; border-top:1px solid var(--border); padding-top:12px; }
+  footer a { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>コントラスト比チェッカー</h1>
+  <div class="tagline">文字色と背景色を入れるだけ。WCAG 2.1 の AA / AAA 判定、色覚特性シミュレーション、基準を満たす色の自動提案まで。すべてブラウザ内で完結し、入力した値はどこにも送信されません。</div>
+
+  <div class="pickers">
+    <div class="picker">
+      <div class="label">文字色 (foreground)</div>
+      <div class="row">
+        <input type="color" id="fg-color" value="#767676">
+        <input type="text" id="fg-text" value="#767676" spellcheck="false" aria-label="文字色">
+      </div>
+    </div>
+    <div class="picker">
+      <div class="label">背景色 (background)</div>
+      <div class="row">
+        <input type="color" id="bg-color" value="#ffffff">
+        <input type="text" id="bg-text" value="#ffffff" spellcheck="false" aria-label="背景色">
+      </div>
+    </div>
+  </div>
+  <div class="btnrow">
+    <button id="swap">⇅ 入れ替え</button>
+    <button id="rand">🎲 ランダム</button>
+    <button id="copy-css">CSSをコピー</button>
+    <span id="copied" style="font-size:.78rem;color:var(--ok);align-self:center"></span>
+  </div>
+
+  <div class="score">
+    <div class="ratio"><span id="ratio">4.54</span><small> : 1</small></div>
+    <div class="badges">
+      <div class="badge"><span class="pill" id="p-aa-n">—</span> AA 通常テキスト <span style="color:var(--sub)">4.5:1</span></div>
+      <div class="badge"><span class="pill" id="p-aaa-n">—</span> AAA 通常テキスト <span style="color:var(--sub)">7:1</span></div>
+      <div class="badge"><span class="pill" id="p-aa-l">—</span> AA 大きい文字 <span style="color:var(--sub)">3:1</span></div>
+      <div class="badge"><span class="pill" id="p-aaa-l">—</span> AAA 大きい文字 <span style="color:var(--sub)">4.5:1</span></div>
+      <div class="badge"><span class="pill" id="p-ui">—</span> UI部品・図形 <span style="color:var(--sub)">3:1</span></div>
+      <div class="badge"><span class="pill" id="p-apca">—</span> APCA(参考) <span style="color:var(--sub)" id="apca-val"></span></div>
+    </div>
+  </div>
+
+  <div class="preview" id="preview">
+    <div class="big">大きい文字のサンプル(24px相当)</div>
+    <div class="small">通常サイズの本文テキストです。The quick brown fox jumps over the lazy dog. 0123456789</div>
+    <div class="tiny">注釈やキャプションに使う小さめの文字</div>
+  </div>
+
+  <h2>色覚特性シミュレーション</h2>
+  <div class="grid3" id="sims"></div>
+
+  <h2>AA(4.5:1)を満たす修正案</h2>
+  <div class="fixes" id="fixes"></div>
+
+  <h2>「大きい文字」の定義(WCAG 2.1)</h2>
+  <table>
+    <tr><th>条件</th><th>該当サイズ</th></tr>
+    <tr><td>通常の太さ</td><td>18pt 以上(= 24px 以上)</td></tr>
+    <tr><td>太字(bold)</td><td>14pt 以上(= 18.66px 以上)</td></tr>
+    <tr><td>日本語の場合</td><td>WCAG は 22px 以上(太字は 18px 以上)を目安として示している</td></tr>
+  </table>
+
+  <footer>
+    コントラスト比は WCAG 2.1 の相対輝度式で計算しています。APCA は WCAG 3.0 のドラフト指標で、まだ勧告ではないため参考値です。
+    色覚特性シミュレーションは Brettel/Viénot 系の LMS 変換による近似で、実際の見え方を保証するものではありません。
+    <br>作: <strong>クロードの昼ラボ</strong>(AIのClaudeが書いています) — このページは通信を一切行いません。
+  </footer>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- 色のパース ---------- */
+const NAMED = { black:"#000000", white:"#ffffff", red:"#ff0000", blue:"#0000ff",
+  green:"#008000", gray:"#808080", grey:"#808080", silver:"#c0c0c0", navy:"#000080",
+  teal:"#008080", orange:"#ffa500", purple:"#800080", yellow:"#ffff00" };
+
+function parseColor(s) {
+  if (typeof s !== "string") return null;
+  let t = s.trim().toLowerCase();
+  if (NAMED[t]) t = NAMED[t];
+  let m = t.match(/^#?([0-9a-f]{3})$/);
+  if (m) { const h = m[1];
+    return [parseInt(h[0]+h[0],16), parseInt(h[1]+h[1],16), parseInt(h[2]+h[2],16)]; }
+  m = t.match(/^#?([0-9a-f]{6})$/);
+  if (m) { const h = m[1];
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]; }
+  m = t.match(/^rgba?\(([^)]+)\)$/);
+  if (m) {
+    const parts = m[1].split(/[,\s/]+/).filter(Boolean).slice(0,3);
+    if (parts.length < 3) return null;
+    const v = parts.map(p => p.endsWith("%") ? Math.round(parseFloat(p)*2.55) : parseInt(p,10));
+    if (v.some(n => !Number.isFinite(n) || n < 0 || n > 255)) return null;
+    return v;
+  }
+  return null;
+}
+const toHex = rgb => "#" + rgb.map(v =>
+  Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2,"0")).join("");
+
+/* ---------- WCAG 2.1 コントラスト比 ---------- */
+const srgbToLin = c => { const s = c/255; return s <= 0.04045 ? s/12.92 : Math.pow((s+0.055)/1.055, 2.4); };
+function luminance(rgb) {
+  const [r,g,b] = rgb.map(srgbToLin);
+  return 0.2126*r + 0.7152*g + 0.0722*b;
+}
+function contrast(a, b) {
+  const l1 = luminance(a), l2 = luminance(b);
+  return (Math.max(l1,l2) + 0.05) / (Math.min(l1,l2) + 0.05);
+}
+
+/* ---------- APCA(WCAG 3.0 ドラフト・参考値) ---------- */
+function apca(fg, bg) {
+  const Y = rgb => 0.2126729*Math.pow(rgb[0]/255,2.4)
+                 + 0.7151522*Math.pow(rgb[1]/255,2.4)
+                 + 0.0721750*Math.pow(rgb[2]/255,2.4);
+  const clamp = y => y > 0.022 ? y : y + Math.pow(0.022 - y, 1.414);
+  let Ytxt = clamp(Y(fg)), Ybg = clamp(Y(bg)), S, C;
+  if (Ybg > Ytxt) { S = Math.pow(Ybg,0.56) - Math.pow(Ytxt,0.57); C = S * 1.14;
+    C = C < 0.1 ? 0 : C - 0.027; }
+  else { S = Math.pow(Ybg,0.65) - Math.pow(Ytxt,0.62); C = S * 1.14;
+    C = C > -0.1 ? 0 : C + 0.027; }
+  return C * 100;
+}
+
+/* ---------- 色覚特性シミュレーション(LMS空間での近似) ---------- */
+const RGB2LMS = [[0.31399022,0.63951294,0.04649755],
+                 [0.15537241,0.75789446,0.08670142],
+                 [0.01775239,0.10944209,0.87256922]];
+const LMS2RGB = [[ 5.47221206,-4.6419601, 0.16963708],
+                 [-1.1252419,  2.29317094,-0.1678952],
+                 [ 0.02980165,-0.19318073,1.16364789]];
+const MATS = {
+  protanopia:  [[0,1.05118294,-0.05116099],[0,1,0],[0,0,1]],
+  deuteranopia:[[1,0,0],[0.9513092,0,0.04866992],[0,0,1]],
+  tritanopia:  [[1,0,0],[0,1,0],[-0.86744736,1.86727089,0]]
+};
+const mul = (m,v) => m.map(r => r[0]*v[0] + r[1]*v[1] + r[2]*v[2]);
+function simulate(rgb, kind) {
+  if (kind === "normal") return rgb.slice();
+  const lin = rgb.map(srgbToLin).map(v => v*255);
+  const out = mul(LMS2RGB, mul(MATS[kind], mul(RGB2LMS, lin)));
+  return out.map(v => {
+    const s = Math.max(0, Math.min(1, v/255));
+    const c = s <= 0.0031308 ? s*12.92 : 1.055*Math.pow(s, 1/2.4) - 0.055;
+    return Math.max(0, Math.min(255, Math.round(c*255)));
+  });
+}
+
+/* ---------- 修正案の生成 ---------- */
+function rgbToHsl(rgb) {
+  const [r,g,b] = rgb.map(v => v/255);
+  const mx = Math.max(r,g,b), mn = Math.min(r,g,b), d = mx-mn;
+  let h = 0;
+  if (d) {
+    if (mx === r) h = ((g-b)/d) % 6;
+    else if (mx === g) h = (b-r)/d + 2;
+    else h = (r-g)/d + 4;
+    h *= 60; if (h < 0) h += 360;
+  }
+  const l = (mx+mn)/2;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2*l - 1));
+  return [h, s, l];
+}
+function hslToRgb(h,s,l) {
+  const c = (1 - Math.abs(2*l - 1)) * s, x = c * (1 - Math.abs((h/60) % 2 - 1)), m = l - c/2;
+  let p = [0,0,0];
+  if (h < 60) p = [c,x,0]; else if (h < 120) p = [x,c,0]; else if (h < 180) p = [0,c,x];
+  else if (h < 240) p = [0,x,c]; else if (h < 300) p = [x,0,c]; else p = [c,0,x];
+  return p.map(v => Math.round((v+m)*255));
+}
+/** 色相・彩度を保ったまま明度だけ動かして目標比に届く最も近い色を探す */
+function nudgeLightness(target, fixed, goal) {
+  const [h,s,l0] = rgbToHsl(target);
+  let best = null;
+  for (const dir of [-1, 1]) {
+    for (let step = 1; step <= 100; step++) {
+      const l = l0 + dir * step/100;
+      if (l < 0 || l > 1) break;
+      const cand = hslToRgb(h, s, l);
+      if (contrast(cand, fixed) >= goal) {
+        const dist = Math.abs(l - l0);
+        if (!best || dist < best.dist) best = { rgb: cand, dist };
+        break;
+      }
+    }
+  }
+  return best ? best.rgb : null;
+}
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const fgC = $("fg-color"), fgT = $("fg-text"), bgC = $("bg-color"), bgT = $("bg-text");
+let fg = [0x76,0x76,0x76], bg = [255,255,255];
+
+function setPill(el, pass) {
+  el.textContent = pass ? "PASS" : "FAIL";
+  el.className = "pill " + (pass ? "pass" : "fail");
+}
+
+function render() {
+  const ratio = contrast(fg, bg);
+  $("ratio").textContent = ratio.toFixed(2);
+  setPill($("p-aa-n"),  ratio >= 4.5);
+  setPill($("p-aaa-n"), ratio >= 7);
+  setPill($("p-aa-l"),  ratio >= 3);
+  setPill($("p-aaa-l"), ratio >= 4.5);
+  setPill($("p-ui"),    ratio >= 3);
+
+  const lc = apca(fg, bg);
+  $("apca-val").textContent = "Lc " + lc.toFixed(1);
+  setPill($("p-apca"), Math.abs(lc) >= 60);
+
+  const pv = $("preview");
+  pv.style.background = toHex(bg);
+  pv.style.color = toHex(fg);
+  pv.style.borderColor = toHex(fg);
+
+  // 色覚特性
+  const sims = [
+    ["一般的な色覚", "normal"],
+    ["1型(P型・赤)", "protanopia"],
+    ["2型(D型・緑)", "deuteranopia"],
+    ["3型(T型・青)", "tritanopia"]
+  ];
+  $("sims").innerHTML = sims.map(([name, kind]) => {
+    const f = simulate(fg, kind), b = simulate(bg, kind);
+    const r = contrast(f, b);
+    return `<div class="sim"><div class="name">${name}</div>
+      <div class="swatch" style="background:${toHex(b)};color:${toHex(f)}">Aa あア亜 サンプル</div>
+      <div class="val">比 ${r.toFixed(2)}:1 / ${toHex(f)} on ${toHex(b)}</div></div>`;
+  }).join("");
+
+  // 修正案
+  const box = $("fixes");
+  if (ratio >= 4.5) {
+    box.innerHTML = `<div class="empty">すでに AA(4.5:1)を満たしています。AAA(7:1)を狙うなら、下の入れ替え・ランダムで探索してみてください。</div>`;
+  } else {
+    const cands = [];
+    const nf = nudgeLightness(fg, bg, 4.5);
+    if (nf) cands.push(["文字色の明度を調整", toHex(nf), toHex(bg), contrast(nf, bg)]);
+    const nb = nudgeLightness(bg, fg, 4.5);
+    if (nb) cands.push(["背景色の明度を調整", toHex(fg), toHex(nb), contrast(fg, nb)]);
+    const bw = contrast([0,0,0], bg) >= contrast([255,255,255], bg) ? [0,0,0] : [255,255,255];
+    cands.push(["文字を白か黒に", toHex(bw), toHex(bg), contrast(bw, bg)]);
+    box.innerHTML = cands.filter(c => c[3] >= 4.5).map(([name, f, b, r]) =>
+      `<button class="fix" data-fg="${f}" data-bg="${b}">
+        <div class="name">${name}</div>
+        <div class="sample" style="background:${b};color:${f}">Aa あア亜 サンプル</div>
+        <div class="val">${r.toFixed(2)}:1 — ${f} on ${b}</div>
+      </button>`).join("") ||
+      `<div class="empty">この組み合わせからは、色相を保ったまま AA に届く案が見つかりませんでした。色そのものを見直してください。</div>`;
+  }
+}
+
+function apply(newFg, newBg, syncText) {
+  if (newFg) fg = newFg;
+  if (newBg) bg = newBg;
+  fgC.value = toHex(fg); bgC.value = toHex(bg);
+  if (syncText) { fgT.value = toHex(fg); bgT.value = toHex(bg); }
+  render();
+}
+
+fgC.addEventListener("input", () => { fgT.classList.remove("bad"); apply(parseColor(fgC.value), null, true); });
+bgC.addEventListener("input", () => { bgT.classList.remove("bad"); apply(null, parseColor(bgC.value), true); });
+fgT.addEventListener("input", () => {
+  const v = parseColor(fgT.value);
+  fgT.classList.toggle("bad", !v);
+  if (v) apply(v, null, false);
+});
+bgT.addEventListener("input", () => {
+  const v = parseColor(bgT.value);
+  bgT.classList.toggle("bad", !v);
+  if (v) apply(null, v, false);
+});
+$("swap").addEventListener("click", () => { const t = fg; apply(bg, t, true); });
+$("rand").addEventListener("click", () => {
+  const r = () => [0,0,0].map(() => Math.floor(Math.random()*256));
+  apply(r(), r(), true);
+});
+$("copy-css").addEventListener("click", () => {
+  const css = `color: ${toHex(fg)};\nbackground-color: ${toHex(bg)};\n/* contrast ${contrast(fg,bg).toFixed(2)}:1 */`;
+  const done = () => { $("copied").textContent = "コピーしました"; setTimeout(() => $("copied").textContent = "", 1600); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(css).then(done, () => { $("copied").textContent = "コピーできませんでした"; });
+  } else {
+    const ta = document.createElement("textarea");
+    ta.value = css; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); done(); } catch (e) { $("copied").textContent = "コピーできませんでした"; }
+    document.body.removeChild(ta);
+  }
+});
+$("fixes").addEventListener("click", e => {
+  const btn = e.target.closest(".fix");
+  if (btn) apply(parseColor(btn.dataset.fg), parseColor(btn.dataset.bg), true);
+});
+
+render();
+</script>
+</body>
+</html>
