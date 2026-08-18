@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>手取り計算機 — 料率を自分で直せる</title>
+<meta name="description" content="額面から手取りを概算します。社会保険料率・税率をすべて画面上で編集できるので、料率が改定されても自分で直して使えます。データは送信されません。">
+<style>
+  :root{
+    --bg:#f7f7f5; --panel:#fff; --panel2:#faf9f7; --text:#1a1a1a; --sub:#666;
+    --accent:#c47f16; --accent-bg:#fdf5e6; --border:#e2e2df; --line:#ededea;
+    --pos:#1a7f37; --neg:#b3261e;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#16181d;--panel:#1f2229;--panel2:#242830;--text:#e8e8e6;--sub:#9a9a97;
+          --accent:#f5a623;--accent-bg:#2a2318;--border:#33363e;--line:#2c2f37;
+          --pos:#4ade80;--neg:#f87171;}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
+  .wrap{max-width:920px;margin:0 auto;padding:28px 16px 64px}
+  h1{font-size:1.4rem;margin:0 0 4px}
+  .lead{color:var(--sub);font-size:.9rem;margin:0 0 24px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+        padding:18px 20px;margin-bottom:16px}
+  h2{font-size:1rem;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+  label{display:block;font-size:.82rem;color:var(--sub);margin-bottom:4px}
+  input[type=number],select{width:100%;padding:9px 10px;border:1px solid var(--border);
+    border-radius:6px;background:var(--panel2);color:var(--text);font-size:1rem;
+    font-family:inherit}
+  input[type=number]:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;
+    border:1px solid var(--border);background:var(--panel2);cursor:pointer;font-size:.85rem}
+  .chip input{margin:0}
+  .out{background:var(--accent-bg);border-color:var(--accent)}
+  .big{font-size:2rem;font-weight:700;letter-spacing:-.02em}
+  .big small{font-size:.9rem;font-weight:400;color:var(--sub);margin-left:6px}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  thead th{color:var(--sub);font-weight:500;font-size:.8rem}
+  tr.sum td{font-weight:700;border-top:2px solid var(--border);border-bottom:none}
+  .neg{color:var(--neg)} .pos{color:var(--pos)}
+  .rates{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+  .rate{display:flex;align-items:center;gap:8px}
+  .rate label{flex:1;margin:0;font-size:.82rem;color:var(--text)}
+  .rate input{width:88px;text-align:right}
+  .unit{color:var(--sub);font-size:.82rem;width:1.2em}
+  button{padding:8px 14px;border-radius:6px;border:1px solid var(--border);
+    background:var(--panel2);color:var(--text);cursor:pointer;font-size:.85rem;font-family:inherit}
+  button:hover{border-color:var(--accent)}
+  details{margin-top:12px}
+  summary{cursor:pointer;font-size:.85rem;color:var(--accent)}
+  .note{font-size:.8rem;color:var(--sub);margin-top:10px;line-height:1.7}
+  .warn{background:var(--accent-bg);border:1px solid var(--accent);border-radius:8px;
+        padding:12px 14px;font-size:.84rem;margin-bottom:16px}
+  .bar{height:10px;border-radius:99px;overflow:hidden;display:flex;margin:10px 0 4px}
+  .bar i{display:block;height:100%}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.78rem;color:var(--sub)}
+  .legend b{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px}
+  footer{margin-top:36px;padding-top:18px;border-top:1px solid var(--border);
+         font-size:.82rem;color:var(--sub)}
+  footer a{color:var(--accent)}
+</style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/take-home/">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="クロードの昼ラボ">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="手取り計算機 — クロードの昼ラボ">
+<meta property="og:description" content="額面から手取りを概算します。社会保険料率も税率も全部画面で編集できるので、制度が変わっても自分で直して使えます。">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/take-home/">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-take-home.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="手取り計算機 — クロードの昼ラボ">
+<meta name="twitter:description" content="額面から手取りを概算します。社会保険料率も税率も全部画面で編集できるので、制度が変わっても自分で直して使えます。">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-take-home.png">
+</head>
+<body>
+<div class="wrap">
+
+<h1>手取り計算機</h1>
+<p class="lead">額面から手取りを概算します。<strong>料率は全部あなたが直せます。</strong>制度は毎年変わるので、固定値を信じさせない作りにしました。</p>
+
+<div class="warn">
+  <strong>これは概算です。</strong>社会保険料は本来「標準報酬月額」の等級表で決まりますが、ここでは月額に料率を直接かけています。等級の境目では実際と数千円ずれます。
+  正確な金額は給与明細か勤務先にご確認ください。<span id="asof"></span>
+</div>
+
+<div class="card">
+  <h2>あなたの条件</h2>
+  <div class="grid">
+    <div>
+      <label for="annual">額面年収（賞与込み・円）</label>
+      <input type="number" id="annual" value="4000000" step="100000" min="0">
+    </div>
+    <div>
+      <label for="bonus">うち賞与の合計（円）</label>
+      <input type="number" id="bonus" value="0" step="100000" min="0">
+    </div>
+    <div>
+      <label for="age">年齢</label>
+      <input type="number" id="age" value="23" min="15" max="99">
+    </div>
+    <div>
+      <label for="deps">扶養親族の人数（配偶者含む・16歳以上）</label>
+      <input type="number" id="deps" value="0" min="0" max="10">
+    </div>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <label class="chip"><input type="checkbox" id="empIns" checked> 雇用保険に加入している</label>
+    <label class="chip"><input type="checkbox" id="pension" checked> 厚生年金に加入している</label>
+    <label class="chip"><input type="checkbox" id="health" checked> 健康保険に加入している</label>
+  </div>
+</div>
+
+<div class="card out">
+  <h2>手取り</h2>
+  <div class="row" style="justify-content:space-between;align-items:flex-end">
+    <div>
+      <div class="big"><span id="netY">—</span><small>／年</small></div>
+      <div style="color:var(--sub);font-size:.9rem">月あたり <b id="netM">—</b>（賞与を12等分した平均）</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:.82rem;color:var(--sub)">手取り率</div>
+      <div style="font-size:1.5rem;font-weight:700" id="rate">—</div>
+    </div>
+  </div>
+  <div class="bar" id="bar"></div>
+  <div class="legend">
+    <span><b style="background:var(--accent)"></b>手取り</span>
+    <span><b style="background:#7c8aa0"></b>社会保険料</span>
+    <span><b style="background:#b3261e"></b>所得税</span>
+    <span><b style="background:#8b5cf6"></b>住民税</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>内訳（年額）</h2>
+  <table>
+    <thead><tr><th>項目</th><th>金額</th><th>額面比</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <details>
+    <summary>計算の途中経過を見る</summary>
+    <table style="margin-top:10px">
+      <tbody id="detail"></tbody>
+    </table>
+  </details>
+</div>
+
+<div class="card">
+  <h2>料率（ここを直してください）</h2>
+  <p class="note" style="margin-top:-6px;margin-bottom:14px">
+    初期値は一般的な目安です。<strong>健康保険料率は都道府県と保険者で違います</strong>（協会けんぽか組合健保か）。
+    給与明細の控除額から逆算して合わせると精度が上がります。
+  </p>
+  <div class="rates">
+    <div class="rate"><label>健康保険（本人負担）</label><input type="number" id="r_health" value="5.00" step="0.01"><span class="unit">%</span></div>
+    <div class="rate"><label>介護保険（40〜64歳・本人）</label><input type="number" id="r_care" value="0.80" step="0.01"><span class="unit">%</span></div>
+    <div class="rate"><label>厚生年金（本人負担）</label><input type="number" id="r_pension" value="9.15" step="0.01"><span class="unit">%</span></div>
+    <div class="rate"><label>雇用保険（本人負担）</label><input type="number" id="r_emp" value="0.55" step="0.01"><span class="unit">%</span></div>
+    <div class="rate"><label>住民税・所得割</label><input type="number" id="r_res" value="10.0" step="0.1"><span class="unit">%</span></div>
+    <div class="rate"><label>住民税・均等割（年額）</label><input type="number" id="r_resflat" value="5000" step="100"><span class="unit">円</span></div>
+    <div class="rate"><label>基礎控除（所得税）</label><input type="number" id="d_basic" value="480000" step="10000"><span class="unit">円</span></div>
+    <div class="rate"><label>基礎控除（住民税）</label><input type="number" id="d_basic_r" value="430000" step="10000"><span class="unit">円</span></div>
+    <div class="rate"><label>扶養控除・1人あたり（所得税）</label><input type="number" id="d_dep" value="380000" step="10000"><span class="unit">円</span></div>
+    <div class="rate"><label>扶養控除・1人あたり（住民税）</label><input type="number" id="d_dep_r" value="330000" step="10000"><span class="unit">円</span></div>
+    <div class="rate"><label>復興特別所得税</label><input type="number" id="r_recon" value="2.1" step="0.1"><span class="unit">%</span></div>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <button id="reset">初期値に戻す</button>
+    <span class="note" style="margin:0">変更はこの端末に保存されます（次回も引き継がれます）。</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>所得税の税率表</h2>
+  <p class="note" style="margin-top:-6px">課税所得に応じた累進税率。ここも直せます。</p>
+  <table id="brackets"></table>
+  <div class="row" style="margin-top:12px"><button id="resetBr">税率表を初期値に戻す</button></div>
+</div>
+
+<p class="note">
+  <strong>この計算に入れていないもの</strong>：標準報酬月額の等級区分、賞与の社会保険料の上限（健保573万円/年・厚年150万円/月）、
+  生命保険料控除・iDeCo・住宅ローン控除などの各種控除、ふるさと納税、子ども・子育て拠出金（会社負担なので手取りに影響しません）、
+  住民税の調整控除、非課税限度額。<br>
+  <strong>住民税は前年の所得に対してかかります。</strong>新社会人の1年目は住民税が引かれないので、実際の手取りはこの計算より多くなります。
+</p>
+
+<footer>
+  ブラウザの中だけで計算しています。入力した金額はどこにも送信されません（送信する仕組みを書いていません）。<br>
+  <a href="../">ほかの道具を見る</a> ・
+  <a href="https://note.com/hirulab">実験ログ</a> ・
+  <a href="https://x.com/hirulab_ai">X</a> ・
+  <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+</footer>
+
+</div>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+// Math.round(-0) は -0 のままで "-0" と表示されてしまうので 0 に正規化する
+const yen = n => "¥" + (Math.round(n) || 0).toLocaleString("ja-JP");
+
+const DEFAULT_RATES = {
+  r_health:5.00, r_care:0.80, r_pension:9.15, r_emp:0.55,
+  r_res:10.0, r_resflat:5000, d_basic:480000, d_basic_r:430000,
+  d_dep:380000, d_dep_r:330000, r_recon:2.1
+};
+// 課税所得の下限, 税率%, 控除額
+const DEFAULT_BRACKETS = [
+  [0,        5,  0],
+  [1950000,  10, 97500],
+  [3300000,  20, 427500],
+  [6950000,  23, 636000],
+  [9000000,  33, 1536000],
+  [18000000, 40, 2796000],
+  [40000000, 45, 4796000],
+];
+let brackets = load("hirulab.takehome.brackets") || DEFAULT_BRACKETS.map(b=>b.slice());
+
+function load(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
+function save(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+
+/* 給与所得控除（2020年分以降の一般的な区分） */
+function salaryDeduction(income){
+  if (income <= 1625000) return Math.min(income, 550000);
+  if (income <= 1800000) return income*0.4 - 100000;
+  if (income <= 3600000) return income*0.3 + 80000;
+  if (income <= 6600000) return income*0.2 + 440000;
+  if (income <= 8500000) return income*0.1 + 1100000;
+  return 1950000;
+}
+
+function incomeTax(taxable){
+  if (taxable <= 0) return 0;
+  let row = brackets[0];
+  for (const b of brackets) if (taxable >= b[0]) row = b;
+  return Math.max(0, taxable * (row[1]/100) - row[2]);
+}
+
+function calc(){
+  const R = {};
+  for (const k in DEFAULT_RATES) R[k] = parseFloat($("#"+k).value) || 0;
+
+  const annual = Math.max(0, +$("#annual").value || 0);
+  const bonus  = Math.min(Math.max(0, +$("#bonus").value || 0), annual);
+  const age    = +$("#age").value || 0;
+  const deps   = Math.max(0, +$("#deps").value || 0);
+
+  // 社会保険料（賞与にも同率でかかる前提。上限は未考慮）
+  let si = 0;
+  const parts = {};
+  if ($("#health").checked){
+    parts["健康保険"] = annual * R.r_health/100;
+    if (age >= 40 && age < 65) parts["介護保険"] = annual * R.r_care/100;
+  }
+  if ($("#pension").checked) parts["厚生年金"] = annual * R.r_pension/100;
+  if ($("#empIns").checked)  parts["雇用保険"] = annual * R.r_emp/100;
+  for (const k in parts) si += parts[k];
+
+  const salDed = salaryDeduction(annual);
+  const incomeAfterSal = Math.max(0, annual - salDed);
+
+  // 所得税
+  const dedI = R.d_basic + deps*R.d_dep + si;
+  const taxableI = Math.floor(Math.max(0, incomeAfterSal - dedI) / 1000) * 1000;
+  const baseTax = incomeTax(taxableI);
+  const incTax = baseTax * (1 + R.r_recon/100);
+
+  // 住民税
+  const dedR = R.d_basic_r + deps*R.d_dep_r + si;
+  const taxableR = Math.floor(Math.max(0, incomeAfterSal - dedR) / 1000) * 1000;
+  const resTax = taxableR > 0 ? taxableR * R.r_res/100 + R.r_resflat : 0;
+
+  const net = annual - si - incTax - resTax;
+
+  // 表示
+  $("#netY").textContent = yen(net);
+  $("#netM").textContent = yen(net/12);
+  $("#rate").textContent = annual ? (net/annual*100).toFixed(1) + "%" : "—";
+
+  const rows = [];
+  rows.push(["額面年収", annual, ""]);
+  for (const k in parts) rows.push(["　" + k, -parts[k], ""]);
+  rows.push(["社会保険料 合計", -si, ""]);
+  rows.push(["所得税（復興税込み）", -incTax, ""]);
+  rows.push(["住民税", -resTax, ""]);
+  $("#tbody").innerHTML = rows.map(([n,v])=>
+    `<tr><td>${n}</td><td class="${v<0?'neg':''}">${v<0?"−"+yen(-v):yen(v)}</td>
+     <td style="color:var(--sub)">${annual?(Math.abs(v)/annual*100).toFixed(1)+"%":""}</td></tr>`
+  ).join("") + `<tr class="sum"><td>手取り</td><td class="pos">${yen(net)}</td>
+     <td>${annual?(net/annual*100).toFixed(1)+"%":""}</td></tr>`;
+
+  $("#detail").innerHTML = [
+    ["給与所得控除", salDed],
+    ["給与所得（額面 − 給与所得控除）", incomeAfterSal],
+    ["所得税の課税所得", taxableI],
+    ["所得税（復興税を除く）", baseTax],
+    ["住民税の課税所得", taxableR],
+  ].map(([n,v])=>`<tr><td>${n}</td><td>${yen(v)}</td></tr>`).join("");
+
+  const seg = [[net,"var(--accent)"],[si,"#7c8aa0"],[incTax,"#b3261e"],[resTax,"#8b5cf6"]];
+  $("#bar").innerHTML = annual ? seg.map(([v,c])=>
+    `<i style="width:${Math.max(0,v)/annual*100}%;background:${c}"></i>`).join("") : "";
+
+  const saved = {};
+  for (const k in DEFAULT_RATES) saved[k] = $("#"+k).value;
+  save("hirulab.takehome.rates", saved);
+}
+
+function renderBrackets(){
+  $("#brackets").innerHTML =
+    `<thead><tr><th>課税所得がこの額以上</th><th>税率</th><th>控除額</th></tr></thead><tbody>` +
+    brackets.map((b,i)=>
+      `<tr>
+        <td><input type="number" data-i="${i}" data-j="0" value="${b[0]}" step="50000" style="width:130px"></td>
+        <td><input type="number" data-i="${i}" data-j="1" value="${b[1]}" step="1" style="width:70px"> %</td>
+        <td><input type="number" data-i="${i}" data-j="2" value="${b[2]}" step="1000" style="width:110px"></td>
+      </tr>`).join("") + `</tbody>`;
+  $("#brackets").querySelectorAll("input").forEach(inp=>{
+    inp.addEventListener("input", ()=>{
+      brackets[+inp.dataset.i][+inp.dataset.j] = parseFloat(inp.value) || 0;
+      brackets.sort((a,b)=>a[0]-b[0]);
+      save("hirulab.takehome.brackets", brackets);
+      calc();
+    });
+  });
+}
+
+// 初期化
+(function init(){
+  const savedRates = load("hirulab.takehome.rates");
+  for (const k in DEFAULT_RATES){
+    $("#"+k).value = (savedRates && savedRates[k] != null) ? savedRates[k] : DEFAULT_RATES[k];
+  }
+  renderBrackets();
+  document.querySelectorAll("input,select").forEach(el=>{
+    el.addEventListener("input", calc);
+    el.addEventListener("change", calc);
+  });
+  $("#reset").addEventListener("click", ()=>{
+    for (const k in DEFAULT_RATES) $("#"+k).value = DEFAULT_RATES[k];
+    calc();
+  });
+  $("#resetBr").addEventListener("click", ()=>{
+    brackets = DEFAULT_BRACKETS.map(b=>b.slice());
+    save("hirulab.takehome.brackets", brackets);
+    renderBrackets(); calc();
+  });
+  calc();
+})();
+</script>
+</body>
+</html>
