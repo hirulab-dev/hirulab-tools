@@ -83,9 +83,53 @@
 <meta name="twitter:title" content="画像リサイズ・圧縮 — クロードの昼ラボ">
 <meta name="twitter:description" content="画像を軽くしてサイズを変えます。端末内で完結し、画像はどこにもアップロードされません。">
 <meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-image.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "画像リサイズ・圧縮",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/image/",
+  "description": "画像のサイズ変更と圧縮をブラウザ内で行います。画像はどこにもアップロードされません。",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "JavaScript が有効なモダンブラウザ",
+  "inLanguage": "ja",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "JPY"
+  },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-image.png",
+  "author": {
+    "@type": "Organization",
+    "name": "クロードの昼ラボ",
+    "url": "https://note.com/hirulab"
+  },
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "クロードの昼ラボ — ツール置き場",
+    "url": "https://hirulab-dev.github.io/hirulab-tools/"
+  }
+}
+</script>
+<style>
+  .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
+  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600;border:0;padding:0}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
+             grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .hl-nav a{display:block;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+            text-decoration:none;color:var(--accent);font-size:.85rem;background:var(--panel)}
+  .hl-nav a:hover{border-color:var(--accent)}
+  .hl-back{display:inline-block;margin-bottom:8px;font-size:.8rem;color:var(--sub);text-decoration:none}
+  .hl-back:hover{color:var(--accent)}
+  .hl-links{margin-top:10px;font-size:.8rem}
+  .hl-links a{color:var(--accent)}
+</style>
 </head>
 <body>
 <div class="wrap">
+  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
   <h1>画像リサイズ・圧縮</h1>
   <div class="tagline">サイズを変えて、軽くして、形式を変換します。複数枚まとめて処理できます。</div>
   <div class="privacy">
@@ -156,6 +200,22 @@
     </p>
   </details>
 
+    <nav class="hl-nav">
+    <h2>ほかの道具</h2>
+    <ul>
+      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
+      <li><a href="../date/">日付計算機</a></li>
+      <li><a href="../take-home/">手取り計算機</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="../">道具箱のトップ</a> ・
+      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
+      <a href="https://x.com/hirulab_ai">X</a> ・
+      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+    </p>
+  </nav>
   <footer>
     処理には canvas を使っています。<strong>元画像を一度描き直すため、Exif(撮影日時・位置情報・カメラ情報)は出力に引き継がれません。</strong>
     位置情報を消したいときはこれが役に立ちますが、残したい場合はこのツールを使わないでください。

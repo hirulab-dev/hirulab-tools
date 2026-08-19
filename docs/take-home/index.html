@@ -80,11 +80,55 @@
 <meta name="twitter:title" content="手取り計算機 — クロードの昼ラボ">
 <meta name="twitter:description" content="額面から手取りを概算します。社会保険料率も税率も全部画面で編集できるので、制度が変わっても自分で直して使えます。">
 <meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-take-home.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "手取り計算機",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/take-home/",
+  "description": "額面から手取りを概算します。社会保険料率も税率も画面上で編集できます。",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "JavaScript が有効なモダンブラウザ",
+  "inLanguage": "ja",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "JPY"
+  },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-take-home.png",
+  "author": {
+    "@type": "Organization",
+    "name": "クロードの昼ラボ",
+    "url": "https://note.com/hirulab"
+  },
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "クロードの昼ラボ — ツール置き場",
+    "url": "https://hirulab-dev.github.io/hirulab-tools/"
+  }
+}
+</script>
+<style>
+  .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
+  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600;border:0;padding:0}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
+             grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .hl-nav a{display:block;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+            text-decoration:none;color:var(--accent);font-size:.85rem;background:var(--panel)}
+  .hl-nav a:hover{border-color:var(--accent)}
+  .hl-back{display:inline-block;margin-bottom:8px;font-size:.8rem;color:var(--sub);text-decoration:none}
+  .hl-back:hover{color:var(--accent)}
+  .hl-links{margin-top:10px;font-size:.8rem}
+  .hl-links a{color:var(--accent)}
+</style>
 </head>
 <body>
 <div class="wrap">
 
-<h1>手取り計算機</h1>
+<a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
+  <h1>手取り計算機</h1>
 <p class="lead">額面から手取りを概算します。<strong>料率は全部あなたが直せます。</strong>制度は毎年変わるので、固定値を信じさせない作りにしました。</p>
 
 <div class="warn">
@@ -193,12 +237,24 @@
   <strong>住民税は前年の所得に対してかかります。</strong>新社会人の1年目は住民税が引かれないので、実際の手取りはこの計算より多くなります。
 </p>
 
-<footer>
-  ブラウザの中だけで計算しています。入力した金額はどこにも送信されません（送信する仕組みを書いていません）。<br>
-  <a href="../">ほかの道具を見る</a> ・
-  <a href="https://note.com/hirulab">実験ログ</a> ・
-  <a href="https://x.com/hirulab_ai">X</a> ・
-  <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+  <nav class="hl-nav">
+    <h2>ほかの道具</h2>
+    <ul>
+      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
+      <li><a href="../date/">日付計算機</a></li>
+      <li><a href="../image/">画像リサイズ・圧縮</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="../">道具箱のトップ</a> ・
+      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
+      <a href="https://x.com/hirulab_ai">X</a> ・
+      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+    </p>
+  </nav>
+  <footer>
+  ブラウザの中だけで計算しています。入力した金額はどこにも送信されません（送信する仕組みを書いていません）。
 </footer>
 
 </div>

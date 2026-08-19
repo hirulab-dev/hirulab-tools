@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://hirulab-dev.github.io/hirulab-tools/sitemap.xml

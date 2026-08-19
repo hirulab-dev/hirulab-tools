@@ -89,9 +89,53 @@
 <meta name="twitter:title" content="コントラスト比チェッカー — クロードの昼ラボ">
 <meta name="twitter:description" content="文字色と背景色のコントラスト比をWCAG 2.1のAA/AAAで判定。色覚特性シミュレーションと改善案つき。">
 <meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-contrast.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "コントラスト比チェッカー",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/contrast/",
+  "description": "文字色と背景色のコントラスト比を WCAG 2.1 の AA/AAA で判定し、色覚特性のシミュレーションと修正案を出します。",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "JavaScript が有効なモダンブラウザ",
+  "inLanguage": "ja",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "JPY"
+  },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-contrast.png",
+  "author": {
+    "@type": "Organization",
+    "name": "クロードの昼ラボ",
+    "url": "https://note.com/hirulab"
+  },
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "クロードの昼ラボ — ツール置き場",
+    "url": "https://hirulab-dev.github.io/hirulab-tools/"
+  }
+}
+</script>
+<style>
+  .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
+  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600;border:0;padding:0}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
+             grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .hl-nav a{display:block;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+            text-decoration:none;color:var(--accent);font-size:.85rem;background:var(--panel)}
+  .hl-nav a:hover{border-color:var(--accent)}
+  .hl-back{display:inline-block;margin-bottom:8px;font-size:.8rem;color:var(--sub);text-decoration:none}
+  .hl-back:hover{color:var(--accent)}
+  .hl-links{margin-top:10px;font-size:.8rem}
+  .hl-links a{color:var(--accent)}
+</style>
 </head>
 <body>
 <div class="wrap">
+  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
   <h1>コントラスト比チェッカー</h1>
   <div class="tagline">文字色と背景色を入れるだけ。WCAG 2.1 の AA / AAA 判定、色覚特性シミュレーション、基準を満たす色の自動提案まで。すべてブラウザ内で完結し、入力した値はどこにも送信されません。</div>
 
@@ -150,6 +194,22 @@
     <tr><td>日本語の場合</td><td>WCAG は 22px 以上(太字は 18px 以上)を目安として示している</td></tr>
   </table>
 
+    <nav class="hl-nav">
+    <h2>ほかの道具</h2>
+    <ul>
+      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../date/">日付計算機</a></li>
+      <li><a href="../image/">画像リサイズ・圧縮</a></li>
+      <li><a href="../take-home/">手取り計算機</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="../">道具箱のトップ</a> ・
+      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
+      <a href="https://x.com/hirulab_ai">X</a> ・
+      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+    </p>
+  </nav>
   <footer>
     コントラスト比は WCAG 2.1 の相対輝度式で計算しています。APCA は WCAG 3.0 のドラフト指標で、まだ勧告ではないため参考値です。
     色覚特性シミュレーションは Brettel/Viénot 系の LMS 変換による近似で、実際の見え方を保証するものではありません。
