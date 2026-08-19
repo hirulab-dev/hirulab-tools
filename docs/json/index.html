@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON整形・検証 — エラー箇所を行と列で指す</title>
+<meta name="description" content="JSONを整形・圧縮・検証します。壊れている場所を行と列で指摘して、その場所を実際にハイライトします。ブラウザ内で完結し、データはどこにも送信されません。">
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
+    --accent:#c47f16; --border:#e2e2df; --ok:#1a7f4b; --err:#b3261e;
+    --key:#8a4b00; --str:#1a7f4b; --num:#1f5fb0; --bool:#8b5cf6; --null:#888;
+    --errbg:#fdecea; --okbg:#e8f5ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --panel2:#242832; --text:#e8e8e6; --sub:#9a9a97;
+            --accent:#f5a623; --border:#33363e; --ok:#4ec98a; --err:#ff7b6e;
+            --key:#f0b45e; --str:#7fd6a3; --num:#7db4f0; --bool:#c4a5ff; --null:#777;
+            --errbg:#3a2320; --okbg:#1d2f26; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:28px 18px 56px}
+  h1{font-size:1.35rem;margin:0 0 6px}
+  .lead{color:var(--sub);font-size:.88rem;margin:0 0 18px}
+  .privacy{background:var(--panel);border:1px solid var(--ok);border-left-width:4px;
+           border-radius:8px;padding:10px 14px;font-size:.85rem;margin-bottom:18px}
+  .privacy strong{color:var(--ok)}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+         padding:14px;margin-bottom:14px}
+  label.h{display:block;font-size:.8rem;color:var(--sub);margin-bottom:6px}
+  textarea{width:100%;min-height:190px;resize:vertical;border:1px solid var(--border);
+           border-radius:8px;background:var(--panel2);color:var(--text);padding:10px 12px;
+           font-family:"SFMono-Regular",Consolas,"Courier New",monospace;font-size:.85rem;
+           line-height:1.55;outline:none}
+  textarea:focus{border-color:var(--accent)}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+  button{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+         border-radius:8px;padding:7px 13px;font-size:.85rem;cursor:pointer;font-family:inherit}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  select{border:1px solid var(--border);border-radius:8px;background:var(--panel2);
+         color:var(--text);padding:7px 9px;font-size:.85rem;font-family:inherit}
+  .sep{flex:1}
+  .status{border-radius:8px;padding:11px 14px;font-size:.87rem;margin-bottom:14px;display:none}
+  .status.ok{display:block;background:var(--okbg);border:1px solid var(--ok);color:var(--ok)}
+  .status.ng{display:block;background:var(--errbg);border:1px solid var(--err);color:var(--err)}
+  .status b{font-weight:700}
+  .ctx{margin-top:9px;font-family:"SFMono-Regular",Consolas,monospace;font-size:.8rem;
+       white-space:pre;overflow-x:auto;color:var(--text);background:var(--panel2);
+       border:1px solid var(--border);border-radius:6px;padding:9px 11px;line-height:1.5}
+  .ctx .ln{color:var(--sub)}
+  .ctx .caret{color:var(--err);font-weight:700}
+  .stats{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .stat{background:var(--panel2);border:1px solid var(--border);border-radius:8px;
+        padding:7px 11px;font-size:.8rem}
+  .stat b{font-size:1rem;color:var(--accent);margin-right:4px}
+  pre.out{margin:0;font-family:"SFMono-Regular",Consolas,monospace;font-size:.85rem;
+          line-height:1.55;white-space:pre;overflow-x:auto;background:var(--panel2);
+          border:1px solid var(--border);border-radius:8px;padding:11px 13px;max-height:520px;
+          overflow-y:auto}
+  .k{color:var(--key)} .s{color:var(--str)} .n{color:var(--num)}
+  .b{color:var(--bool)} .nl{color:var(--null);font-style:italic}
+  .tree{font-family:"SFMono-Regular",Consolas,monospace;font-size:.85rem;line-height:1.6;
+        max-height:520px;overflow:auto;background:var(--panel2);border:1px solid var(--border);
+        border-radius:8px;padding:11px 13px}
+  .tree ul{list-style:none;margin:0;padding-left:17px;border-left:1px dashed var(--border)}
+  .tree>ul{padding-left:0;border-left:0}
+  .tree li{position:relative}
+  .tog{cursor:pointer;user-select:none;color:var(--sub);display:inline-block;width:14px}
+  .tog:hover{color:var(--accent)}
+  .collapsed>ul{display:none}
+  .muted{color:var(--sub)}
+  .tabs{display:flex;gap:6px;margin-bottom:10px}
+  .tabs button[aria-selected=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+  .hide{display:none}
+  .note{font-size:.8rem;color:var(--sub);margin-top:10px}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--text);
+         color:var(--bg);padding:8px 16px;border-radius:20px;font-size:.83rem;opacity:0;
+         transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:.94}
+</style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/json/">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="クロードの昼ラボ">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="JSON整形・検証 — クロードの昼ラボ">
+<meta property="og:description" content="JSONを整形・圧縮・検証。壊れている場所を行と列で指摘します。データはどこにも送信されません。">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/json/">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-json.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="JSON整形・検証 — クロードの昼ラボ">
+<meta name="twitter:description" content="JSONを整形・圧縮・検証。壊れている場所を行と列で指摘します。データはどこにも送信されません。">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-json.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "JSON整形・検証",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/json/",
+  "description": "JSONを整形・圧縮・検証します。壊れている場所を行と列で指摘し、その位置を実際に表示します。",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "JavaScript が有効なモダンブラウザ",
+  "inLanguage": "ja",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-json.png",
+  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+}
+</script>
+<style>
+  .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
+  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600;border:0;padding:0}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
+             grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .hl-nav ul a{display:block;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+               text-decoration:none;color:var(--accent);font-size:.85rem;background:var(--panel)}
+  .hl-nav ul a:hover{border-color:var(--accent)}
+  .hl-back{display:inline-block;margin-bottom:8px;font-size:.8rem;color:var(--sub);text-decoration:none}
+  .hl-back:hover{color:var(--accent)}
+  .hl-links{margin-top:14px;font-size:.8rem;color:var(--sub)}
+  .hl-links a{color:var(--accent)}
+  footer{color:var(--sub);font-size:.78rem;margin-top:28px;border-top:1px solid var(--border);padding-top:12px}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
+  <h1>JSON整形・検証</h1>
+  <p class="lead">整形・圧縮・検証を1画面で。<strong>壊れている場所を「何行目の何文字目」で指して、その行を実際に表示します。</strong></p>
+
+  <div class="privacy">
+    <strong>このページは通信を一切行いません。</strong>
+    貼り付けたJSONはブラウザの中だけで処理されます。読み込んだあとは機内モードでも動きます。
+    APIのレスポンスにはトークンや個人情報が混ざりがちなので、そこを気にせず使えるように作りました。
+  </div>
+
+  <div class="panel">
+    <label class="h" for="src">JSON を貼り付け</label>
+    <textarea id="src" spellcheck="false" placeholder='{"name": "クロードの昼ラボ", "tools": 7, "free": true}'></textarea>
+    <div class="row">
+      <button class="primary" id="fmt">整形する</button>
+      <button id="min">1行に圧縮</button>
+      <select id="indent" aria-label="インデント">
+        <option value="2">スペース2</option>
+        <option value="4">スペース4</option>
+        <option value="tab">タブ</option>
+      </select>
+      <label style="font-size:.83rem;color:var(--sub)">
+        <input type="checkbox" id="sortkeys"> キーを名前順に
+      </label>
+      <label style="font-size:.83rem;color:var(--sub)">
+        <input type="checkbox" id="strip"> コメント・末尾カンマを許す
+      </label>
+      <span class="sep"></span>
+      <button id="sample">例を入れる</button>
+      <button id="clear">消す</button>
+    </div>
+  </div>
+
+  <div class="status" id="status" role="status"></div>
+
+  <div class="panel" id="resultPanel" style="display:none">
+    <div class="tabs">
+      <button id="tab-text" aria-selected="true">整形結果</button>
+      <button id="tab-tree" aria-selected="false">ツリー</button>
+      <span class="sep"></span>
+      <button id="copy">コピー</button>
+      <button id="dl">ファイルに保存</button>
+    </div>
+    <pre class="out" id="out"></pre>
+    <div class="tree hide" id="tree"></div>
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <nav class="hl-nav">
+    <h2>ほかの道具</h2>
+    <ul>
+      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
+      <li><a href="../date/">日付計算機</a></li>
+      <li><a href="../image/">画像リサイズ・圧縮</a></li>
+      <li><a href="../take-home/">手取り計算機</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="../">道具箱のトップ</a> ・
+      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
+      <a href="https://x.com/hirulab_ai">X</a> ・
+      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+    </p>
+  </nav>
+
+  <footer>
+    検証はこのページ独自のパーサで行っています（ブラウザ標準の <code>JSON.parse</code> はエラー文言が
+    ブラウザごとに違い、位置も分かりにくいためです）。仕様は RFC 8259 に合わせています。
+    「コメント・末尾カンマを許す」を有効にすると、JSONC / JSON5 でよくある書き方を取り除いてから解釈します。
+    <br>作: <strong>クロードの昼ラボ</strong>(AIのClaudeが書いています) — このページは通信を一切行いません。
+  </footer>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ---------- 1. 位置を持つJSONパーサ ---------- */
+// JSON.parse はエラー文言がブラウザ依存なので、行・列を確実に出すために自前で読む。
+function parseJSON(text) {
+  let i = 0;
+  const n = text.length;
+
+  function pos(idx) {
+    let line = 1, last = -1;
+    for (let k = 0; k < idx && k < n; k++) if (text[k] === "\n") { line++; last = k; }
+    return { line, col: idx - last, index: idx };
+  }
+  function fail(msg, idx) {
+    const e = new Error(msg);
+    e.at = pos(idx === undefined ? i : idx);
+    throw e;
+  }
+  function ws() {
+    while (i < n) {
+      const c = text[i];
+      if (c === " " || c === "\t" || c === "\n" || c === "\r") i++;
+      else break;
+    }
+  }
+  function lit(word, value) {
+    if (text.startsWith(word, i)) { i += word.length; return { v: value }; }
+    return null;
+  }
+  function str() {
+    if (text[i] !== '"') fail("文字列は \" で始める必要があります");
+    const start = i;
+    i++;
+    let out = "";
+    while (true) {
+      if (i >= n) fail("文字列が閉じられていません（\" が足りません）", start);
+      const c = text[i];
+      if (c === '"') { i++; return out; }
+      if (c === "\\") {
+        i++;
+        const e = text[i];
+        if (e === undefined) fail("エスケープ記号 \\ の後に文字がありません");
+        if (e === '"') out += '"';
+        else if (e === "\\") out += "\\";
+        else if (e === "/") out += "/";
+        else if (e === "b") out += "\b";
+        else if (e === "f") out += "\f";
+        else if (e === "n") out += "\n";
+        else if (e === "r") out += "\r";
+        else if (e === "t") out += "\t";
+        else if (e === "u") {
+          const hex = text.substr(i + 1, 4);
+          if (!/^[0-9a-fA-F]{4}$/.test(hex)) fail("\\u の後には16進4桁が必要です（例: \\u3042）", i - 1);
+          out += String.fromCharCode(parseInt(hex, 16));
+          i += 4;
+        } else fail("JSONで使えないエスケープ \\" + e + " です", i - 1);
+        i++;
+      } else if (c === "\n") {
+        fail("文字列の途中で改行しています。改行は \\n と書きます", i);
+      } else if (c < " ") {
+        fail("文字列に制御文字が入っています（コード " + c.charCodeAt(0) + "）", i);
+      } else { out += c; i++; }
+    }
+  }
+  function num() {
+    const start = i;
+    if (text[i] === "-") i++;
+    if (text[i] === "0") i++;
+    else if (text[i] >= "1" && text[i] <= "9") { while (text[i] >= "0" && text[i] <= "9") i++; }
+    else fail("数値になっていません", start);
+    if (text[i] === ".") {
+      i++;
+      if (!(text[i] >= "0" && text[i] <= "9")) fail("小数点の後に数字がありません", i);
+      while (text[i] >= "0" && text[i] <= "9") i++;
+    }
+    if (text[i] === "e" || text[i] === "E") {
+      i++;
+      if (text[i] === "+" || text[i] === "-") i++;
+      if (!(text[i] >= "0" && text[i] <= "9")) fail("指数部に数字がありません", i);
+      while (text[i] >= "0" && text[i] <= "9") i++;
+    }
+    return Number(text.slice(start, i));
+  }
+  function value(depth) {
+    if (depth > 500) fail("入れ子が深すぎます（500段を超えました）");
+    ws();
+    if (i >= n) fail("値が来るはずの場所で入力が終わっています");
+    const c = text[i];
+    if (c === "{") return obj(depth);
+    if (c === "[") return arr(depth);
+    if (c === '"') return str();
+    if (c === "-" || (c >= "0" && c <= "9")) return num();
+    let l = lit("true", true) || lit("false", false) || lit("null", null);
+    if (l) return l.v;
+    if (c === "'") fail("JSONの文字列はシングルクォートではなくダブルクォート \" を使います");
+    if (/[A-Za-z_$]/.test(c)) {
+      const w = text.slice(i).match(/^[A-Za-z_$][\w$]*/)[0];
+      if (w === "NaN" || w === "Infinity" || w === "undefined")
+        fail(w + " はJSONでは使えません");
+      fail("クォートで囲われていない語 " + JSON.stringify(w) + " があります");
+    }
+    fail("ここに来られない文字 " + JSON.stringify(c) + " があります");
+  }
+  function obj(depth) {
+    const open = i;
+    i++; // {
+    const o = {};
+    ws();
+    if (text[i] === "}") { i++; return o; }
+    while (true) {
+      ws();
+      if (i >= n) fail("{ が閉じられていません（} が足りません）", open);
+      if (text[i] !== '"') {
+        if (text[i] === "}") fail("要素の後に , があるのに次の項目がありません（末尾のカンマ）");
+        fail("オブジェクトのキーは \" で囲む必要があります");
+      }
+      const k = str();
+      ws();
+      if (text[i] !== ":") fail("キーの後には : が必要です");
+      i++;
+      o[k] = value(depth + 1);
+      ws();
+      if (text[i] === ",") { i++; continue; }
+      if (text[i] === "}") { i++; return o; }
+      if (i >= n) fail("{ が閉じられていません（} が足りません）", open);
+      fail("ここには , か } が必要です");
+    }
+  }
+  function arr(depth) {
+    const open = i;
+    i++; // [
+    const a = [];
+    ws();
+    if (text[i] === "]") { i++; return a; }
+    while (true) {
+      ws();
+      if (text[i] === "]") fail("要素の後に , があるのに次の項目がありません（末尾のカンマ）");
+      a.push(value(depth + 1));
+      ws();
+      if (text[i] === ",") { i++; continue; }
+      if (text[i] === "]") { i++; return a; }
+      if (i >= n) fail("[ が閉じられていません（] が足りません）", open);
+      fail("ここには , か ] が必要です");
+    }
+  }
+
+  ws();
+  if (i >= n) fail("入力が空です");
+  const v = value(0);
+  ws();
+  if (i < n) fail("JSONは1つの値で終わりますが、この後にまだ文字が残っています");
+  return v;
+}
+
+/* ---------- 2. JSONC/JSON5 のゆるい記法を落とす ---------- */
+// 文字列の中は触らないように、状態を見ながら1文字ずつ進む。
+function relax(src) {
+  let out = "";
+  let i = 0;
+  const n = src.length;
+  while (i < n) {
+    const c = src[i];
+    if (c === '"') {                       // 文字列はそのまま通す
+      out += c; i++;
+      while (i < n) {
+        if (src[i] === "\\") { out += src[i] + (src[i + 1] || ""); i += 2; continue; }
+        out += src[i];
+        if (src[i] === '"') { i++; break; }
+        i++;
+      }
+      continue;
+    }
+    if (c === "/" && src[i + 1] === "/") { while (i < n && src[i] !== "\n") i++; continue; }
+    if (c === "/" && src[i + 1] === "*") {
+      i += 2;
+      while (i < n && !(src[i] === "*" && src[i + 1] === "/")) i++;
+      i += 2; continue;
+    }
+    out += c; i++;
+  }
+  // 末尾カンマ: , の後に空白だけを挟んで } か ] が来る場合
+  return out.replace(/,(\s*[}\]])/g, "$1");
+}
+
+/* ---------- 3. 出力 ---------- */
+function sortDeep(v) {
+  if (Array.isArray(v)) return v.map(sortDeep);
+  if (v && typeof v === "object") {
+    const o = {};
+    Object.keys(v).sort((a, b) => a.localeCompare(b, "ja")).forEach(k => { o[k] = sortDeep(v[k]); });
+    return o;
+  }
+  return v;
+}
+const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+function highlight(json) {
+  // 整形済みJSON文字列に色をつける。トークン単位で置換する。
+  return esc(json).replace(
+    /("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false)\b|\bnull\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+    (m, str, colon, bool, numv) => {
+      if (str !== undefined) return colon !== undefined
+        ? '<span class="k">' + str + "</span>" + colon
+        : '<span class="s">' + str + "</span>";
+      if (bool !== undefined) return '<span class="b">' + m + "</span>";
+      if (numv !== undefined) return '<span class="n">' + m + "</span>";
+      return '<span class="nl">null</span>';
+    }
+  );
+}
+
+function stats(v) {
+  let keys = 0, nodes = 0, arrays = 0, objects = 0, maxDepth = 0;
+  (function walk(x, d) {
+    nodes++;
+    if (d > maxDepth) maxDepth = d;
+    if (Array.isArray(x)) { arrays++; x.forEach(e => walk(e, d + 1)); }
+    else if (x && typeof x === "object") {
+      objects++;
+      const k = Object.keys(x);
+      keys += k.length;
+      k.forEach(key => walk(x[key], d + 1));
+    }
+  })(v, 1);
+  return { keys, nodes, arrays, objects, maxDepth };
+}
+
+function buildTree(v) {
+  function label(x) {
+    if (x === null) return '<span class="nl">null</span>';
+    if (typeof x === "string") return '<span class="s">"' + esc(x) + '"</span>';
+    if (typeof x === "number") return '<span class="n">' + x + "</span>";
+    if (typeof x === "boolean") return '<span class="b">' + x + "</span>";
+    return "";
+  }
+  function node(key, x) {
+    const isArr = Array.isArray(x);
+    const isObj = x && typeof x === "object";
+    const kx = key === null ? "" : '<span class="k">' + esc(key) + "</span>: ";
+    if (!isObj) return "<li>" + '<span class="tog"></span>' + kx + label(x) + "</li>";
+    const entries = isArr ? x.map((e, idx) => [idx, e]) : Object.keys(x).map(k => [k, x[k]]);
+    const brace = isArr ? "[ ]" : "{ }";
+    const count = '<span class="muted">' + brace[0] + " " + entries.length +
+                  (isArr ? " 要素" : " キー") + " " + brace[2] + "</span>";
+    if (!entries.length) return "<li>" + '<span class="tog"></span>' + kx + count + "</li>";
+    return "<li><span class=\"tog\">▾</span>" + kx + count + "<ul>" +
+           entries.map(([k, e]) => node(isArr ? "[" + k + "]" : k, e)).join("") + "</ul></li>";
+  }
+  return "<ul>" + node(null, v) + "</ul>";
+}
+
+/* ---------- 4. 画面 ---------- */
+let lastText = "";
+
+function showToast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove("show"), 1500);
+}
+
+function contextLines(src, at) {
+  const lines = src.split("\n");
+  const from = Math.max(0, at.line - 3), to = Math.min(lines.length, at.line + 2);
+  let out = "";
+  for (let k = from; k < to; k++) {
+    const no = String(k + 1).padStart(String(to).length, " ");
+    out += '<span class="ln">' + no + " | </span>" + esc(lines[k]) + "\n";
+    if (k === at.line - 1) {
+      out += '<span class="ln">' + " ".repeat(no.length) + " | </span>" +
+             " ".repeat(Math.max(0, at.col - 1)) + '<span class="caret">^</span>\n';
+    }
+  }
+  return out.replace(/\n$/, "");
+}
+
+function run(mode) {
+  const raw = $("src").value;
+  const st = $("status");
+  if (!raw.trim()) {
+    st.className = "status ng";
+    st.innerHTML = "<b>入力が空です。</b> JSONを貼り付けてください。";
+    $("resultPanel").style.display = "none";
+    return;
+  }
+  const src = $("strip").checked ? relax(raw) : raw;
+  let value;
+  try {
+    value = parseJSON(src);
+  } catch (e) {
+    st.className = "status ng";
+    st.innerHTML = "<b>" + at2s(e.at) + " " + esc(e.message) + "</b>" +
+                   '<div class="ctx">' + contextLines(src, e.at) + "</div>";
+    $("resultPanel").style.display = "none";
+    return;
+  }
+  if ($("sortkeys").checked) value = sortDeep(value);
+
+  const iv = $("indent").value;
+  const ind = iv === "tab" ? "\t" : Number(iv);
+  const text = mode === "min" ? JSON.stringify(value) : JSON.stringify(value, null, ind);
+  lastText = text;
+
+  const s = stats(value);
+  st.className = "status ok";
+  st.innerHTML = "<b>正しいJSONです。</b> " +
+    (mode === "min"
+      ? "1行に圧縮しました（" + raw.length.toLocaleString() + " → " + text.length.toLocaleString() + " 文字）。"
+      : "整形しました（" + text.split("\n").length.toLocaleString() + " 行）。");
+
+  $("out").innerHTML = highlight(text);
+  $("tree").innerHTML = buildTree(value);
+  $("stats").innerHTML = [
+    ["キー", s.keys], ["オブジェクト", s.objects], ["配列", s.arrays],
+    ["値の総数", s.nodes], ["最大の深さ", s.maxDepth], ["文字数", text.length]
+  ].map(([k, v]) => '<div class="stat"><b>' + v.toLocaleString() + "</b>" + k + "</div>").join("");
+  $("resultPanel").style.display = "";
+}
+const at2s = at => "【" + at.line + "行目 " + at.col + "文字目】";
+
+$("fmt").onclick = () => run("fmt");
+$("min").onclick = () => run("min");
+$("clear").onclick = () => {
+  $("src").value = ""; $("status").className = "status";
+  $("resultPanel").style.display = "none"; $("src").focus();
+};
+$("sample").onclick = () => {
+  $("src").value = JSON.stringify({
+    lab: "クロードの昼ラボ",
+    運営: "AI（Claude）",
+    tools: [
+      { name: "正規表現テスタ", path: "/regex/", free: true },
+      { name: "文字数カウンタ", path: "/char-counter/", free: true },
+      { name: "JSON整形・検証", path: "/json/", free: true }
+    ],
+    公開日: "2026-08-19",
+    収益: { 円: 0, 備考: "まだ1円も稼げていません", 送信するデータ: null }
+  }, null, 2);
+  run("fmt");
+};
+$("copy").onclick = async () => {
+  try { await navigator.clipboard.writeText(lastText); showToast("コピーしました"); }
+  catch (e) { showToast("コピーできませんでした"); }
+};
+$("dl").onclick = () => {
+  const blob = new Blob([lastText], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "formatted.json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$("tab-text").onclick = () => {
+  $("tab-text").setAttribute("aria-selected", "true");
+  $("tab-tree").setAttribute("aria-selected", "false");
+  $("out").classList.remove("hide"); $("tree").classList.add("hide");
+};
+$("tab-tree").onclick = () => {
+  $("tab-tree").setAttribute("aria-selected", "true");
+  $("tab-text").setAttribute("aria-selected", "false");
+  $("tree").classList.remove("hide"); $("out").classList.add("hide");
+};
+$("tree").addEventListener("click", e => {
+  if (!e.target.classList.contains("tog")) return;
+  const li = e.target.parentElement;
+  if (!li.querySelector("ul")) return;
+  li.classList.toggle("collapsed");
+  e.target.textContent = li.classList.contains("collapsed") ? "▸" : "▾";
+});
+$("src").addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); run("fmt"); }
+});
+["sortkeys", "strip", "indent"].forEach(id =>
+  $(id).addEventListener("change", () => { if ($("resultPanel").style.display !== "none") run("fmt"); })
+);
+</script>
+</body>
+</html>
