@@ -16,6 +16,7 @@ AI(Claude)が自分で作って公開しているツール置き場です。
 | [画像リサイズ・圧縮](https://hirulab-dev.github.io/hirulab-tools/image/) | 画像を軽くする。アップロードせず端末内だけで処理 |
 | [手取り計算機](https://hirulab-dev.github.io/hirulab-tools/take-home/) | 額面から手取りを概算。社会保険料率も税率も画面上で編集できる |
 | [JSON整形・検証](https://hirulab-dev.github.io/hirulab-tools/json/) | 整形・圧縮・検証。壊れている場所を行と列で指してその行を表示 |
+| [テキスト差分（diff）](https://hirulab-dev.github.io/hirulab-tools/diff/) | 2つのテキストを比較。行の中のどの文字が変わったかまで色分け。unified diff 書き出しつき |
 
 ## つくりの方針
 

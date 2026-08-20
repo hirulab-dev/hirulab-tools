@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テキスト差分（diff）— 行の中のどこが変わったかまで色を付ける</title>
+<meta name="description" content="2つのテキストを比べて、変わった行と、その行の中のどの文字が変わったかまで色分けします。unified diff（パッチ）形式での書き出しつき。ブラウザ内で完結し、データはどこにも送信されません。">
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
+    --accent:#c47f16; --border:#e2e2df; --ok:#1a7f4b; --err:#b3261e;
+    --addbg:#e6f5ec; --addbg2:#a8e6c1; --delbg:#fdecea; --delbg2:#f7b9b3;
+    --addfg:#0f6b3c; --delfg:#a11a12; --nobg:#f1f1ee;
+    --okbg:#e8f5ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --panel2:#242832; --text:#e8e8e6; --sub:#9a9a97;
+            --accent:#f5a623; --border:#33363e; --ok:#4ec98a; --err:#ff7b6e;
+            --addbg:#17301f; --addbg2:#2c6b45; --delbg:#33201e; --delbg2:#7a2f2a;
+            --addfg:#7fd6a3; --delfg:#ff9d92; --nobg:#1b1e25;
+            --okbg:#1d2f26; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
+  .wrap{max-width:1080px;margin:0 auto;padding:28px 18px 56px}
+  h1{font-size:1.35rem;margin:0 0 6px}
+  .lead{color:var(--sub);font-size:.88rem;margin:0 0 18px}
+  .lead strong{color:var(--text)}
+  .privacy{background:var(--panel);border:1px solid var(--ok);border-left-width:4px;
+           border-radius:8px;padding:10px 14px;font-size:.85rem;margin-bottom:18px}
+  .privacy strong{color:var(--ok)}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+         padding:14px;margin-bottom:14px}
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:720px){ .pair{grid-template-columns:1fr} }
+  label.h{display:block;font-size:.8rem;color:var(--sub);margin-bottom:6px}
+  textarea{width:100%;min-height:170px;resize:vertical;border:1px solid var(--border);
+           border-radius:8px;background:var(--panel2);color:var(--text);padding:10px 12px;
+           font-family:"SFMono-Regular",Consolas,"Courier New",monospace;font-size:.85rem;
+           line-height:1.55;outline:none;white-space:pre;overflow-wrap:normal}
+  textarea:focus{border-color:var(--accent)}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+  .row.opts{gap:12px;font-size:.83rem;color:var(--sub)}
+  button{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+         border-radius:8px;padding:7px 13px;font-size:.85rem;cursor:pointer;font-family:inherit}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  select{border:1px solid var(--border);border-radius:8px;background:var(--panel2);
+         color:var(--text);padding:6px 8px;font-size:.83rem;font-family:inherit}
+  .sep{flex:1}
+  .status{border-radius:8px;padding:11px 14px;font-size:.87rem;margin-bottom:14px;display:none}
+  .status.ok{display:block;background:var(--okbg);border:1px solid var(--ok);color:var(--ok)}
+  .status.warn{display:block;background:var(--delbg);border:1px solid var(--err);color:var(--err)}
+  .stats{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+  .stat{background:var(--panel2);border:1px solid var(--border);border-radius:8px;
+        padding:7px 11px;font-size:.8rem;color:var(--sub)}
+  .stat b{font-size:1rem;margin-right:4px;color:var(--accent)}
+  .stat.add b{color:var(--ok)} .stat.del b{color:var(--err)}
+  .tabs{display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+  .tabs button[aria-selected=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  .diffbox{overflow-x:auto;border:1px solid var(--border);border-radius:8px;background:var(--panel2)}
+  table.d{border-collapse:collapse;width:100%;font-family:"SFMono-Regular",Consolas,monospace;
+          font-size:.83rem;line-height:1.55}
+  table.d.sbs{min-width:760px}
+  table.d.inl{min-width:520px}
+  table.d td{padding:1px 8px;vertical-align:top;border:0}
+  td.no{width:1%;white-space:nowrap;text-align:right;color:var(--sub);background:var(--nobg);
+        user-select:none;padding:1px 9px;border-right:1px solid var(--border);font-size:.78rem}
+  td.sign{width:1%;text-align:center;color:var(--sub);user-select:none;padding:1px 4px}
+  td.tx{white-space:pre;width:50%}
+  .wrapmode td.tx{white-space:pre-wrap;overflow-wrap:anywhere}
+  tr.r-del td.tx,tr.r-del td.sign{background:var(--delbg)}
+  tr.r-ins td.tx,tr.r-ins td.sign{background:var(--addbg)}
+  tr.r-mod td.l,tr.r-mod td.sl{background:var(--delbg)}
+  tr.r-mod td.r,tr.r-mod td.sr{background:var(--addbg)}
+  tr.r-gap td{background:var(--nobg);color:var(--sub);text-align:center;font-size:.78rem;
+              padding:4px 8px;user-select:none}
+  td.empty{background:repeating-linear-gradient(45deg,transparent,transparent 6px,var(--nobg) 6px,var(--nobg) 12px)}
+  del.x{background:var(--delbg2);color:var(--delfg);text-decoration:none;border-radius:2px}
+  ins.x{background:var(--addbg2);color:var(--addfg);text-decoration:none;border-radius:2px}
+  @media (prefers-color-scheme: dark){ del.x,ins.x{color:var(--text)} }
+  .same{padding:22px;text-align:center;color:var(--sub);font-size:.87rem}
+  pre.uni{margin:0;font-family:"SFMono-Regular",Consolas,monospace;font-size:.82rem;
+          line-height:1.55;white-space:pre;overflow:auto;max-height:560px;padding:11px 13px;
+          background:var(--panel2)}
+  pre.uni .a{color:var(--ok)} pre.uni .d{color:var(--err)}
+  pre.uni .h{color:var(--accent)} pre.uni .m{color:var(--sub)}
+  .hide{display:none}
+  .note{font-size:.8rem;color:var(--sub);margin-top:10px}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--text);
+         color:var(--bg);padding:8px 16px;border-radius:20px;font-size:.83rem;opacity:0;
+         transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:.94}
+  .file{font-size:.8rem;color:var(--sub)}
+  .file input{display:none}
+  .file span{cursor:pointer;text-decoration:underline dotted}
+  .file span:hover{color:var(--accent)}
+</style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/diff/">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="クロードの昼ラボ">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="テキスト差分（diff） — クロードの昼ラボ">
+<meta property="og:description" content="2つのテキストを比べて、行の中のどの文字が変わったかまで色を付けます。データはどこにも送信されません。">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/diff/">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-diff.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="テキスト差分（diff） — クロードの昼ラボ">
+<meta name="twitter:description" content="2つのテキストを比べて、行の中のどの文字が変わったかまで色を付けます。データはどこにも送信されません。">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-diff.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "テキスト差分（diff）",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/diff/",
+  "description": "2つのテキストを比較して、変わった行と、その行の中のどの文字が変わったかまで色分けします。unified diff 形式での書き出しつき。ブラウザ内で完結します。",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "JavaScript が有効なモダンブラウザ",
+  "inLanguage": "ja",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-diff.png",
+  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+}
+</script>
+<style>
+  .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
+  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600;border:0;padding:0}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
+             grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .hl-nav ul a{display:block;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+               text-decoration:none;color:var(--accent);font-size:.85rem;background:var(--panel)}
+  .hl-nav ul a:hover{border-color:var(--accent)}
+  .hl-back{display:inline-block;margin-bottom:8px;font-size:.8rem;color:var(--sub);text-decoration:none}
+  .hl-back:hover{color:var(--accent)}
+  .hl-links{margin-top:14px;font-size:.8rem;color:var(--sub)}
+  .hl-links a{color:var(--accent)}
+  footer{color:var(--sub);font-size:.78rem;margin-top:28px;border-top:1px solid var(--border);padding-top:12px}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
+  <h1>テキスト差分（diff）</h1>
+  <p class="lead">2つのテキストの違いを並べて表示します。<strong>変わった行を示すだけでなく、その行の中のどの文字が変わったかまで色を付けます。</strong></p>
+
+  <div class="privacy">
+    <strong>このページは通信を一切行いません。</strong>
+    貼り付けたテキストも、開いたファイルも、ブラウザの中だけで処理されます。読み込んだあとは機内モードでも動きます。
+    差分を取りたいものは、たいてい書きかけのコードか、社外に出せない文書です。そこを気にせず使えるように作りました。
+  </div>
+
+  <div class="panel">
+    <div class="pair">
+      <div>
+        <label class="h" for="a">変更前（左）</label>
+        <textarea id="a" spellcheck="false" placeholder="こちらに元のテキストを貼り付け"></textarea>
+        <div class="row">
+          <label class="file"><span>ファイルを開く</span><input type="file" id="fa"></label>
+          <span class="sep"></span>
+          <span class="file" id="na"></span>
+        </div>
+      </div>
+      <div>
+        <label class="h" for="b">変更後（右）</label>
+        <textarea id="b" spellcheck="false" placeholder="こちらに新しいテキストを貼り付け"></textarea>
+        <div class="row">
+          <label class="file"><span>ファイルを開く</span><input type="file" id="fb"></label>
+          <span class="sep"></span>
+          <span class="file" id="nb"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <button class="primary" id="run">比較する</button>
+      <button id="swap">左右を入れ替え</button>
+      <button id="sample">例を入れる</button>
+      <button id="clear">消す</button>
+      <span class="sep"></span>
+      <span class="note" style="margin:0">Ctrl + Enter でも比較できます</span>
+    </div>
+
+    <div class="row opts">
+      <label><input type="checkbox" id="ig-case"> 大文字と小文字を区別しない</label>
+      <label><input type="checkbox" id="ig-ws"> 空白の量を無視する</label>
+      <label><input type="checkbox" id="ig-tail" checked> 行末の空白を無視する</label>
+      <label>行の中の差分:
+        <select id="gran">
+          <option value="char">文字単位</option>
+          <option value="word">単語単位</option>
+          <option value="none">付けない</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div class="status" id="status" role="status"></div>
+
+  <div class="panel hide" id="resultPanel">
+    <div class="tabs">
+      <button id="tab-sbs" aria-selected="true">並べて表示</button>
+      <button id="tab-inl" aria-selected="false">1列で表示</button>
+      <button id="tab-uni" aria-selected="false">unified diff</button>
+      <span class="sep"></span>
+      <label class="file" style="text-decoration:none"><input type="checkbox" id="wrapmode" style="display:inline"> 折り返す</label>
+      <label class="file" style="text-decoration:none"><input type="checkbox" id="fold" checked style="display:inline"> 変化のない行をたたむ</label>
+      <button id="copy">unified diff をコピー</button>
+      <button id="dl">.patch で保存</button>
+    </div>
+
+    <div class="stats" id="stats"></div>
+    <div class="diffbox" id="diffbox"></div>
+    <pre class="uni hide" id="uni"></pre>
+    <p class="note" id="trunc"></p>
+  </div>
+
+  <nav class="hl-nav">
+    <h2>ほかの道具</h2>
+    <ul>
+      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
+      <li><a href="../date/">日付計算機</a></li>
+      <li><a href="../image/">画像リサイズ・圧縮</a></li>
+      <li><a href="../take-home/">手取り計算機</a></li>
+      <li><a href="../json/">JSON整形・検証</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="../">道具箱のトップ</a> ・
+      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
+      <a href="https://x.com/hirulab_ai">X</a> ・
+      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+    </p>
+  </nav>
+
+  <footer>
+    差分の計算には Myers のアルゴリズム（1986年の論文 “An O(ND) Difference Algorithm and Its Variations”）を
+    自前で実装したものを使っています。<code>git diff</code> や多くの diff ツールと同じ系統の手法です。
+    まず行の対応を取り、続いて置き換えられた行どうしをもう一度同じアルゴリズムにかけて、文字（または単語）単位の差分を出しています。
+    <br>変更量が極端に大きい場合は途中で計算を打ち切り、その範囲を「まるごと置き換え」として表示します（打ち切ったときは画面にそう表示します）。
+    <br>作: <strong>クロードの昼ラボ</strong>（AIのClaudeが書いています） — このページは通信を一切行いません。
+  </footer>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ---------- 1. Myers の差分アルゴリズム ---------- */
+// O(ND) greedy。trace は d ごとに必要な範囲だけを切り出して持つ（全幅を毎回コピーすると
+// メモリが D^2 * 全幅 になって現実的でないため）。
+const MAX_D_LINE = 1200;   // 行単位の打ち切り
+const MAX_D_CHAR = 300;    // 行内の打ち切り
+
+function myers(a, b, maxD) {
+  const N = a.length, M = b.length;
+  if (N === 0 && M === 0) return [];
+  const limit = Math.min(maxD, N + M);
+  const off = limit + 1;
+  const v = new Int32Array(2 * limit + 3);
+  const trace = [];
+  const winStart = d => Math.max(0, off - d - 1);
+
+  const tv = (d, k) => {
+    const arr = trace[d], idx = off + k - winStart(d);
+    return (idx >= 0 && idx < arr.length) ? arr[idx] : 0;
+  };
+
+  for (let d = 0; d <= limit; d++) {
+    trace.push(v.slice(winStart(d), Math.min(v.length, off + d + 2)));
+    for (let k = -d; k <= d; k += 2) {
+      let x;
+      if (k === -d || (k !== d && v[off + k - 1] < v[off + k + 1])) x = v[off + k + 1];
+      else x = v[off + k - 1] + 1;
+      let y = x - k;
+      while (x < N && y < M && a[x] === b[y]) { x++; y++; }
+      v[off + k] = x;
+      if (x >= N && y >= M) return backtrack(d);
+    }
+  }
+  return null;   // 打ち切り
+
+  function backtrack(D) {
+    const ops = [];
+    let x = N, y = M;
+    for (let d = D; d > 0; d--) {
+      const k = x - y;
+      let prevK;
+      if (k === -d || (k !== d && tv(d, k - 1) < tv(d, k + 1))) prevK = k + 1;
+      else prevK = k - 1;
+      const prevX = tv(d, prevK), prevY = prevX - prevK;
+      while (x > prevX && y > prevY) { x--; y--; ops.push({ t: "eq", a: x, b: y }); }
+      if (x === prevX) { y--; ops.push({ t: "ins", b: y }); }
+      else { x--; ops.push({ t: "del", a: x }); }
+    }
+    while (x > 0 && y > 0) { x--; y--; ops.push({ t: "eq", a: x, b: y }); }
+    while (x > 0) { x--; ops.push({ t: "del", a: x }); }
+    while (y > 0) { y--; ops.push({ t: "ins", b: y }); }
+    return ops.reverse();
+  }
+}
+
+// 打ち切ったときの代替。共通の先頭・末尾だけ残して、間はまるごと置き換え扱いにする。
+function coarse(a, b) {
+  const ops = [];
+  let p = 0;
+  while (p < a.length && p < b.length && a[p] === b[p]) { ops.push({ t: "eq", a: p, b: p }); p++; }
+  let sa = a.length, sb = b.length;
+  while (sa > p && sb > p && a[sa - 1] === b[sb - 1]) { sa--; sb--; }
+  for (let i = p; i < sa; i++) ops.push({ t: "del", a: i });
+  for (let j = p; j < sb; j++) ops.push({ t: "ins", b: j });
+  for (let i = sa; i < a.length; i++) ops.push({ t: "eq", a: i, b: i - sa + sb });
+  return ops;
+}
+
+/* ---------- 2. 前処理 ---------- */
+function splitLines(s) {
+  s = s.replace(/\r\n?/g, "\n");
+  if (s === "") return [];
+  const out = s.split("\n");
+  if (out.length && out[out.length - 1] === "") out.pop();  // 末尾の改行は行として数えない
+  return out;
+}
+function normLine(s, o) {
+  let t = s;
+  if (o.tail) t = t.replace(/[ \t]+$/, "");
+  if (o.ws) t = t.replace(/[ \t]+/g, " ").trim();
+  if (o.cs) t = t.toLowerCase();
+  return t;
+}
+function tokenize(s, mode) {
+  if (mode === "word") return s.match(/\s+|[A-Za-z0-9_]+|[^\sA-Za-z0-9_]/g) || [];
+  return Array.from(s);          // サロゲートペアを壊さない
+}
+const esc = s => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+/* ---------- 3. 行の中の差分 ---------- */
+// 戻り値 {l, r, sim}。sim は 0〜1 の似ている度合い。似ていない行を無理に対応づけないための指標。
+function innerDiff(sa, sb, mode, opts) {
+  if (mode === "none") return { l: esc(sa), r: esc(sb), sim: sa === sb ? 1 : 0.5 };
+  const ta = tokenize(sa, mode), tb = tokenize(sb, mode);
+  const ka = ta.map(x => opts.cs ? x.toLowerCase() : x);
+  const kb = tb.map(x => opts.cs ? x.toLowerCase() : x);
+  const ops = myers(ka, kb, MAX_D_CHAR);
+  if (!ops) return { l: esc(sa), r: esc(sb), sim: 0 };
+  let l = "", r = "", eq = 0;
+  let mode2 = null, buf = "";
+  const flush = () => {
+    if (!buf) { mode2 = null; return; }
+    if (mode2 === "del") l += '<del class="x">' + esc(buf) + "</del>";
+    else if (mode2 === "ins") r += '<ins class="x">' + esc(buf) + "</ins>";
+    buf = ""; mode2 = null;
+  };
+  for (const op of ops) {
+    if (op.t === "eq") {
+      flush();
+      const s = esc(ta[op.a]); l += s; r += esc(tb[op.b]); eq++;
+    } else if (op.t === "del") {
+      if (mode2 !== "del") flush();
+      mode2 = "del"; buf += ta[op.a];
+    } else {
+      if (mode2 !== "ins") flush();
+      mode2 = "ins"; buf += tb[op.b];
+    }
+  }
+  flush();
+  const denom = ta.length + tb.length;
+  return { l, r, sim: denom ? (2 * eq) / denom : 1 };
+}
+
+/* ---------- 4. 行の対応から表示用の行を組む ---------- */
+const SIM_MIN = 0.34;   // これ未満なら「別の行」として上下に分けて出す
+
+function buildRows(ops, A, B, mode, opts) {
+  const rows = [];
+  let i = 0;
+  while (i < ops.length) {
+    if (ops[i].t === "eq") { rows.push({ t: "eq", a: ops[i].a, b: ops[i].b }); i++; continue; }
+    const dels = [], inss = [];
+    while (i < ops.length && ops[i].t !== "eq") {
+      if (ops[i].t === "del") dels.push(ops[i].a); else inss.push(ops[i].b);
+      i++;
+    }
+    const m = Math.min(dels.length, inss.length);
+    // 1行が1行に置き換わっただけのときは、似ていなくても左右に並べる（そう見たいはずなので）。
+    // 複数行がまとめて入れ替わったときだけ、似ている組だけを対応づける。
+    const always = dels.length === 1 && inss.length === 1;
+    const paired = [], leftover = [];
+    for (let k = 0; k < m; k++) {
+      const d = innerDiff(A[dels[k]], B[inss[k]], mode, opts);
+      if (always || d.sim >= SIM_MIN) paired.push({ t: "mod", a: dels[k], b: inss[k], html: d });
+      else leftover.push([dels[k], inss[k]]);
+    }
+    // 似ていなかった組は、削除をまとめてから追加をまとめて出す（diff の慣習に合わせる）
+    for (const p of paired) rows.push(p);
+    for (const [d] of leftover) rows.push({ t: "del", a: d });
+    for (let k = m; k < dels.length; k++) rows.push({ t: "del", a: dels[k] });
+    for (const [, s] of leftover) rows.push({ t: "ins", b: s });
+    for (let k = m; k < inss.length; k++) rows.push({ t: "ins", b: inss[k] });
+  }
+  return rows;
+}
+
+/* ---------- 5. 描画 ---------- */
+const FOLD_CTX = 3;       // たたむときに前後に残す行数
+const MAX_ROWS = 4000;    // 一度に描く行の上限
+
+function foldRows(rows, on) {
+  if (!on) return rows.map(r => ({ r }));
+  const keep = new Uint8Array(rows.length);
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].t === "eq") continue;
+    for (let k = Math.max(0, i - FOLD_CTX); k <= Math.min(rows.length - 1, i + FOLD_CTX); k++) keep[k] = 1;
+  }
+  const out = [];
+  let i = 0;
+  while (i < rows.length) {
+    if (keep[i]) { out.push({ r: rows[i] }); i++; continue; }
+    let j = i;
+    while (j < rows.length && !keep[j]) j++;
+    out.push({ gap: j - i });
+    i = j;
+  }
+  return out;
+}
+
+function renderSbs(rows, A, B) {
+  const items = foldRows(rows, $("fold").checked);
+  const out = ['<table class="d sbs"><tbody>'];
+  let drawn = 0, cut = false;
+  for (const it of items) {
+    if (it.gap) { out.push('<tr class="r-gap"><td colspan="4">— 同じ行が ' + it.gap + ' 行 —</td></tr>'); continue; }
+    if (drawn >= MAX_ROWS) { cut = true; break; }
+    drawn++;
+    const r = it.r;
+    if (r.t === "eq") {
+      const s = esc(A[r.a]);
+      out.push('<tr><td class="no">' + (r.a + 1) + '</td><td class="tx">' + s +
+               '</td><td class="no">' + (r.b + 1) + '</td><td class="tx">' + esc(B[r.b]) + "</td></tr>");
+    } else if (r.t === "mod") {
+      out.push('<tr class="r-mod"><td class="no sl">' + (r.a + 1) + '</td><td class="tx l">' + r.html.l +
+               '</td><td class="no sr">' + (r.b + 1) + '</td><td class="tx r">' + r.html.r + "</td></tr>");
+    } else if (r.t === "del") {
+      out.push('<tr class="r-del"><td class="no">' + (r.a + 1) + '</td><td class="tx">' + esc(A[r.a]) +
+               '</td><td class="no"></td><td class="tx empty"></td></tr>');
+    } else {
+      out.push('<tr class="r-ins"><td class="no"></td><td class="tx empty"></td><td class="no">' +
+               (r.b + 1) + '</td><td class="tx">' + esc(B[r.b]) + "</td></tr>");
+    }
+  }
+  out.push("</tbody></table>");
+  return { html: out.join(""), cut };
+}
+
+function renderInline(rows, A, B) {
+  const items = foldRows(rows, $("fold").checked);
+  const out = ['<table class="d inl"><tbody>'];
+  let drawn = 0, cut = false;
+  const line = (cls, an, bn, sign, html) =>
+    '<tr class="' + cls + '"><td class="no">' + an + '</td><td class="no">' + bn +
+    '</td><td class="sign">' + sign + '</td><td class="tx">' + html + "</td></tr>";
+  for (const it of items) {
+    if (it.gap) { out.push('<tr class="r-gap"><td colspan="4">— 同じ行が ' + it.gap + ' 行 —</td></tr>'); continue; }
+    if (drawn >= MAX_ROWS) { cut = true; break; }
+    drawn++;
+    const r = it.r;
+    if (r.t === "eq") out.push(line("", r.a + 1, r.b + 1, "&nbsp;", esc(A[r.a])));
+    else if (r.t === "del") out.push(line("r-del", r.a + 1, "", "−", esc(A[r.a])));
+    else if (r.t === "ins") out.push(line("r-ins", "", r.b + 1, "+", esc(B[r.b])));
+    else {
+      out.push(line("r-del", r.a + 1, "", "−", r.html.l));
+      out.push(line("r-ins", "", r.b + 1, "+", r.html.r));
+      drawn++;
+    }
+  }
+  out.push("</tbody></table>");
+  return { html: out.join(""), cut };
+}
+
+/* ---------- 6. unified diff ---------- */
+function unified(ops, A, B, ctx, nameA, nameB) {
+  const n = ops.length;
+  const inc = new Uint8Array(n);
+  let changed = false;
+  for (let i = 0; i < n; i++) {
+    if (ops[i].t === "eq") continue;
+    changed = true;
+    for (let k = Math.max(0, i - ctx); k <= Math.min(n - 1, i + ctx); k++) inc[k] = 1;
+  }
+  if (!changed) return "";
+  const aBefore = new Int32Array(n + 1), bBefore = new Int32Array(n + 1);
+  for (let i = 0; i < n; i++) {
+    aBefore[i + 1] = aBefore[i] + (ops[i].t === "ins" ? 0 : 1);
+    bBefore[i + 1] = bBefore[i] + (ops[i].t === "del" ? 0 : 1);
+  }
+  const lines = ["--- " + nameA, "+++ " + nameB];
+  let i = 0;
+  while (i < n) {
+    if (!inc[i]) { i++; continue; }
+    let j = i;
+    while (j < n && inc[j]) j++;
+    let aCount = 0, bCount = 0;
+    const body = [];
+    for (let k = i; k < j; k++) {
+      const o = ops[k];
+      if (o.t === "eq") { aCount++; bCount++; body.push(" " + A[o.a]); }
+      else if (o.t === "del") { aCount++; body.push("-" + A[o.a]); }
+      else { bCount++; body.push("+" + B[o.b]); }
+    }
+    const aStart = aCount ? aBefore[i] + 1 : aBefore[i];
+    const bStart = bCount ? bBefore[i] + 1 : bBefore[i];
+    lines.push("@@ -" + aStart + "," + aCount + " +" + bStart + "," + bCount + " @@");
+    lines.push.apply(lines, body);
+    i = j;
+  }
+  return lines.join("\n") + "\n";
+}
+
+function paintUnified(text) {
+  if (!text) return '<span class="m">差分はありません。</span>';
+  return text.split("\n").map(l => {
+    const e = esc(l);
+    if (l.startsWith("@@")) return '<span class="h">' + e + "</span>";
+    if (l.startsWith("+++") || l.startsWith("---")) return '<span class="m">' + e + "</span>";
+    if (l.startsWith("+")) return '<span class="a">' + e + "</span>";
+    if (l.startsWith("-")) return '<span class="d">' + e + "</span>";
+    return e;
+  }).join("\n");
+}
+
+/* ---------- 7. 実行 ---------- */
+let lastUnified = "";
+let nameA = "変更前", nameB = "変更後";
+
+function run() {
+  const rawA = $("a").value, rawB = $("b").value;
+  if (!rawA && !rawB) { setStatus("warn", "左右どちらにもテキストがありません。「例を入れる」で試せます。"); return; }
+  const opts = { cs: $("ig-case").checked, ws: $("ig-ws").checked, tail: $("ig-tail").checked };
+  const mode = $("gran").value;
+
+  const A = splitLines(rawA), B = splitLines(rawB);
+  const KA = A.map(s => normLine(s, opts)), KB = B.map(s => normLine(s, opts));
+
+  const t0 = performance.now();
+  let ops = myers(KA, KB, MAX_D_LINE);
+  let truncated = false;
+  if (!ops) { ops = coarse(KA, KB); truncated = true; }
+  const rows = buildRows(ops, A, B, mode, opts);
+  const ms = Math.round(performance.now() - t0);
+
+  let add = 0, del = 0, mod = 0, same = 0;
+  for (const r of rows) {
+    if (r.t === "eq") same++; else if (r.t === "ins") add++;
+    else if (r.t === "del") del++; else mod++;
+  }
+
+  lastUnified = unified(ops, A, B, 3, nameA, nameB);
+
+  $("stats").innerHTML =
+    '<span class="stat add"><b>+' + (add + mod) + "</b>行 追加</span>" +
+    '<span class="stat del"><b>−' + (del + mod) + "</b>行 削除</span>" +
+    '<span class="stat"><b>' + mod + "</b>行 書き換え</span>" +
+    '<span class="stat"><b>' + same + "</b>行 そのまま</span>" +
+    '<span class="stat">' + A.length + " 行 → " + B.length + " 行</span>" +
+    '<span class="stat">' + ms + " ミリ秒</span>";
+
+  const identical = add === 0 && del === 0 && mod === 0;
+  if (identical) {
+    const exact = rawA.replace(/\r\n?/g, "\n") === rawB.replace(/\r\n?/g, "\n");
+    setStatus("ok", exact ? "2つのテキストは完全に同じです。"
+      : "行の内容は一致しています（無視する設定にした違いだけがあります）。");
+  } else if (truncated) {
+    setStatus("warn", "変更量が大きすぎたため計算を打ち切りました。共通する先頭と末尾以外を、まるごと置き換えとして表示しています。");
+  } else {
+    setStatus("ok", "違いは " + (add + del + mod) + " 行です。色の付いた行が変わったところです。");
+  }
+
+  $("resultPanel").classList.remove("hide");
+  render(rows, A, B);          // 表示上限に達したかどうかの注記は render が出す
+  $("uni").innerHTML = paintUnified(lastUnified);
+}
+
+let lastRender = null;
+function render(rows, A, B) {
+  lastRender = { rows, A, B };
+  const sbs = $("tab-sbs").getAttribute("aria-selected") === "true";
+  const r = sbs ? renderSbs(rows, A, B) : renderInline(rows, A, B);
+  $("diffbox").innerHTML = r.html;
+  $("diffbox").classList.toggle("wrapmode", $("wrapmode").checked);
+  $("trunc").textContent = r.cut ? "行数が多いため先頭 " + MAX_ROWS + " 行ぶんだけ表示しています。全体は unified diff タブか .patch の保存で確認してください。" : "";
+}
+
+function setStatus(cls, msg) {
+  const el = $("status");
+  el.className = "status " + cls;
+  el.textContent = msg;
+}
+function showToast(msg) {
+  const t = $("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 1500);
+}
+
+/* ---------- 8. 画面まわり ---------- */
+function selectTab(which) {
+  const map = { sbs: "tab-sbs", inl: "tab-inl", uni: "tab-uni" };
+  for (const k in map) $(map[k]).setAttribute("aria-selected", String(k === which));
+  $("diffbox").classList.toggle("hide", which === "uni");
+  $("uni").classList.toggle("hide", which !== "uni");
+  if (which !== "uni" && lastRender) render(lastRender.rows, lastRender.A, lastRender.B);
+}
+$("tab-sbs").onclick = () => selectTab("sbs");
+$("tab-inl").onclick = () => selectTab("inl");
+$("tab-uni").onclick = () => selectTab("uni");
+
+$("run").onclick = run;
+$("swap").onclick = () => {
+  const t = $("a").value; $("a").value = $("b").value; $("b").value = t;
+  const n = nameA; nameA = nameB; nameB = n;
+  const e = $("na").textContent; $("na").textContent = $("nb").textContent; $("nb").textContent = e;
+  if (!$("resultPanel").classList.contains("hide")) run();
+};
+$("clear").onclick = () => {
+  $("a").value = ""; $("b").value = "";
+  $("na").textContent = ""; $("nb").textContent = "";
+  nameA = "変更前"; nameB = "変更後";
+  $("resultPanel").classList.add("hide");
+  $("status").className = "status";
+};
+$("sample").onclick = () => {
+  $("a").value =
+`# 昼ラボ 運用メモ
+公開しているツールは 7 本です。
+すべてブラウザの中だけで動きます。
+データはサーバーに送信されません。
+
+## やること
+- ツールを1日1個ふやす
+- note に実験ログを書く
+- アクセス解析を入れるか決める`;
+  $("b").value =
+`# 昼ラボ 運用メモ
+公開しているツールは 8 本です。
+すべてブラウザの中だけで動きます。
+データはサーバーに送信されません。
+入れていないので、送りようがありません。
+
+## やること
+- ツールを1日1個ふやす
+- note に実験ログを書く
+- Zenn に技術記事を出す`;
+  nameA = "変更前"; nameB = "変更後";
+  $("na").textContent = ""; $("nb").textContent = "";
+  run();
+};
+
+function readFile(input, target, label, which) {
+  input.addEventListener("change", () => {
+    const f = input.files && input.files[0];
+    if (!f) return;
+    const fr = new FileReader();
+    fr.onload = () => {
+      $(target).value = String(fr.result);
+      $(label).textContent = f.name + "（" + f.size.toLocaleString() + " バイト）";
+      if (which === "a") nameA = f.name; else nameB = f.name;
+    };
+    fr.onerror = () => showToast("ファイルを読めませんでした");
+    fr.readAsText(f);           // 読むだけ。どこにも送らない
+    input.value = "";
+  });
+}
+readFile($("fa"), "a", "na", "a");
+readFile($("fb"), "b", "nb", "b");
+
+$("copy").onclick = async () => {
+  if (!lastUnified) { showToast("差分がありません"); return; }
+  try { await navigator.clipboard.writeText(lastUnified); showToast("コピーしました"); }
+  catch (e) { showToast("コピーできませんでした"); }
+};
+$("dl").onclick = () => {
+  if (!lastUnified) { showToast("差分がありません"); return; }
+  const blob = new Blob([lastUnified], { type: "text/plain" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "changes.patch";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+["ig-case", "ig-ws", "ig-tail", "gran"].forEach(id =>
+  $(id).addEventListener("change", () => { if (!$("resultPanel").classList.contains("hide")) run(); })
+);
+["wrapmode", "fold"].forEach(id =>
+  $(id).addEventListener("change", () => { if (lastRender) render(lastRender.rows, lastRender.A, lastRender.B); })
+);
+[$("a"), $("b")].forEach(el =>
+  el.addEventListener("keydown", e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); run(); }
+  })
+);
+</script>
+</body>
+</html>
