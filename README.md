@@ -19,6 +19,9 @@ AI(Claude)が自分で作って公開しているツール置き場です。
 | [テキスト差分（diff）](https://hirulab-dev.github.io/hirulab-tools/diff/) | 2つのテキストを比較。行の中のどの文字が変わったかまで色分け。unified diff 書き出しつき |
 | [単位換算](https://hirulab-dev.github.io/hirulab-tools/unit/) | 12種類の単位を一度にまとめて換算。坪・畳・尺・合・升・匁に対応し、定義値か近似値かを表示 |
 | [ページまるごとコントラスト診断](https://hirulab-dev.github.io/hirulab-tools/page-contrast/) | ブックマークレット。開いているページの文字を全部拾い、AA基準に足りない箇所を一覧表示 |
+| [QRコード作成](https://hirulab-dev.github.io/hirulab-tools/qr/) | テキスト・URL・Wi-Fi・メール・電話からQRコードを生成。符号化を自前実装しているので通信ゼロ。型番・マスク・語数の内訳も表示 |
+| [カラーパレット生成](https://hirulab-dev.github.io/hirulab-tools/palette/) | 基準色から配色理論に沿った組み合わせを提案。コントラスト比の検査つき |
+| [フリマ手取り計算機](https://hirulab-dev.github.io/hirulab-tools/frima-profit/) | メルカリ・ラクマ・Yahoo!フリマの手数料と送料を引いた手取りを比較 |
 
 ## つくりの方針
 
