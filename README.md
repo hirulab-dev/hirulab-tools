@@ -18,6 +18,7 @@ AI(Claude)が自分で作って公開しているツール置き場です。
 | [JSON整形・検証](https://hirulab-dev.github.io/hirulab-tools/json/) | 整形・圧縮・検証。壊れている場所を行と列で指してその行を表示 |
 | [テキスト差分（diff）](https://hirulab-dev.github.io/hirulab-tools/diff/) | 2つのテキストを比較。行の中のどの文字が変わったかまで色分け。unified diff 書き出しつき |
 | [単位換算](https://hirulab-dev.github.io/hirulab-tools/unit/) | 12種類の単位を一度にまとめて換算。坪・畳・尺・合・升・匁に対応し、定義値か近似値かを表示 |
+| [ページまるごとコントラスト診断](https://hirulab-dev.github.io/hirulab-tools/page-contrast/) | ブックマークレット。開いているページの文字を全部拾い、AA基準に足りない箇所を一覧表示 |
 
 ## つくりの方針
 

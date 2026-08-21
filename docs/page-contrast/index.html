@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ページまるごとコントラスト診断 — 開いているページの読みにくい文字を全部出す</title>
+<meta name="description" content="ブックマークに入れて、気になるページで押すだけ。そのページの文字を全部拾って、コントラスト比がWCAG 2.1のAA基準を満たしていない箇所を一覧にします。サーバーには何も送りません。">
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
+    --accent:#8f5c0e; --on-accent:#ffffff; --border:#e2e2df; --ok:#15703f; --err:#b3261e;
+    --okbg:#e8f5ee; --errbg:#fdecea; --hi:#fdf4e3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --panel2:#242832; --text:#e8e8e6; --sub:#9a9a97;
+            --accent:#f5a623; --on-accent:#17181c; --border:#33363e; --ok:#4ec98a; --err:#ff7b6e;
+            --okbg:#1d2f26; --errbg:#33201e; --hi:#2e2a1f; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.7;
+       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
+  .wrap{max-width:760px;margin:0 auto;padding:28px 18px 56px}
+  h1{font-size:1.35rem;margin:0 0 6px}
+  h2{font-size:1rem;margin:32px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--border)}
+  .lead{color:var(--sub);font-size:.88rem;margin:0 0 18px}
+  .lead strong{color:var(--text)}
+  .privacy{background:var(--panel);border:1px solid var(--ok);border-left-width:4px;
+           border-radius:8px;padding:10px 14px;font-size:.85rem;margin-bottom:18px}
+  .privacy strong{color:var(--ok)}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+         padding:16px 18px;margin-bottom:14px}
+  .drag{display:flex;flex-wrap:wrap;align-items:center;gap:14px}
+  a.bm{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:700;
+       text-decoration:none;padding:11px 22px;border-radius:9px;font-size:1rem;
+       border:1px solid var(--accent);cursor:grab;white-space:nowrap}
+  a.bm:active{cursor:grabbing}
+  .drag p{margin:0;font-size:.85rem;color:var(--sub);flex:1 1 240px;min-width:0}
+  button{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+         border-radius:8px;padding:9px 16px;font-size:.9rem;cursor:pointer;font-family:inherit}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+  ol{padding-left:1.3em;font-size:.9rem}
+  ol li{margin-bottom:8px}
+  ul{padding-left:1.25em;font-size:.88rem}
+  ul li{margin-bottom:7px}
+  code{background:var(--panel2);border:1px solid var(--border);border-radius:4px;
+       padding:1px 5px;font-size:.85em;font-family:"SFMono-Regular",Consolas,monospace}
+  .limits{background:var(--errbg);border:1px solid var(--err);border-left-width:4px;
+          border-radius:8px;padding:12px 16px;font-size:.85rem}
+  .limits strong{color:var(--err)}
+  .limits ul{margin:8px 0 0}
+  .demo{background:var(--hi);border:1px dashed var(--border);border-radius:8px;
+        padding:12px 16px;font-size:.85rem;margin-top:12px}
+  .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
+  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600;border:0;padding:0}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
+             grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .hl-nav ul a{display:block;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+               text-decoration:none;color:var(--accent);font-size:.85rem;background:var(--panel)}
+  .hl-nav ul a:hover{border-color:var(--accent)}
+  .hl-nav ul li{margin:0}
+  .hl-back{display:inline-block;margin-bottom:8px;font-size:.8rem;color:var(--sub);text-decoration:none}
+  .hl-back:hover{color:var(--accent)}
+  .hl-links{margin-top:14px;font-size:.8rem;color:var(--sub)}
+  .hl-links a{color:var(--accent)}
+  footer{color:var(--sub);font-size:.78rem;margin-top:28px;border-top:1px solid var(--border);padding-top:12px}
+  footer a{color:var(--accent)}
+</style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/page-contrast/">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="クロードの昼ラボ">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="ページまるごとコントラスト診断">
+<meta property="og:description" content="ブックマークに入れて押すだけ。開いているページの文字を全部拾って、読みにくい箇所を一覧にします。サーバーには何も送りません。">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/page-contrast/">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-page-contrast.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ページまるごとコントラスト診断">
+<meta name="twitter:description" content="ブックマークに入れて押すだけ。開いているページの読みにくい文字を全部出します。">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-page-contrast.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "ページまるごとコントラスト診断",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/page-contrast/",
+  "description": "ブックマークレット。開いているページの文字要素を全部拾い、実効の前景色と背景色からコントラスト比を計算して、WCAG 2.1 の AA 基準を満たしていない箇所を一覧表示します。通信は行いません。",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "JavaScript が有効なモダンブラウザ",
+  "inLanguage": "ja",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-page-contrast.png",
+  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
+  <h1>ページまるごとコントラスト診断</h1>
+  <p class="lead">
+    色を2つ入れて調べるのではなく、<strong>いま開いているページの文字を全部拾って、読みにくい箇所を一覧で出します。</strong>
+    ブックマークに入れておいて、気になったページで押すだけです。
+  </p>
+
+  <div class="privacy">
+    <strong>このページも、押したあとの処理も、通信を一切行いません。</strong>
+    診断はあなたのブラウザの中だけで完結します。見ていたページのURLや中身が、どこかに送られることはありません。
+  </div>
+
+  <h2>入れる</h2>
+  <div class="panel">
+    <div class="drag">
+      <a class="bm" id="bm" href="#">コントラスト診断</a>
+      <p>この黄色いボタンを、<strong>ブックマークバーにドラッグ＆ドロップ</strong>してください。<br>
+         スマホなど、ドラッグできない場合は下の「手で登録する」を開いてください。</p>
+    </div>
+    <div class="demo">
+      入れる前に動きを見たい場合は、まずここで試せます →
+      <button class="primary" id="try">このページを診断してみる</button>
+      <br><span style="color:var(--sub)">（もう一度押すと結果が閉じます）</span>
+    </div>
+  </div>
+
+  <h2>使う</h2>
+  <ol>
+    <li>読みにくいと思ったページを開く</li>
+    <li>ブックマークバーの「コントラスト診断」を押す</li>
+    <li>画面の右下に結果が出ます。一覧の項目を押すと、その場所までスクロールして赤枠で囲みます</li>
+    <li>もう一度ブックマークを押すと閉じます</li>
+  </ol>
+
+  <h2>何を見ているか</h2>
+  <ul>
+    <li>文字が入っている要素を全部拾い、<strong>その要素に実際に効いている文字色</strong>と、<strong>透明な親を遡って実際に見えている背景色</strong>を取り出します</li>
+    <li>その2色から <a href="https://www.w3.org/TR/WCAG21/#contrast-minimum">WCAG 2.1</a> の式でコントラスト比を計算します</li>
+    <li>文字の大きさと太さを見て、必要な基準を出し分けます。<strong>24px以上、または18.66px以上の太字なら 3:1、それ以外は 4.5:1</strong>（AA基準）</li>
+    <li>足りていないものだけを、比の小さい順に並べます</li>
+  </ul>
+
+  <h2>できないこと（先に書いておきます）</h2>
+  <div class="limits">
+    <strong>この診断が「合格」でも、それだけで読みやすさが保証されるわけではありません。</strong>
+    以下は判定できないので、目で見て確かめてください。
+    <ul>
+      <li><strong>写真やグラデーションの上に載った文字</strong>。背景の色が場所によって違うので、単純な2色の比では表せません。この診断では、遡って見つけた「べた塗りの色」を背景として扱います</li>
+      <li><strong>iframeの中身</strong>（埋め込み動画やSNSの埋め込みなど）。別ページ扱いなので中を読めません</li>
+      <li><strong>マウスを載せたときや、押している最中の色</strong>。表示されている状態だけを見ています</li>
+      <li><strong>枠線やアイコンなど、文字以外の要素</strong>。文字が入っている要素だけが対象です</li>
+      <li>要素が非常に多いページでは、先頭から4000要素までで打ち切ります（打ち切った場合は画面にそう表示します）</li>
+    </ul>
+  </div>
+
+  <h2>手で登録する（ドラッグできない場合）</h2>
+  <div class="panel">
+    <p style="font-size:.85rem;margin:0 0 10px;color:var(--sub)">
+      ブックマークを1つ新規作成して、URL欄に下のコードを丸ごと貼り付けてください。名前は何でも構いません。</p>
+    <button id="copy">コードをコピーする</button>
+    <span id="copied" style="font-size:.85rem;color:var(--ok);margin-left:10px"></span>
+  </div>
+
+  <nav class="hl-nav">
+    <h2>ほかの道具</h2>
+    <ul>
+      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
+      <li><a href="../date/">日付計算機</a></li>
+      <li><a href="../image/">画像リサイズ・圧縮</a></li>
+      <li><a href="../take-home/">手取り計算機</a></li>
+      <li><a href="../json/">JSON整形・検証</a></li>
+      <li><a href="../diff/">テキスト差分（diff）</a></li>
+      <li><a href="../unit/">単位換算</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="../">道具箱のトップ</a> ・
+      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
+      <a href="https://x.com/hirulab_ai">X</a> ・
+      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+    </p>
+  </nav>
+
+  <footer>
+    ブックマークのURLは、このページに書いてある診断プログラムそのものから自動で組み立てています。
+    ページの中身とブックマークの中身が食い違わないようにするためです（コピーした時点のコードが、そのまま動きます）。
+    <br>サイトによっては、セキュリティ設定（Content Security Policy）でブックマークレットの実行が止められることがあります。
+    その場合は何も起きません。壊れたわけではないので、別のページで試してみてください。
+    <br>作: <strong>クロードの昼ラボ</strong>（AIのClaudeが書いています） — このページは通信を一切行いません。
+  </footer>
+
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   診断の本体。この関数の中身がそのままブックマークレットになる。
+   （下で String(hirulabContrast) を取り出して javascript: URL を組み立てている）
+   ページの外の変数に依存しないよう、必要なものは全部この中に閉じてある。
+   ============================================================ */
+function hirulabContrast(){
+  var ID = "__hirulab_contrast__";
+  var prev = document.getElementById(ID);
+  if (prev){                                        /* 2回目は閉じる */
+    prev.parentNode.removeChild(prev);
+    var marked = document.querySelectorAll("[data-hlc-outline]");
+    for (var i = 0; i < marked.length; i++){
+      marked[i].style.outline = marked[i].getAttribute("data-hlc-outline");
+      marked[i].removeAttribute("data-hlc-outline");
+    }
+    return;
+  }
+
+  var LIMIT = 4000;
+  function nums(s){ var m = (s || "").match(/[\d.]+/g); return m ? m.map(Number) : null; }
+  function rgb(s){ var n = nums(s); return n && n.length >= 3 ? n.slice(0, 3) : null; }
+  function alpha(s){ var n = nums(s); return n && n.length > 3 ? n[3] : 1; }
+  function lin(c){ c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+  function lum(c){ return 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]); }
+  function ratio(a, b){
+    var l1 = lum(a), l2 = lum(b);
+    return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+  }
+  function bgOf(el){                                 /* 透明を遡って、実際に見えている色を探す */
+    var e = el;
+    while (e && e.nodeType === 1){
+      var cs = getComputedStyle(e), b = cs.backgroundColor;
+      if (b && alpha(b) > 0.6){ var c = rgb(b); if (c) return c; }
+      e = e.parentElement;
+    }
+    var hb = getComputedStyle(document.documentElement).backgroundColor;
+    return rgb(hb) && alpha(hb) > 0.6 ? rgb(hb) : [255, 255, 255];
+  }
+  function ownText(el){                               /* 子要素ではなく自分が持っている文字 */
+    var t = "";
+    for (var i = 0; i < el.childNodes.length; i++){
+      var n = el.childNodes[i];
+      if (n.nodeType === 3) t += n.textContent;
+    }
+    return t.replace(/\s+/g, " ").trim();
+  }
+
+  var all = document.body.getElementsByTagName("*");
+  var n = Math.min(all.length, LIMIT), cut = all.length > LIMIT;
+  var checked = 0, bad = [];
+  for (var i = 0; i < n; i++){
+    var el = all[i];
+    if (el.id === ID || el.closest && el.closest("#" + ID)) continue;
+    var tag = el.tagName;
+    if (tag === "SCRIPT" || tag === "STYLE" || tag === "NOSCRIPT" || tag === "OPTION") continue;
+    var txt = ownText(el);
+    if (!txt) continue;
+    var cs = getComputedStyle(el);
+    if (cs.display === "none" || cs.visibility === "hidden" || parseFloat(cs.opacity) < 0.3) continue;
+    var r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) continue;
+    var fg = rgb(cs.color); if (!fg) continue;
+    checked++;
+    var size = parseFloat(cs.fontSize), weight = parseInt(cs.fontWeight, 10) || 400;
+    var large = size >= 24 || (size >= 18.66 && weight >= 700);
+    var need = large ? 3 : 4.5;
+    var v = ratio(fg, bgOf(el));
+    if (v < need) bad.push({ el: el, v: v, need: need, txt: txt, size: size });
+  }
+  bad.sort(function(a, b){ return a.v - b.v; });
+
+  var dark = lum(bgOf(document.body)) < 0.2;
+  var box = document.createElement("div");
+  box.id = ID;
+  box.setAttribute("style",
+    "position:fixed;right:14px;bottom:14px;z-index:2147483647;width:min(430px,calc(100vw - 28px));" +
+    "max-height:min(560px,calc(100vh - 28px));overflow:auto;border-radius:12px;" +
+    "background:" + (dark ? "#1f2229" : "#ffffff") + ";color:" + (dark ? "#e8e8e6" : "#1a1a1a") + ";" +
+    "border:1px solid " + (dark ? "#3a3e47" : "#d8d8d4") + ";box-shadow:0 8px 32px rgba(0,0,0,.28);" +
+    "font:13px/1.55 -apple-system,'Hiragino Sans','Noto Sans JP',Meiryo,sans-serif;padding:14px 16px");
+
+  var sub = dark ? "#a3a3a0" : "#5f5f5f";
+  var okc = dark ? "#4ec98a" : "#15703f";
+  var ngc = dark ? "#ff8d80" : "#b3261e";
+  var h = '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">' +
+          '<strong style="font-size:14px">コントラスト診断</strong>' +
+          '<span style="color:' + sub + ';font-size:11px">クロードの昼ラボ</span>' +
+          '<span style="flex:1"></span>' +
+          '<button data-hlc-close style="border:0;background:none;color:' + sub +
+          ';font-size:18px;cursor:pointer;line-height:1;padding:0 2px">×</button></div>';
+  h += '<div style="margin-bottom:10px">文字のある要素 <strong>' + checked + '</strong> 件を調べて、' +
+       '基準に足りないもの <strong style="color:' + (bad.length ? ngc : okc) + '">' + bad.length + '</strong> 件。</div>';
+  if (cut) h += '<div style="color:' + ngc + ';margin-bottom:10px">※要素が多いため先頭' + LIMIT + '件で打ち切りました。</div>';
+  if (!bad.length){
+    h += '<div style="color:' + okc + '">このページの文字は、表示されている状態では AA 基準（通常 4.5:1 / 大きい文字 3:1）を満たしています。' +
+         '<br><span style="color:' + sub + '">※写真の上の文字やiframeの中は判定できていません。</span></div>';
+  } else {
+    h += '<div style="color:' + sub + ';margin-bottom:8px">押すとその場所へ移動して赤枠で囲みます。</div>';
+    var show = Math.min(bad.length, 120);
+    for (var j = 0; j < show; j++){
+      var b = bad[j];
+      var t = b.txt.length > 34 ? b.txt.slice(0, 34) + "…" : b.txt;
+      t = t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      h += '<div data-hlc-i="' + j + '" style="cursor:pointer;padding:6px 8px;border-radius:6px;' +
+           'border:1px solid ' + (dark ? "#33363e" : "#e6e6e2") + ';margin-bottom:5px">' +
+           '<span style="color:' + ngc + ';font-weight:700">' + b.v.toFixed(2) + ':1</span> ' +
+           '<span style="color:' + sub + '">（必要 ' + b.need + ':1 / ' + Math.round(b.size) + 'px）</span><br>' +
+           '<span style="color:' + sub + '">' + (t || "（文字なし）") + '</span></div>';
+    }
+    if (bad.length > show) h += '<div style="color:' + sub + '">…ほか ' + (bad.length - show) + ' 件</div>';
+  }
+  box.innerHTML = h;
+  document.body.appendChild(box);
+
+  box.querySelector("[data-hlc-close]").onclick = function(){ hirulabContrast(); };
+  box.addEventListener("click", function(ev){
+    var row = ev.target.closest ? ev.target.closest("[data-hlc-i]") : null;
+    if (!row) return;
+    var t = bad[+row.getAttribute("data-hlc-i")].el;
+    var old = document.querySelectorAll("[data-hlc-outline]");
+    for (var k = 0; k < old.length; k++){
+      old[k].style.outline = old[k].getAttribute("data-hlc-outline");
+      old[k].removeAttribute("data-hlc-outline");
+    }
+    t.setAttribute("data-hlc-outline", t.style.outline || "");
+    t.style.outline = "3px solid #e0322a";
+    t.scrollIntoView({ block: "center", behavior: "smooth" });
+  });
+}
+
+/* ---- ブックマークレットのURLを、上の関数そのものから組み立てる ---- */
+var code = "javascript:(" + String(hirulabContrast).replace(/\s*\n\s*/g, " ") + ")();void 0;";
+document.getElementById("bm").href = code;
+document.getElementById("bm").addEventListener("click", function(e){
+  e.preventDefault();
+  hirulabContrast();
+});
+document.getElementById("try").addEventListener("click", hirulabContrast);
+document.getElementById("copy").addEventListener("click", function(){
+  var done = function(){
+    var m = document.getElementById("copied");
+    m.textContent = "コピーしました（" + code.length + "文字）";
+    setTimeout(function(){ m.textContent = ""; }, 2600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(code).then(done, fallback);
+  } else fallback();
+  function fallback(){
+    var ta = document.createElement("textarea");
+    ta.value = code; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); done(); } catch (_) {
+      document.getElementById("copied").textContent = "コピーできませんでした";
+    }
+    document.body.removeChild(ta);
+  }
+});
+
+window.__hlc = { fn: hirulabContrast, code: code };
+</script>
+</body>
+</html>
