@@ -8,13 +8,13 @@
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
-    --accent:#c47f16; --border:#e2e2df; --ok:#1a7f4b; --err:#b3261e;
+    --accent:#8f5c0e; --on-accent:#ffffff; --border:#e2e2df; --ok:#15703f; --err:#b3261e;
     --key:#8a4b00; --str:#1a7f4b; --num:#1f5fb0; --bool:#8b5cf6; --null:#888;
     --errbg:#fdecea; --okbg:#e8f5ee;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#16181d; --panel:#1f2229; --panel2:#242832; --text:#e8e8e6; --sub:#9a9a97;
-            --accent:#f5a623; --border:#33363e; --ok:#4ec98a; --err:#ff7b6e;
+            --accent:#f5a623; --on-accent:#17181c; --border:#33363e; --ok:#4ec98a; --err:#ff7b6e;
             --key:#f0b45e; --str:#7fd6a3; --num:#7db4f0; --bool:#c4a5ff; --null:#777;
             --errbg:#3a2320; --okbg:#1d2f26; }
   }
@@ -39,7 +39,7 @@
   button{border:1px solid var(--border);background:var(--panel2);color:var(--text);
          border-radius:8px;padding:7px 13px;font-size:.85rem;cursor:pointer;font-family:inherit}
   button:hover{border-color:var(--accent)}
-  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
   select{border:1px solid var(--border);border-radius:8px;background:var(--panel2);
          color:var(--text);padding:7px 9px;font-size:.85rem;font-family:inherit}
   .sep{flex:1}
@@ -73,7 +73,7 @@
   .collapsed>ul{display:none}
   .muted{color:var(--sub)}
   .tabs{display:flex;gap:6px;margin-bottom:10px}
-  .tabs button[aria-selected=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+  .tabs button[aria-selected=true]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
   .hide{display:none}
   .note{font-size:.8rem;color:var(--sub);margin-top:10px}
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--text);

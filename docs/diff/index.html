@@ -8,14 +8,14 @@
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
-    --accent:#c47f16; --border:#e2e2df; --ok:#1a7f4b; --err:#b3261e;
+    --accent:#8f5c0e; --on-accent:#ffffff; --border:#e2e2df; --ok:#15703f; --err:#b3261e;
     --addbg:#e6f5ec; --addbg2:#a8e6c1; --delbg:#fdecea; --delbg2:#f7b9b3;
     --addfg:#0f6b3c; --delfg:#a11a12; --nobg:#f1f1ee;
     --okbg:#e8f5ee;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#16181d; --panel:#1f2229; --panel2:#242832; --text:#e8e8e6; --sub:#9a9a97;
-            --accent:#f5a623; --border:#33363e; --ok:#4ec98a; --err:#ff7b6e;
+            --accent:#f5a623; --on-accent:#17181c; --border:#33363e; --ok:#4ec98a; --err:#ff7b6e;
             --addbg:#17301f; --addbg2:#2c6b45; --delbg:#33201e; --delbg2:#7a2f2a;
             --addfg:#7fd6a3; --delfg:#ff9d92; --nobg:#1b1e25;
             --okbg:#1d2f26; }
@@ -45,7 +45,7 @@
   button{border:1px solid var(--border);background:var(--panel2);color:var(--text);
          border-radius:8px;padding:7px 13px;font-size:.85rem;cursor:pointer;font-family:inherit}
   button:hover{border-color:var(--accent)}
-  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
   select{border:1px solid var(--border);border-radius:8px;background:var(--panel2);
          color:var(--text);padding:6px 8px;font-size:.83rem;font-family:inherit}
   .sep{flex:1}
@@ -58,7 +58,7 @@
   .stat b{font-size:1rem;margin-right:4px;color:var(--accent)}
   .stat.add b{color:var(--ok)} .stat.del b{color:var(--err)}
   .tabs{display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
-  .tabs button[aria-selected=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+  .tabs button[aria-selected=true]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 
   .diffbox{overflow-x:auto;border:1px solid var(--border);border-radius:8px;background:var(--panel2)}
   table.d{border-collapse:collapse;width:100%;font-family:"SFMono-Regular",Consolas,monospace;

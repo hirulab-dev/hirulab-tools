@@ -8,11 +8,11 @@
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --text:#1a1a1a; --sub:#666;
-    --accent:#c47f16; --border:#e2e2df; --shadow:0 1px 3px rgba(0,0,0,.06);
+    --accent:#8f5c0e; --on-accent:#ffffff; --border:#e2e2df; --shadow:0 1px 3px rgba(0,0,0,.06);
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#16181d; --panel:#1f2229; --text:#e8e8e6; --sub:#9a9a97;
-            --accent:#f5a623; --border:#33363e; --shadow:0 1px 3px rgba(0,0,0,.3); }
+            --accent:#f5a623; --on-accent:#17181c; --border:#33363e; --shadow:0 1px 3px rgba(0,0,0,.3); }
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);line-height:1.7;
@@ -37,6 +37,8 @@
          font-size:.85rem;color:var(--sub)}
   footer a{color:var(--accent)}
   ul{padding-left:1.2em}
+  /* 色を指定しないとブラウザ既定の青になり、ダークモードで 1.89:1 まで落ちる */
+  ul a{color:var(--accent)}
 </style>
 <link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
