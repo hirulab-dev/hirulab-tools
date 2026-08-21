@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>フリマ利益計算機 — 手数料込みの手取りと損益分岐</title>
+<meta name="description" content="メルカリ等の販売手数料・送料・仕入れ値から利益と利益率を即計算。逆算(目標利益→売値)も。AI(Claude)が作ったブラウザ完結ツール。データは送信されません。">
+<style>
+  :root { --bg:#f7f7f5; --panel:#fff; --text:#1a1a1a; --sub:#666; --border:#e2e2df;
+    --accent:#2563eb; --ok:#16a34a; --err:#dc2626; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --text:#e8e8e6; --sub:#9a9a97; --border:#33363e;
+      --accent:#60a5fa; --ok:#4ade80; --err:#f87171; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif; line-height:1.6; }
+  .wrap { max-width:640px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:1.4rem; margin:0 0 4px; }
+  .tagline { color:var(--sub); font-size:.85rem; margin-bottom:18px; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:14px; }
+  label { font-size:.78rem; color:var(--sub); display:block; margin-bottom:2px; }
+  .fields { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  input[type=number] { width:100%; border:1px solid var(--border); border-radius:8px; background:var(--bg);
+    color:var(--text); padding:10px; font-size:1.05rem; font-variant-numeric:tabular-nums; }
+  select { width:100%; border:1px solid var(--border); border-radius:8px; background:var(--bg);
+    color:var(--text); padding:10px; font-size:.95rem; }
+  .full { grid-column:1/-1; }
+  .result { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .res { border:1px solid var(--border); border-radius:10px; padding:10px 12px; }
+  .res .label { font-size:.72rem; color:var(--sub); }
+  .res .value { font-size:1.5rem; font-variant-numeric:tabular-nums; }
+  .res .value.minus { color:var(--err); }
+  .res .value.plus { color:var(--ok); }
+  .breakdown { font-size:.82rem; color:var(--sub); margin-top:10px; border-top:1px dashed var(--border); padding-top:8px; }
+  .note { font-size:.75rem; color:var(--sub); margin-top:6px; }
+  footer { color:var(--sub); font-size:.78rem; margin-top:24px; border-top:1px solid var(--border); padding-top:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>フリマ利益計算機</h1>
+  <div class="tagline">売値・仕入れ・送料から、手数料込みの手取りと利益率を即計算。すべてブラウザ内で完結し、入力はどこにも送信されません。</div>
+
+  <div class="panel">
+    <div class="fields">
+      <div class="full">
+        <label>販売先(手数料プリセット)</label>
+        <select id="preset">
+          <option value="10">メルカリ(10%)</option>
+          <option value="10">ヤフオク(10%)</option>
+          <option value="5">Yahoo!フリマ(5%)</option>
+          <option value="10">ラクマ(4.5〜10%・最初は10%)</option>
+          <option value="custom">手数料を自分で入力</option>
+        </select>
+      </div>
+      <div><label>販売手数料(%)</label><input type="number" id="feePct" value="10" min="0" max="100" step="0.1"></div>
+      <div><label>振込手数料(円)</label><input type="number" id="payout" value="200" min="0" step="1"></div>
+      <div><label>売値(円)</label><input type="number" id="price" value="2000" min="0" step="10"></div>
+      <div><label>仕入れ値(円)</label><input type="number" id="cost" value="500" min="0" step="10"></div>
+      <div><label>送料(円)</label><input type="number" id="ship" value="210" min="0" step="10"></div>
+      <div><label>梱包材ほか(円)</label><input type="number" id="pack" value="0" min="0" step="10"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="result">
+      <div class="res"><div class="label">利益(1個あたり)</div><div class="value" id="profit">—</div></div>
+      <div class="res"><div class="label">利益率(売値比)</div><div class="value" id="margin">—</div></div>
+      <div class="res"><div class="label">損益分岐の売値</div><div class="value" id="breakeven">—</div></div>
+      <div class="res"><div class="label">時給1,000円換算の許容作業時間</div><div class="value" id="worktime">—</div></div>
+    </div>
+    <div class="breakdown" id="breakdown"></div>
+    <div class="note">※振込手数料は1回の振込にまとめる運用なら1個あたりの負担はもっと小さくなります(ここでは全額を1個に載せる保守的な計算)。手数料率は変更されることがあります。</div>
+  </div>
+
+  <footer>
+    このツールはAI(Anthropic社のClaude)が設計からコードまで自分で書きました。人間はまだ1文字も直していません。
+  </footer>
+</div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const yen = n => (n < 0 ? "-" : "") + "¥" + Math.abs(Math.round(n)).toLocaleString();
+
+function update() {
+  const price = +$("price").value || 0;
+  const cost = +$("cost").value || 0;
+  const ship = +$("ship").value || 0;
+  const pack = +$("pack").value || 0;
+  const feePct = +$("feePct").value || 0;
+  const payout = +$("payout").value || 0;
+  const fee = price * feePct / 100;
+  const profit = price - fee - ship - cost - pack - payout;
+  const margin = price > 0 ? profit / price * 100 : 0;
+  // 損益分岐: price*(1-fee%) = 固定費
+  const fixed = ship + cost + pack + payout;
+  const breakeven = feePct < 100 ? fixed / (1 - feePct / 100) : Infinity;
+  const p = $("profit");
+  p.textContent = yen(profit);
+  p.className = "value " + (profit > 0 ? "plus" : profit < 0 ? "minus" : "");
+  $("margin").textContent = price > 0 ? margin.toFixed(1) + "%" : "—";
+  $("breakeven").textContent = isFinite(breakeven) ? yen(Math.ceil(breakeven)) : "—";
+  const mins = profit > 0 ? profit / 1000 * 60 : 0;
+  $("worktime").textContent = profit > 0 ? Math.floor(mins) + "分" : "0分";
+  $("breakdown").textContent =
+    `内訳: 売値 ${yen(price)} − 販売手数料 ${yen(fee)}(${feePct}%) − 送料 ${yen(ship)} − 仕入れ ${yen(cost)}` +
+    (pack ? ` − 梱包材 ${yen(pack)}` : "") + (payout ? ` − 振込 ${yen(payout)}` : "") + ` = ${yen(profit)}`;
+}
+$("preset").addEventListener("change", () => {
+  const v = $("preset").value;
+  if (v !== "custom") $("feePct").value = v;
+  update();
+});
+["feePct","payout","price","cost","ship","pack"].forEach(id => $(id).addEventListener("input", update));
+update();
+</script>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Character Counter — with X (Twitter) weighted count</title>
+<meta name="description" content="Characters, words, lines, paragraphs, reading time, and the weighted character count X (Twitter) actually uses. Built by an AI (Claude). Runs entirely in your browser — nothing is sent anywhere.">
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --text:#1a1a1a; --sub:#666;
+    --accent:#2563eb; --border:#e2e2df; --ok:#16a34a; --warn:#d97706; --err:#dc2626;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --text:#e8e8e6; --sub:#9a9a97;
+      --accent:#60a5fa; --border:#33363e; --ok:#4ade80; --warn:#fbbf24; --err:#f87171; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; line-height:1.6; }
+  .wrap { max-width:820px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:1.4rem; margin:0 0 4px; }
+  .tagline { color:var(--sub); font-size:.85rem; margin-bottom:20px; }
+  textarea { width:100%; min-height:220px; border:1px solid var(--border); border-radius:10px;
+    background:var(--panel); color:var(--text); padding:14px; font-size:1rem;
+    font-family:inherit; resize:vertical; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-top:16px; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 12px; }
+  .card .label { font-size:.72rem; color:var(--sub); }
+  .card .value { font-size:1.3rem; font-variant-numeric:tabular-nums; }
+  .card .note { font-size:.7rem; color:var(--sub); }
+  .card.wide { grid-column:1/-1; }
+  .bar { height:6px; border-radius:3px; background:var(--border); overflow:hidden; margin-top:6px; }
+  .bar > div { height:100%; background:var(--ok); transition:width .2s; }
+  .bar.warn > div { background:var(--warn); } .bar.over > div { background:var(--err); }
+  footer { color:var(--sub); font-size:.78rem; margin-top:28px; border-top:1px solid var(--border); padding-top:12px; }
+  footer a { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Character Counter</h1>
+  <div class="tagline">Paste your text and get every count at a glance — including the weighted count X (Twitter) actually uses. Everything runs inside your browser; your text is never sent anywhere.</div>
+  <textarea id="src" placeholder="Paste or type your text here" spellcheck="false"></textarea>
+  <div class="grid">
+    <div class="card"><div class="label">Characters (incl. spaces)</div><div class="value" id="c-all">0</div></div>
+    <div class="card"><div class="label">Characters (no spaces)</div><div class="value" id="c-nows">0</div></div>
+    <div class="card"><div class="label">Lines</div><div class="value" id="c-lines">0</div></div>
+    <div class="card"><div class="label">Paragraphs</div><div class="value" id="c-paras">0</div></div>
+    <div class="card"><div class="label">Words</div><div class="value" id="c-words">0</div></div>
+    <div class="card"><div class="label">Book pages (~250 words)</div><div class="value" id="c-pages">0</div></div>
+    <div class="card wide">
+      <div class="label">X (Twitter) weighted count — CJK/full-width = 2, others = 1, any URL = flat 23</div>
+      <div class="value"><span id="c-x">0</span> / 280 <span class="note" id="x-over"></span></div>
+      <div class="bar" id="x-bar"><div style="width:0%"></div></div>
+      <div class="note">280 is the limit for free accounts (CJK text effectively 140). Split your draft if you are over. Rules may change.</div>
+    </div>
+    <div class="card wide">
+      <div class="label">Estimated reading time (200 words/min English, 500 chars/min CJK)</div>
+      <div class="value" id="c-time">0 min</div>
+    </div>
+  </div>
+  <footer>
+    This tool was designed and coded entirely by an AI (Claude, by Anthropic). No human has edited a single character yet.
+    Bugs &amp; requests: reach the hirulab project (an AI autonomy experiment).
+  </footer>
+</div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const URL_RE = /https?:\/\/[^\s]+/g;
+
+function xWeight(text) {
+  // simplified t.co rule: URLs count a flat 23; CJK/full-width chars count 2; the rest 1
+  let t = text.replace(URL_RE, " ".repeat(23));
+  let w = 0;
+  for (const ch of t) {
+    if (ch === " ") { w += 1; continue; }
+    const cp = ch.codePointAt(0);
+    const wide = (cp >= 0x1100 && cp <= 0x115F) || (cp >= 0x2E80 && cp <= 0xA4CF) ||
+      (cp >= 0xAC00 && cp <= 0xD7A3) || (cp >= 0xF900 && cp <= 0xFAFF) ||
+      (cp >= 0xFE30 && cp <= 0xFE4F) || (cp >= 0xFF00 && cp <= 0xFF60) ||
+      (cp >= 0xFFE0 && cp <= 0xFFE6) || (cp >= 0x3000 && cp <= 0x303E) || cp > 0xFFFF;
+    w += wide ? 2 : 1;
+  }
+  return w;
+}
+
+function update() {
+  const t = $("src").value;
+  const chars = [...t];
+  const noWs = [...t.replace(/\s/g, "")];
+  const lines = t === "" ? 0 : t.split("\n").length;
+  const paras = t.trim() === "" ? 0 : t.split(/\n{2,}/).filter(p => p.trim()).length;
+  const words = (t.replace(URL_RE, " ").match(/[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*/g) || []).length;
+  const cjkChars = (t.match(/[　-ヿ一-鿿＀-￯]/g) || []).length;
+  $("c-all").textContent = chars.length.toLocaleString();
+  $("c-nows").textContent = noWs.length.toLocaleString();
+  $("c-lines").textContent = lines.toLocaleString();
+  $("c-paras").textContent = paras.toLocaleString();
+  $("c-words").textContent = words.toLocaleString();
+  $("c-pages").textContent = words ? Math.ceil(words / 250).toLocaleString() : 0;
+  const xw = xWeight(t);
+  $("c-x").textContent = xw.toLocaleString();
+  $("x-over").textContent = xw > 280 ? "(over)" : "";
+  const bar = $("x-bar");
+  const pct = Math.min(100, xw / 280 * 100);
+  bar.firstElementChild.style.width = pct + "%";
+  bar.className = "bar" + (xw > 280 ? " over" : xw > 252 ? " warn" : "");
+  const minutes = cjkChars / 500 + words / 200;
+  $("c-time").textContent = minutes < 0.1 && chars.length === 0 ? "0 min" :
+    minutes < 1 ? "under 1 min" : Math.round(minutes) + " min";
+}
+$("src").addEventListener("input", update);
+update();
+</script>
+</body>
+</html>

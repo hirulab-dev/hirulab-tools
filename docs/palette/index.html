@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カラーパレット生成 — 配色+コントラスト検査</title>
+<meta name="description" content="基準色から配色(補色・類似色・トライアド等)を生成し、WCAGコントラスト比まで検査。AI(Claude)が作ったブラウザ完結ツール。データは送信されません。">
+<style>
+  :root { --bg:#f7f7f5; --panel:#fff; --text:#1a1a1a; --sub:#666; --border:#e2e2df; --accent:#2563eb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --text:#e8e8e6; --sub:#9a9a97; --border:#33363e; --accent:#60a5fa; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif; line-height:1.6; }
+  .wrap { max-width:860px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:1.4rem; margin:0 0 4px; }
+  .tagline { color:var(--sub); font-size:.85rem; margin-bottom:20px; }
+  .controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
+  input[type=color] { width:64px; height:44px; border:1px solid var(--border); border-radius:8px; background:var(--panel); cursor:pointer; }
+  input[type=text] { width:110px; border:1px solid var(--border); border-radius:8px; background:var(--panel);
+    color:var(--text); padding:10px; font-family:ui-monospace,Menlo,monospace; }
+  button { border:1px solid var(--border); background:var(--panel); color:var(--text);
+    border-radius:8px; padding:10px 16px; cursor:pointer; font-size:.9rem; }
+  button:hover { border-color:var(--accent); color:var(--accent); }
+  h2 { font-size:.95rem; margin:22px 0 8px; }
+  .row { display:grid; grid-template-columns:repeat(auto-fit,minmax(96px,1fr)); gap:8px; }
+  .sw { border-radius:10px; overflow:hidden; border:1px solid var(--border); cursor:pointer; }
+  .sw .chip { height:64px; display:flex; align-items:flex-end; padding:6px; gap:4px; }
+  .sw .chip span { font-size:.65rem; padding:1px 5px; border-radius:4px; font-weight:600; }
+  .sw .meta { background:var(--panel); font-size:.72rem; padding:4px 8px; font-family:ui-monospace,Menlo,monospace; }
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--text); color:var(--bg);
+    padding:8px 18px; border-radius:999px; font-size:.85rem; opacity:0; transition:opacity .25s; pointer-events:none; }
+  .toast.on { opacity:1; }
+  pre { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px;
+    font-size:.8rem; overflow-x:auto; }
+  footer { color:var(--sub); font-size:.78rem; margin-top:28px; border-top:1px solid var(--border); padding-top:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>カラーパレット生成</h1>
+  <div class="tagline">基準色を選ぶと配色理論に沿ったパレットと、文字色との読みやすさ(WCAGコントラスト比)を出します。スウォッチをクリックでHEXコピー。すべてブラウザ内で完結します。</div>
+  <div class="controls">
+    <input type="color" id="base" value="#2b6cb0">
+    <input type="text" id="hex" value="#2b6cb0" spellcheck="false">
+    <button id="rand">🎲 ランダム</button>
+  </div>
+  <div id="sections"></div>
+  <h2>CSS変数として書き出し</h2>
+  <pre id="css"></pre>
+  <footer>
+    このツールはAI(Anthropic社のClaude)が設計からコードまで自分で書きました。人間はまだ1文字も直していません。
+    コントラスト比はWCAG 2.xの計算式です(4.5:1以上=本文OK、3:1以上=大きな文字OK)。
+  </footer>
+</div>
+<div class="toast" id="toast">コピーしました</div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+// ---- 色変換 ----
+function hexToRgb(h) {
+  const m = h.replace("#", "");
+  return [parseInt(m.slice(0,2),16), parseInt(m.slice(2,4),16), parseInt(m.slice(4,6),16)];
+}
+function rgbToHex(r,g,b) {
+  return "#" + [r,g,b].map(v => Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join("");
+}
+function rgbToHsl(r,g,b) {
+  r/=255; g/=255; b/=255;
+  const mx = Math.max(r,g,b), mn = Math.min(r,g,b), l = (mx+mn)/2;
+  if (mx === mn) return [0,0,l];
+  const d = mx-mn, s = l > .5 ? d/(2-mx-mn) : d/(mx+mn);
+  let h = mx===r ? (g-b)/d + (g<b?6:0) : mx===g ? (b-r)/d + 2 : (r-g)/d + 4;
+  return [h*60, s, l];
+}
+function hslToRgb(h,s,l) {
+  h = ((h % 360) + 360) % 360 / 360;
+  if (s === 0) { const v = l*255; return [v,v,v]; }
+  const q = l < .5 ? l*(1+s) : l+s-l*s, p = 2*l-q;
+  const f = t => {
+    t = ((t % 1) + 1) % 1;
+    if (t < 1/6) return p + (q-p)*6*t;
+    if (t < 1/2) return q;
+    if (t < 2/3) return p + (q-p)*(2/3 - t)*6;
+    return p;
+  };
+  return [f(h+1/3)*255, f(h)*255, f(h-1/3)*255];
+}
+const shift = (hex, dh, ds=0, dl=0) => {
+  const [h,s,l] = rgbToHsl(...hexToRgb(hex));
+  return rgbToHex(...hslToRgb(h+dh, Math.max(0,Math.min(1,s+ds)), Math.max(0,Math.min(1,l+dl))));
+};
+
+// ---- WCAGコントラスト ----
+function luminance(hex) {
+  const [r,g,b] = hexToRgb(hex).map(v => {
+    v /= 255;
+    return v <= 0.04045 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4);
+  });
+  return 0.2126*r + 0.7152*g + 0.0722*b;
+}
+function contrast(a, b) {
+  const [l1, l2] = [luminance(a), luminance(b)].sort((x,y)=>y-x);
+  return (l1 + 0.05) / (l2 + 0.05);
+}
+
+// ---- パレット定義 ----
+function palettes(base) {
+  return [
+    ["類似色(なじむ)", [shift(base,-30), shift(base,-15), base, shift(base,15), shift(base,30)]],
+    ["補色(強い対比)", [base, shift(base,180), shift(base,180,-.15,.15), shift(base,0,-.2,.25)]],
+    ["分裂補色(対比+安定)", [base, shift(base,150), shift(base,210)]],
+    ["トライアド(にぎやか)", [base, shift(base,120), shift(base,240)]],
+    ["明暗バリエーション", [shift(base,0,0,-.3), shift(base,0,0,-.15), base, shift(base,0,0,.15), shift(base,0,0,.3)]],
+    ["くすみ(上品トーン)", [shift(base,0,-.35,.1), shift(base,20,-.4,.2), shift(base,-20,-.4,.25), shift(base,0,-.3,.35)]],
+  ];
+}
+
+function badge(bg, fg, label) {
+  const c = contrast(bg, fg);
+  const mark = c >= 4.5 ? "◎" : c >= 3 ? "○" : "×";
+  return `<span style="background:${fg};color:${bg}">${label}${mark} ${c.toFixed(1)}</span>`;
+}
+
+function render() {
+  const base = $("hex").value.match(/^#[0-9a-fA-F]{6}$/) ? $("hex").value.toLowerCase() : $("base").value;
+  $("base").value = base; $("hex").value = base;
+  let html = "", cssLines = [];
+  for (const [name, cols] of palettes(base)) {
+    html += `<h2>${name}</h2><div class="row">`;
+    cols.forEach((c, i) => {
+      html += `<div class="sw" data-hex="${c}">
+        <div class="chip" style="background:${c}">${badge(c,"#ffffff","白")}${badge(c,"#1a1a1a","黒")}</div>
+        <div class="meta">${c}</div></div>`;
+      cssLines.push(`--${name.replace(/\(.*/,"").trim()}-${i+1}: ${c};`.replace(/類似色/,"analogous").replace(/補色/,"complement").replace(/分裂complement/,"split").replace(/トライアド/,"triad").replace(/明暗バリエーション/,"shade").replace(/くすみ/,"muted"));
+    });
+    html += "</div>";
+  }
+  $("sections").innerHTML = html;
+  $("css").textContent = ":root {\n  " + cssLines.join("\n  ") + "\n}";
+  document.querySelectorAll(".sw").forEach(el => el.addEventListener("click", () => {
+    navigator.clipboard?.writeText(el.dataset.hex);
+    const t = $("toast"); t.classList.add("on");
+    setTimeout(() => t.classList.remove("on"), 900);
+  }));
+}
+$("base").addEventListener("input", () => { $("hex").value = $("base").value; render(); });
+$("hex").addEventListener("change", render);
+$("rand").addEventListener("click", () => {
+  const h = Math.floor(Math.random()*360), s = .45+Math.random()*.4, l = .35+Math.random()*.3;
+  $("hex").value = rgbToHex(...hslToRgb(h,s,l)); render();
+});
+render();
+</script>
+</body>
+</html>
