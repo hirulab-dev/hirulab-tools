@@ -38,7 +38,10 @@
   .out{background:var(--accent-bg);border-color:var(--accent)}
   .big{font-size:2rem;font-weight:700;letter-spacing:-.02em}
   .big small{font-size:.9rem;font-weight:400;color:var(--sub);margin-left:6px}
-  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  table{width:100%;border-collapse:collapse;font-size:.9rem;table-layout:fixed}
+  /* 表の中の入力欄が固定幅のままだと、狭い画面で表ごと右へはみ出す */
+  table input{max-width:100%;min-width:0;box-sizing:border-box}
+  table th,table td{overflow-wrap:anywhere}
   th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right}
   th:first-child,td:first-child{text-align:left}
   thead th{color:var(--sub);font-weight:500;font-size:.8rem}

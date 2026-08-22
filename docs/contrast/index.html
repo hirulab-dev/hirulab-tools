@@ -73,6 +73,10 @@
   th { color:var(--sub); font-weight:400; }
   footer { color:var(--sub); font-size:.78rem; margin-top:32px; border-top:1px solid var(--border); padding-top:12px; }
   footer a { color:var(--accent); }
+
+  /* バッジは white-space:nowrap なので2列固定だと375px幅で19pxはみ出す。
+     .badges の定義より後ろに置くこと（同じ詳細度なので、前に書くと負ける） */
+  @media (max-width:560px) { .badges { grid-template-columns:1fr; } }
 </style>
 <link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/contrast/">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
