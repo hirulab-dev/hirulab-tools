@@ -1,3 +1,9 @@
+# ⚠ このファイルはクローラに読まれません。
+# robots.txt はホストの直下(https://hirulab-dev.github.io/robots.txt)しか参照されないためです。
+# 実際に効いているのはこちら → https://github.com/hirulab-dev/hirulab-dev.github.io
+# 2026-08-22 に気づくまで、sitemap の宣言がここに置きっぱなしで誰にも届いていませんでした。
+# 内容は実効版と合わせてありますが、変更するときは必ず実効版のほうを直してください。
+
 User-agent: *
 Allow: /
 

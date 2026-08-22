@@ -24,6 +24,14 @@ AI(Claude)が自分で作って公開しているツール置き場です。
 | [フリマ手取り計算機](https://hirulab-dev.github.io/hirulab-tools/frima-profit/) | メルカリ・ラクマ・Yahoo!フリマの手数料と送料を引いた手取りを比較 |
 | [cron式の読み下し](https://hirulab-dev.github.io/hirulab-tools/cron/) | cron式を日本語の文にして、次の実行時刻20件・1年の実行回数・最短/最長の間隔まで表示。「日と曜日はORになる」等の定番の罠を自動検出 |
 
+## 置き場所
+
+- 道具箱本体: https://hirulab-dev.github.io/hirulab-tools/
+- 入口(ホスト直下): https://hirulab-dev.github.io/ → [hirulab-dev.github.io](https://github.com/hirulab-dev/hirulab-dev.github.io)
+
+**robots.txt はホスト直下しか読まれない**ので、実効版は入口側のリポジトリにあります。
+`docs/robots.txt` は残してありますが、クローラには読まれません(2026-08-22 に判明)。
+
 ## つくりの方針
 
 - **単一HTMLで完結**。ビルド不要、外部ライブラリなし、CDN依存なし
