@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>正規表現を鉄道図にする — 図・読み下し・落とし穴の検出</title>
+<meta name="description" content="正規表現を鉄道図（railroad diagram）に描き、日本語に読み下し、キャプチャ番号を並べます。破滅的バックトラックや「日と曜日」ならぬ「. は改行にマッチしない」といった落とし穴も自動で指摘します。さらに図から例文字列を作り、その場でマッチするか確かめて図と式が食い違っていないことを見せます。ブラウザ内で完結し、データはどこにも送信されません。">
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
+    /* リンク色は白地で 4.5:1 を超える濃さにしている（明るい #c47f16 だと 3.28:1 しか出ない）。
+       --on-accent はアクセント色を背景に敷いたときの文字色。 */
+    --accent:#8f5c0e; --on-accent:#ffffff;
+    --border:#e2e2df; --ok:#15703f; --err:#b3261e; --warn:#9a5208;
+    --okbg:#e8f5ee; --errbg:#fdecea; --warnbg:#fdf4e3; --hi:#fdf4e3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --panel2:#242832; --text:#e8e8e6; --sub:#9a9a97;
+            --accent:#f5a623; --on-accent:#17181c;
+            --border:#33363e; --ok:#4ec98a; --err:#ff7b6e; --warn:#f0b64d;
+            --okbg:#1d2f26; --errbg:#33201e; --warnbg:#2e2a1f; --hi:#2e2a1f; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 18px 56px}
+  h1{font-size:1.35rem;margin:0 0 6px}
+  .lead{color:var(--sub);font-size:.88rem;margin:0 0 18px}
+  .lead strong{color:var(--text)}
+  .lead code{font-family:"SFMono-Regular",Consolas,monospace;background:var(--panel);
+       border:1px solid var(--border);border-radius:4px;padding:0 4px;color:var(--accent)}
+  .privacy{background:var(--panel);border:1px solid var(--ok);border-left-width:4px;
+           border-radius:8px;padding:10px 14px;font-size:.85rem;margin-bottom:18px}
+  .privacy strong{color:var(--ok)}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+         padding:14px;margin-bottom:14px}
+  h2{font-size:.95rem;margin:0 0 10px}
+  .hide{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  .inrow{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap}
+  .slash{font-family:"SFMono-Regular",Consolas,monospace;font-size:1.3rem;color:var(--sub);
+         display:flex;align-items:center}
+  input#pat{flex:1 1 320px;min-width:0;border:1px solid var(--border);border-radius:8px;
+       background:var(--panel2);color:var(--text);padding:12px 14px;font-size:1.1rem;
+       font-family:"SFMono-Regular",Consolas,"Courier New",monospace;outline:none}
+  input#pat:focus{border-color:var(--accent)}
+  input#flags{width:92px;border:1px solid var(--border);border-radius:8px;
+       background:var(--panel2);color:var(--text);padding:12px 10px;font-size:1.1rem;
+       font-family:"SFMono-Regular",Consolas,monospace;outline:none}
+  input#flags:focus{border-color:var(--accent)}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .presets button{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+        border-radius:999px;padding:5px 11px;font-size:.8rem;cursor:pointer;font-family:inherit}
+  .presets button:hover{border-color:var(--accent)}
+  .presets button .c{font-family:"SFMono-Regular",Consolas,monospace;color:var(--accent);margin-right:6px}
+
+  .err{display:none;background:var(--errbg);border:1px solid var(--err);color:var(--err);
+       border-radius:8px;padding:11px 14px;font-size:.87rem;margin-bottom:14px}
+  .err.on{display:block}
+  .err .where{font-family:"SFMono-Regular",Consolas,monospace;
+       display:block;margin-top:6px;white-space:pre;overflow-x:auto;font-size:.85rem}
+
+  .diagwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:4px 0}
+  svg.rr{display:block}
+  svg.rr .track{stroke:var(--sub);stroke-width:1.6;fill:none}
+  svg.rr .box{fill:var(--panel2);stroke:var(--accent);stroke-width:1.4}
+  svg.rr .box.desc{fill:var(--panel);stroke:var(--border);stroke-width:1.4}
+  svg.rr .box.anch{fill:none;stroke:var(--border);stroke-dasharray:3 3}
+  svg.rr .grp{fill:none;stroke:var(--border);stroke-width:1.2;stroke-dasharray:5 4}
+  svg.rr .grp.look{stroke:var(--warn)}
+  svg.rr text{fill:var(--text)}
+  svg.rr text.main{font-family:"SFMono-Regular",Consolas,monospace;font-size:13px}
+  svg.rr text.sub{font-size:10px;fill:var(--sub)}
+  svg.rr text.rep{font-size:10.5px;fill:var(--sub)}
+  svg.rr text.glabel{font-size:10.5px;fill:var(--sub)}
+  svg.rr text.glabel.look{fill:var(--warn)}
+  svg.rr .cap{stroke:var(--accent)}
+
+  ul.read{list-style:none;margin:0;padding:0;font-size:.88rem}
+  ul.read ul{list-style:none;margin:2px 0 2px 0;padding-left:16px;
+       border-left:1px solid var(--border)}
+  ul.read li{padding:1px 0 1px 8px}
+  ul.read code{font-family:"SFMono-Regular",Consolas,monospace;background:var(--panel2);
+       border:1px solid var(--border);border-radius:4px;padding:0 4px;color:var(--accent)}
+  ul.read .k{color:var(--sub);font-size:.92em}
+
+  .notes{list-style:none;margin:0;padding:0}
+  .notes li{border:1px solid var(--border);border-left-width:4px;border-radius:8px;
+       padding:10px 13px;font-size:.85rem;margin-bottom:8px;background:var(--panel2);line-height:1.65}
+  .notes li.w{border-left-color:var(--warn);background:var(--warnbg)}
+  .notes li.i{border-left-color:var(--accent)}
+  .notes li b{display:block;margin-bottom:2px}
+  .notes li.w b{color:var(--warn)}
+  .notes code{font-family:"SFMono-Regular",Consolas,monospace;background:var(--panel);
+       border:1px solid var(--border);border-radius:4px;padding:0 4px;font-size:.9em}
+
+  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  th,td{padding:7px 10px;border-bottom:1px solid var(--border);text-align:left;vertical-align:baseline}
+  th{font-size:.77rem;color:var(--sub);font-weight:600;white-space:nowrap}
+  td.n{white-space:nowrap;font-family:"SFMono-Regular",Consolas,monospace;color:var(--accent);font-weight:600}
+  td.src{font-family:"SFMono-Regular",Consolas,monospace;font-size:.85rem;word-break:break-all}
+
+  .samples{list-style:none;margin:0;padding:0;display:grid;gap:4px;
+       grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+  .samples li{display:flex;gap:8px;align-items:baseline;border:1px solid var(--border);
+       border-radius:7px;padding:5px 9px;background:var(--panel2);font-size:.84rem}
+  .samples li .m{font-family:"SFMono-Regular",Consolas,monospace;word-break:break-all}
+  .samples li .y{color:var(--ok);font-weight:700}
+  .samples li .n{color:var(--err);font-weight:700}
+  .samples li.bad{border-color:var(--err);background:var(--errbg)}
+  .verdict{font-size:.86rem;margin:0 0 10px;padding:9px 12px;border-radius:8px;
+       border:1px solid var(--ok);background:var(--okbg);color:var(--text)}
+  .verdict.bad{border-color:var(--err);background:var(--errbg)}
+  .verdict.skip{border-color:var(--warn);background:var(--warnbg)}
+  .verdict b{color:var(--ok)}
+  .verdict.bad b{color:var(--err)}
+  .verdict.skip b{color:var(--warn)}
+
+  details{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+          padding:12px 14px;margin-bottom:14px;font-size:.86rem}
+  details summary{cursor:pointer;font-weight:600;font-size:.9rem}
+  details ul{margin:10px 0 0;padding-left:20px}
+  details li{margin-bottom:7px;line-height:1.65}
+  details code{font-family:"SFMono-Regular",Consolas,monospace;background:var(--panel2);
+       border:1px solid var(--border);border-radius:4px;padding:0 4px}
+  a{color:var(--accent)}
+  .hl-back{display:inline-block;font-size:.82rem;margin-bottom:12px;text-decoration:none}
+  .hl-back:hover{text-decoration:underline}
+  .hl-nav{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+          padding:14px;margin-bottom:14px}
+  .hl-nav h2{font-size:.9rem;margin:0 0 8px}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+  .hl-nav li a{display:inline-block;border:1px solid var(--border);border-radius:999px;
+       padding:4px 11px;font-size:.8rem;text-decoration:none;background:var(--panel2)}
+  .hl-nav li a:hover{border-color:var(--accent)}
+  .hl-links{margin:10px 0 0;font-size:.82rem;color:var(--sub)}
+  footer{color:var(--sub);font-size:.78rem;line-height:1.7;margin-top:22px}
+</style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/railroad/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="クロードの昼ラボ">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="正規表現を鉄道図にする — 図・読み下し・落とし穴の検出">
+<meta property="og:description" content="正規表現を鉄道図に描き、日本語に読み下し、キャプチャ番号を並べます。破滅的バックトラック等の落とし穴も自動指摘。図から例文字列を作って、その場で図と式が食い違っていないか確かめます。ブラウザ内で完結します。">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/railroad/">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-railroad.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="正規表現を鉄道図にする — 図・読み下し・落とし穴の検出">
+<meta name="twitter:description" content="正規表現を鉄道図に描いて日本語に読み下し、落とし穴を自動で指摘します。図から例文字列を作って、その場で図と式が合っているか確かめます。ブラウザ内で完結します。">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-railroad.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "正規表現を鉄道図にする",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/railroad/",
+  "description": "正規表現を鉄道図（railroad diagram）に描き、日本語に読み下し、キャプチャ番号を一覧にします。破滅的バックトラックや、. が改行にマッチしないといった落とし穴を自動で検出します。図から例文字列を生成してその場でマッチを確かめるため、図と式が食い違っていないことを確認できます。ブラウザ内で完結します。",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "JavaScript が有効なモダンブラウザ",
+  "inLanguage": "ja",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-railroad.png",
+  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
+  <h1>正規表現を鉄道図にする</h1>
+  <p class="lead">正規表現を<strong>鉄道図</strong>（線路のように分岐とループで描いた図）にして、
+    <strong>日本語の読み下し</strong>と<strong>キャプチャ番号</strong>を並べます。
+    <code>(a+)+</code> のような<strong>破滅的バックトラック</strong>や、
+    <code>.</code> が改行にマッチしないことなど、当てはまる落とし穴は自動で指摘します。
+    さらに<strong>図から例文字列を作って、その場でマッチするか確かめます</strong>
+    （図と式が食い違っていたら、そこで分かります）。</p>
+
+  <div class="privacy">
+    <strong>このページは通信を一切行いません。</strong>
+    解析も作図もすべてブラウザの中でやっています。読み込んだあとは機内モードでも動きます。
+    入力した正規表現がどこかに送られることはありません。
+  </div>
+
+  <div class="panel">
+    <label for="pat" class="hide">正規表現</label>
+    <label for="flags" class="hide">フラグ</label>
+    <div class="inrow">
+      <span class="slash">/</span>
+      <input type="text" id="pat" spellcheck="false" autocapitalize="off" autocorrect="off"
+             autocomplete="off" value="^(\d{4})-(\d{2})-(\d{2})$">
+      <span class="slash">/</span>
+      <input type="text" id="flags" spellcheck="false" autocapitalize="off" autocorrect="off"
+             autocomplete="off" value="" placeholder="gimsu">
+    </div>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div class="err" id="err"></div>
+
+  <div class="panel">
+    <h2>鉄道図</h2>
+    <div class="diagwrap" id="diag"></div>
+  </div>
+
+  <div class="panel">
+    <h2>読み下し</h2>
+    <ul class="read" id="read"></ul>
+  </div>
+
+  <div class="panel" id="grpPanel">
+    <h2>キャプチャ</h2>
+    <div class="tablewrap"><table id="grpTable"></table></div>
+    <p class="lead" style="margin:8px 0 0" id="grpNote"></p>
+  </div>
+
+  <div class="panel">
+    <h2>気をつけるところ</h2>
+    <ul class="notes" id="notes"></ul>
+  </div>
+
+  <div class="panel">
+    <h2>図から作った例で確かめる</h2>
+    <p class="verdict" id="verdict"></p>
+    <ul class="samples" id="samples"></ul>
+    <p class="lead" style="margin:10px 0 0">
+      図（＝解析した構造）だけを見て文字列を組み立て、それを<strong>元の正規表現そのもの</strong>に
+      当てています。全部 ✓ なら、図の読み方と式の意味はここまでは食い違っていません。
+      文字列を入れて試したいときは <a href="../regex/">正規表現テスタ</a> へ。
+    </p>
+  </div>
+
+  <details>
+    <summary>この図の読み方と、作りの話</summary>
+    <ul>
+      <li><b>線をたどれる形にマッチする</b>: 左の <code>▶</code> から右の <code>◀</code> まで、
+        線に沿って通った箱の中身をつなげたものが、この正規表現にマッチする文字列です。
+        分岐はどれか1つを選び、ループは戻ってきた回数だけくり返します。</li>
+      <li><b>上が既定の道</b>: 分岐は上から順に試されます（正規表現の <code>|</code> は左から順）。
+        ループの脇に「最小一致」と出ているときは、<code>*?</code> のように
+        <b>できるだけ回らない</b>ほうを先に試します。</li>
+      <li><b>破線の箱</b>: グループです。丸数字が付いているものは
+        <code>\1</code> や <code>$1</code> で後から参照できます。
+        オレンジの破線は<b>先読み・後読み</b>で、
+        <b>条件を見るだけで文字を消費しません</b>（通っても位置が進みません）。</li>
+      <li><b>作り</b>: 正規表現の解析も作図もライブラリなしの自前です。
+        図は SVG を組み立てて描いています。箱の幅は
+        <code>canvas</code> の文字幅測定で実際に測っているので、フォントが変わってもはみ出しません。</li>
+      <li><b>確かめかた</b>: 解析結果から例文字列を作り、
+        <b>元の正規表現に当て直して</b>マッチするかをその場で見ています（上の欄）。
+        加えて、ランダムに作った正規表現で
+        「自前の解析が受け付ける／拒む」がブラウザの <code>RegExp</code> と一致するかを
+        まとめて突き合わせる検証を <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>側に置いています。</li>
+      <li><b>対応していないもの</b>: <code>v</code> フラグの文字クラスの集合演算、
+        <code>\p{...}</code> の細かい分類は、図では1つの箱にまとめて表示します。
+        図が描けないほど複雑なときは、その旨を出します。</li>
+    </ul>
+  </details>
+
+  <nav class="hl-nav">
+    <h2>ほかの道具</h2>
+    <ul>
+      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
+      <li><a href="../date/">日付計算機</a></li>
+      <li><a href="../image/">画像リサイズ・圧縮</a></li>
+      <li><a href="../take-home/">手取り計算機</a></li>
+      <li><a href="../json/">JSON整形・検証</a></li>
+      <li><a href="../diff/">テキスト差分（diff）</a></li>
+      <li><a href="../unit/">単位換算</a></li>
+      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
+      <li><a href="../qr/">QRコード作成</a></li>
+      <li><a href="../palette/">カラーパレット生成</a></li>
+      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
+      <li><a href="../cron/">cron式の読み下し</a></li>
+      <li><a href="../tz/">タイムゾーン変換</a></li>
+      <li><a href="../csv/">CSVプレビュー・診断</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="../">道具箱のトップ</a> ・
+      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
+      <a href="https://x.com/hirulab_ai">X</a> ・
+      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+    </p>
+  </nav>
+
+  <footer>
+    作ったのは「クロードの昼ラボ」（AIのClaude）です。使用は無料・登録不要。
+    図は JavaScript の正規表現（ECMAScript）の書き方に合わせています。
+    Python や PCRE では意味が違う記号があるので、他の言語で使うときは確かめてください。
+  </footer>
+</div>
+
+<script>
+/*==CORE-START==*/
+/* ---- 正規表現の解析 ------------------------------------------------------
+   ECMAScript の正規表現を、位置つきで再帰下降で読む。エラーは必ず
+   「どこで」を持たせる（キャレット行を出すため）。                        */
+
+function ParseError(msg, pos, len) { this.msg = msg; this.pos = pos; this.len = len || 1; }
+
+/* u（と v）フラグの有無で「読める式」が変わる。付いていないときの ECMAScript は
+   壊れたエスケープをエラーにせず「\ のあとの1文字そのもの」として読み流す（Annex B）。
+   ここを厳しくすると、ブラウザが通す式をこの道具だけが拒むことになる。 */
+function parseRegex(src, flags) {
+  var U = /[uv]/.test(String(flags || ''));
+  var IDENT_OK_U = '^$\\.*+?()[]{}|/';
+  var i = 0, capIndex = 0, names = [];
+  // 名前つきグループは前方参照 \k<name> があるので先に名前を集めておく
+  var nre = /\(\?<([A-Za-z_$][\w$]*)>/g, m;
+  while ((m = nre.exec(src))) names.push(m[1]);
+
+  function peek() { return src[i]; }
+  function eat(c) { if (src[i] === c) { i++; return true; } return false; }
+  function err(msg, pos, len) { throw new ParseError(msg, pos === undefined ? i : pos, len); }
+
+  function parseAlt() {
+    var start = i, xs = [parseSeq()];
+    while (eat('|')) xs.push(parseSeq());
+    if (xs.length === 1) return xs[0];
+    return { t: 'alt', xs: xs, pos: start };
+  }
+
+  function parseSeq() {
+    var start = i, xs = [];
+    while (i < src.length && src[i] !== '|' && src[i] !== ')') xs.push(parseQuant());
+    if (xs.length === 0) return { t: 'empty', pos: start };
+    if (xs.length === 1) return xs[0];
+    return { t: 'seq', xs: xs, pos: start };
+  }
+
+  function parseQuant() {
+    var atom = parseAtom(), q = readQuantifier();
+    if (!q) return atom;
+    if (atom.t === 'anchor')
+      err('「' + atom.raw + '」は位置を指す記号なので、くり返せません', atom.pos, atom.raw.length);
+    // 後読みはくり返せない。先読みは u フラグ無しのときだけ通る（後方互換の名残）
+    if (atom.t === 'group' && (atom.kind === 'lb' || atom.kind === 'nlb'))
+      err('後読みはくり返せません', q.pos, q.raw.length);
+    if (U && atom.t === 'group' && (atom.kind === 'la' || atom.kind === 'nla'))
+      err('u フラグがあるときは先読みをくり返せません', q.pos, q.raw.length);
+    // くり返しの直後にもう1つくり返しは書けない（a** や a?{2} など）。
+    // ただし a?? の2つめの ? は「最小一致」として readQuantifier が食べているので、ここには来ない。
+    if (isQuantifierAt(i))
+      err('くり返しの記号が続いています。まとめたいときは (?:…) で囲んでください', i, 1);
+    return { t: 'rep', x: atom, min: q.min, max: q.max, lazy: q.lazy, raw: q.raw, pos: atom.pos };
+  }
+
+  /* いまの位置からくり返しの記号が始まるか。{ は「数の形」になっているときだけ数える
+     （{abc} はただの文字列として通るのが ECMAScript の挙動）。 */
+  function isQuantifierAt(p) {
+    var c = src[p];
+    if (c === '*' || c === '+' || c === '?') return true;
+    return c === '{' && /^\{\d+(,\d*)?\}/.test(src.slice(p));
+  }
+
+  function readQuantifier() {
+    var start = i, c = src[i], min, max;
+    if (c === '*') { i++; min = 0; max = Infinity; }
+    else if (c === '+') { i++; min = 1; max = Infinity; }
+    else if (c === '?') { i++; min = 0; max = 1; }
+    else if (c === '{') {
+      var mm = /^\{(\d+)(,(\d*))?\}/.exec(src.slice(i));
+      if (!mm) return null;               // {abc} はただの文字列（ECMAScript の挙動）
+      i += mm[0].length;
+      min = parseInt(mm[1], 10);
+      max = mm[2] === undefined ? min : (mm[3] === '' ? Infinity : parseInt(mm[3], 10));
+      if (min > max)
+        err('くり返しの下限が上限より大きいです（' + min + ' > ' + max + '）', start, mm[0].length);
+    } else return null;
+    var lazy = false;
+    if (src[i] === '?') { i++; lazy = true; }
+    else if (src[i] === '+') err('この書き方（絶対最大量指定子）は JavaScript にはありません', i, 1);
+    return { min: min, max: max, lazy: lazy, raw: src.slice(start, i), pos: start };
+  }
+
+  function parseAtom() {
+    var start = i, c = src[i];
+    if (c === undefined) err('式が途中で終わっています');
+    if (c === '(') return parseGroup();
+    if (c === '[') return parseClass();
+    if (c === ')') err('対応する「(」のない「)」です', i, 1);
+    if (c === '*' || c === '+' || c === '?')
+      err('「' + c + '」の前にくり返す対象がありません', i, 1);
+    if (c === '.') { i++; return { t: 'any', raw: '.', pos: start }; }
+    if (c === '^' || c === '$') { i++; return { t: 'anchor', k: c, raw: c, pos: start }; }
+    if (c === '\\') return parseEscape(false);
+    if (isQuantifierAt(i)) err('「' + /^\{\d+(,\d*)?\}/.exec(src.slice(i))[0] +
+                               '」の前にくり返す対象がありません', i,
+                               /^\{\d+(,\d*)?\}/.exec(src.slice(i))[0].length);
+    // u フラグ無しの ECMAScript は { } ] をそのままの文字として通すが、u があると通らない
+    if (U && (c === '{' || c === '}' || c === ']'))
+      err('u フラグがあるときは「' + c + '」をそのまま書けません（\\ を前に付けます）', i, 1);
+    i++;
+    return { t: 'char', c: c, raw: c, pos: start };
+  }
+
+  function parseGroup() {
+    var start = i;
+    i++; // (
+    var kind = 'cap', name = null, num = null;
+    if (src[i] === '?') {
+      var c2 = src[i + 1];
+      if (c2 === ':') { kind = 'ncap'; i += 2; }
+      else if (c2 === '=') { kind = 'la'; i += 2; }
+      else if (c2 === '!') { kind = 'nla'; i += 2; }
+      else if (c2 === '<' && (src[i + 2] === '=' || src[i + 2] === '!')) {
+        kind = src[i + 2] === '=' ? 'lb' : 'nlb'; i += 3;
+      } else if (c2 === '<') {
+        var mn = /^\(\?<([A-Za-z_$][\w$]*)>/.exec(src.slice(start));
+        if (!mn) err('グループ名の書き方が違います（<名前> の形にしてください）', start, 3);
+        kind = 'named'; name = mn[1]; i = start + mn[0].length;
+      } else err('「(?」のあとの書き方が分かりません', i + 1, 1);
+    }
+    if (kind === 'cap' || kind === 'named') num = ++capIndex;
+    var inner = parseAlt();
+    if (!eat(')')) err('「(」に対応する「)」がありません', start, 1);
+    return { t: 'group', kind: kind, name: name, num: num, x: inner,
+             raw: src.slice(start, i), pos: start };
+  }
+
+  var CLASS_ESC = { d: '数字', D: '数字以外', w: '英数字か _', W: '英数字と _ 以外',
+                    s: '空白', S: '空白以外' };
+
+  function parseEscape(inClass) {
+    var start = i;
+    i++; // backslash
+    var c = src[i];
+    if (c === undefined) err('「\\」で式が終わっています', start, 1);
+    if (CLASS_ESC[c]) { i++; return { t: 'esc', k: c, raw: '\\' + c, pos: start }; }
+    if (!inClass && (c === 'b' || c === 'B')) { i++; return { t: 'anchor', k: '\\' + c, raw: '\\' + c, pos: start }; }
+    if (inClass && c === 'b') { i++; return { t: 'char', c: '\b', raw: '\\b', pos: start }; }
+    // \k は、式のどこかに名前つきグループがあるときだけ「参照」になる。
+    // 1つも無ければ ECMAScript は \k をただの文字 k として扱う（Annex B の後方互換）。
+    // u フラグがあるときは後方互換が効かないので、いつでも参照として読む。
+    if (!inClass && c === 'k' && (names.length || U)) {
+      var mk = /^\\k<([A-Za-z_$][\w$]*)>/.exec(src.slice(start));
+      if (!mk) err('「\\k<名前>」の書き方が違います', start, 2);
+      if (names.indexOf(mk[1]) < 0) err('その名前のグループがありません: ' + mk[1], start, mk[0].length);
+      i = start + mk[0].length;
+      return { t: 'ref', name: mk[1], raw: mk[0], pos: start };
+    }
+    if (!inClass && c >= '1' && c <= '9') {
+      var md = /^\\(\d+)/.exec(src.slice(start));
+      i = start + md[0].length;
+      return { t: 'ref', num: parseInt(md[1], 10), raw: md[0], pos: start };
+    }
+    if (c === 'p' || c === 'P') {
+      var mp = /^\\[pP]\{[^}]*\}/.exec(src.slice(start));
+      if (mp) { i = start + mp[0].length; return { t: 'uprop', raw: mp[0], neg: c === 'P', pos: start }; }
+    }
+    var SIMPLE = { n: '\n', r: '\r', t: '\t', f: '\f', v: '\v', 0: '\0' };
+    if (SIMPLE[c] !== undefined) {
+      if (c === '0' && U && /\d/.test(src[i + 1] || ''))
+        err('u フラグがあるときは 8進エスケープを書けません', start, 2);
+      i++; return { t: 'char', c: SIMPLE[c], raw: '\\' + c, pos: start };
+    }
+    /* \x \u \c は、形が揃っていないとエラー…にはならない。ECMAScript（u フラグなし）は
+       「\ のあとの1文字そのもの」として読み流す。ここを厳しくすると、ブラウザが通す式を
+       この道具だけが拒んでしまう。u フラグ付きでは本当にエラーになるので注記だけ出す。 */
+    if (c === 'x') {
+      var mx = /^\\x([0-9a-fA-F]{2})/.exec(src.slice(start));
+      if (mx) {
+        i = start + mx[0].length;
+        return { t: 'char', c: String.fromCharCode(parseInt(mx[1], 16)), raw: mx[0], pos: start };
+      }
+      if (U) err('「\\x」のあとは16進2桁です（u フラグがあるので読み流せません）', start, 2);
+      i++;
+      return { t: 'char', c: 'x', raw: '\\x', pos: start };
+    }
+    if (c === 'u') {
+      // \u{…} が符号位置になるのは u フラグがあるときだけ。無いときは
+      // 「u」1文字 + {…} のくり返し指定として読まれる（/\u{2}/ は "uu" にマッチする）。
+      var mu = U ? /^\\u\{([0-9a-fA-F]{1,6})\}/.exec(src.slice(start)) : null;
+      if (mu && parseInt(mu[1], 16) > 0x10FFFF)
+        err('符号位置が大きすぎます（上限は 10FFFF）', start, mu[0].length);
+      if (!mu) mu = /^\\u([0-9a-fA-F]{4})/.exec(src.slice(start));
+      if (mu) {
+        i = start + mu[0].length;
+        return { t: 'char', c: String.fromCodePoint(parseInt(mu[1], 16)), raw: mu[0], pos: start };
+      }
+      if (U) err('「\\u」のあとは16進4桁か {…} です（u フラグがあるので読み流せません）', start, 2);
+      i++;
+      return { t: 'char', c: 'u', raw: '\\u', pos: start };
+    }
+    if (c === 'c') {
+      var mc = /^\\c([A-Za-z])/.exec(src.slice(start));
+      if (mc) {
+        i = start + mc[0].length;
+        return { t: 'char', c: String.fromCharCode(mc[1].toUpperCase().charCodeAt(0) - 64),
+                 raw: mc[0], pos: start };
+      }
+      if (U) err('「\\c」のあとは英字1文字です（u フラグがあるので読み流せません）', start, 2);
+      // \c のあとが英字でないときは「\」そのもの。c は次の文字として読み直す
+      return { t: 'char', c: '\\', raw: '\\', pos: start };
+    }
+    if (U && IDENT_OK_U.indexOf(c) < 0 && !(inClass && c === '-'))
+      err('u フラグがあるときは「\\' + c + '」とは書けません（意味のないエスケープ）', start, 2);
+    i++;
+    return { t: 'char', c: c, raw: '\\' + c, pos: start, escaped: true };
+  }
+
+  function parseClass() {
+    var start = i;
+    i++; // [
+    var neg = eat('^'), items = [], first = true;
+    while (true) {
+      if (i >= src.length) err('「[」に対応する「]」がありません', start, 1);
+      if (src[i] === ']' && !first) { i++; break; }
+      if (src[i] === ']' && first) { i++; break; }   // [] は空集合（何にもマッチしない）
+      first = false;
+      var lo = classAtom();
+      if (src[i] === '-' && src[i + 1] !== ']' && i + 1 < src.length) {
+        var dashPos = i;
+        i++;
+        var hi = classAtom();
+        if (lo.t !== 'char' || hi.t !== 'char') {
+          // [\d-x] のように範囲にできない組み合わせ。u フラグ無しの ECMAScript は
+          // 「-」をただの文字として扱うが、u があるとエラーになる
+          if (U) err('この「-」は範囲になりません（u フラグがあるので \- と書く必要があります）', dashPos, 1);
+          items.push(lo); items.push({ t: 'char', c: '-', raw: '-', pos: dashPos }); items.push(hi);
+        } else if (lo.c.codePointAt(0) > hi.c.codePointAt(0)) {
+          err('文字の範囲が逆向きです（' + lo.raw + ' のほうが ' + hi.raw + ' より後ろの文字です）',
+              lo.pos, (hi.pos + hi.raw.length) - lo.pos);
+        } else items.push({ t: 'range', a: lo, b: hi, pos: lo.pos });
+      } else items.push(lo);
+    }
+    return { t: 'class', neg: neg, items: items, raw: src.slice(start, i), pos: start };
+  }
+
+  function classAtom() {
+    if (src[i] === '\\') return parseEscape(true);
+    var p = i, c = src[i];
+    i++;
+    return { t: 'char', c: c, raw: c, pos: p };
+  }
+
+  var node = parseAlt();
+  if (i < src.length) err('ここから先が読めません', i, 1);
+
+  /* \3 と書いてあってもグループが2個しか無いことがある。u フラグがあればエラーだが、
+     無ければ ECMAScript は 8進エスケープ（\3 = \x03）として読む。
+     グループの総数は最後まで読まないと分からないので、ここでまとめて直す。 */
+  (function fixRefs(n) {
+    if (!n) return;
+    if (n.t === 'ref' && n.num !== undefined && n.num > capIndex) {
+      if (U) err('グループが ' + capIndex + ' 個しかないので \\' + n.num + ' は参照できません',
+                 n.pos, n.raw.length);
+      var oct = /^[0-7]{1,3}/.exec(String(n.num));
+      n.t = 'char';
+      n.c = oct ? String.fromCharCode(parseInt(oct[0], 8)) : String(n.num).charAt(0);
+      n.octal = true;
+    }
+    if (n.xs) n.xs.forEach(fixRefs);
+    if (n.x) fixRefs(n.x);
+  })(node);
+
+  /* 同じ名前のグループを2つ書けるのは「同じ | の別の枝にあるとき」だけ。
+     どちらも同時に成立しうる置き方だとエラーになる（1つのマッチで名前が2つの値を
+     持てないため）。どの枝にいるかは、根から辿った道を突き合わせて調べる。 */
+  var named = [];
+  (function collect(n, path) {
+    if (n.t === 'group' && n.name) named.push({ n: n, path: path });
+    if (n.xs) n.xs.forEach(function (c, k) { collect(c, path.concat([{ node: n, k: k }])); });
+    if (n.x) collect(n.x, path.concat([{ node: n, k: -1 }]));
+  })(node, []);
+  for (var a = 0; a < named.length; a++)
+    for (var b = a + 1; b < named.length; b++) {
+      if (named[a].n.name !== named[b].n.name) continue;
+      var pa = named[a].path, pb = named[b].path, ok = false;
+      for (var k = 0; k < Math.min(pa.length, pb.length); k++) {
+        if (pa[k].node === pb[k].node && pa[k].k === pb[k].k) continue;
+        ok = pa[k].node === pb[k].node && pa[k].node.t === 'alt' && pa[k].k !== pb[k].k;
+        break;
+      }
+      if (!ok) err('同じ名前のグループが2つあります: ' + named[b].n.name +
+                   '（同じ「|」の別の枝どうしなら置けます）', named[b].n.pos, 1);
+    }
+
+  return { node: node, capCount: capIndex, names: names, unicode: U };
+}
+
+/* ---- 鉄道図のレイアウト --------------------------------------------------
+   各要素は { w, up, down, draw(x, y) } を持つ。y は「線路の高さ」で、
+   up は線路より上に、down は下に、それぞれどれだけはみ出すか。
+   これだけ決めておくと、並べる・分岐する・ループするの3つで全部組める。 */
+
+var AR = 10;      // 曲がり角の半径
+var VS = 10;      // 分岐どうしの縦の間隔
+var SEQGAP = 8;   // 横に並べるときの間隔
+
+/* 角を1つ曲がる。y は下向きが正なので、時計回り(sweep=1)の向きに注意。 */
+var A_ds = 'a' + AR + ',' + AR + ' 0 0 1 ' + AR + ',' + AR;    // 横→下
+var A_de = 'a' + AR + ',' + AR + ' 0 0 0 ' + AR + ',' + AR;    // 下→横
+var A_us = 'a' + AR + ',' + AR + ' 0 0 0 ' + AR + ',' + (-AR); // 横→上
+var A_ue = 'a' + AR + ',' + AR + ' 0 0 1 ' + AR + ',' + (-AR); // 上→横
+var A_dl = 'a' + AR + ',' + AR + ' 0 0 1 ' + (-AR) + ',' + AR; // 下→左
+var A_lu = 'a' + AR + ',' + AR + ' 0 0 1 ' + (-AR) + ',' + (-AR); // 左→上
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function ln(x1, y1, x2, y2) {
+  if (x1 === x2 && y1 === y2) return '';
+  return '<path class="track" d="M' + r1(x1) + ' ' + r1(y1) + 'H' + r1(x2) + '"/>';
+}
+function pth(d) { return '<path class="track" d="' + d + '"/>'; }
+function r1(n) { return Math.round(n * 10) / 10; }
+
+/* 文字幅は推測せず canvas で実測する。フォントが違う環境でも箱からはみ出さない。 */
+var _ctx = null, _wcache = {};
+function measure(text, font) {
+  var key = font + ' ' + text;
+  if (_wcache[key] !== undefined) return _wcache[key];
+  if (!_ctx) _ctx = document.createElement('canvas').getContext('2d');
+  _ctx.font = font;
+  var w = _ctx.measureText(text).width;
+  _wcache[key] = w;
+  return w;
+}
+var F_MAIN = '13px "SFMono-Regular",Consolas,monospace';
+var F_SUB = '10px "Hiragino Sans","Noto Sans JP",Meiryo,sans-serif';
+var F_LBL = '10.5px "Hiragino Sans","Noto Sans JP",Meiryo,sans-serif';
+
+/* 箱ひとつ。main は等幅（式そのまま）、sub は日本語の補足。 */
+function Term(main, sub, cls) {
+  var wm = measure(main, F_MAIN), ws = sub ? measure(sub, F_SUB) : 0;
+  var w = Math.max(wm, ws) + 22, h = sub ? 34 : 24;
+  return { w: w, up: h / 2, down: h / 2, kind: 'term',
+    draw: function (x, y) {
+      var s = '<rect class="box' + (cls ? ' ' + cls : '') + '" x="' + r1(x) + '" y="' +
+              r1(y - h / 2) + '" width="' + r1(w) + '" height="' + h + '" rx="5"/>';
+      var my = sub ? y - 2 : y + 4.5;
+      s += '<text class="main" x="' + r1(x + w / 2) + '" y="' + r1(my) +
+           '" text-anchor="middle">' + esc(main) + '</text>';
+      if (sub) s += '<text class="sub" x="' + r1(x + w / 2) + '" y="' + r1(y + 12) +
+                    '" text-anchor="middle">' + esc(sub) + '</text>';
+      return s;
+    } };
+}
+
+/* 線だけ（空の選択肢＝「何も通らない」道）。 */
+function Skip() {
+  return { w: 24, up: 8, down: 8, kind: 'skip',
+    draw: function (x, y) { return ln(x, y, x + 24, y); } };
+}
+
+function Seq(items) {
+  if (items.length === 1) return items[0];
+  var w = 0, up = 0, down = 0;
+  for (var k = 0; k < items.length; k++) {
+    w += items[k].w;
+    up = Math.max(up, items[k].up);
+    down = Math.max(down, items[k].down);
+  }
+  w += SEQGAP * (items.length - 1);
+  return { w: w, up: up, down: down, kind: 'seq',
+    draw: function (x, y) {
+      var s = '', cx = x;
+      for (var k = 0; k < items.length; k++) {
+        if (k) { s += ln(cx, y, cx + SEQGAP, y); cx += SEQGAP; }
+        s += items[k].draw(cx, y);
+        cx += items[k].w;
+      }
+      return s;
+    } };
+}
+
+function padDraw(item, x, y, W) {
+  var gap = W - item.w, l = Math.floor(gap / 2), r = gap - l;
+  return ln(x, y, x + l, y) + item.draw(x + l, y) + ln(x + l + item.w, y, x + W, y);
+}
+
+/* 縦に積む分岐。1本目が線路の高さに乗り、2本目以降が下にぶら下がる。 */
+function Choice(items) {
+  var inner = 0, k;
+  for (k = 0; k < items.length; k++) inner = Math.max(inner, items[k].w);
+  var w = inner + 4 * AR;
+  var offs = [0], cur = 0;
+  for (k = 1; k < items.length; k++) {
+    var need = AR + VS + items[k].up + (k === 1 ? items[0].down : items[k - 1].down);
+    cur += Math.max(2 * AR, k === 1 ? need : VS + items[k - 1].down + items[k].up);
+    offs.push(cur);
+  }
+  var down = items.length > 1 ? offs[offs.length - 1] + items[items.length - 1].down : items[0].down;
+  return { w: w, up: items[0].up, down: Math.max(down, items[0].down), kind: 'choice',
+    draw: function (x, y) {
+      var s = ln(x, y, x + 2 * AR, y) + padDraw(items[0], x + 2 * AR, y, inner) +
+              ln(x + 2 * AR + inner, y, x + w, y);
+      for (var k = 1; k < items.length; k++) {
+        var yi = y + offs[k];
+        s += pth('M' + r1(x) + ' ' + r1(y) + A_ds + 'V' + r1(yi - AR) + A_de);
+        s += padDraw(items[k], x + 2 * AR, yi, inner);
+        s += pth('M' + r1(x + 2 * AR + inner) + ' ' + r1(yi) + A_us + 'V' + r1(y + AR) + A_ue);
+      }
+      return s;
+    } };
+}
+
+/* 省略できる道（?）。上をまっすぐ通れる。 */
+function Opt(item) {
+  var w = item.w + 4 * AR;
+  var dy = Math.max(2 * AR, AR + VS + item.up);
+  return { w: w, up: 8, down: dy + item.down, kind: 'opt',
+    draw: function (x, y) {
+      var yi = y + dy;
+      var s = ln(x, y, x + w, y);
+      s += pth('M' + r1(x) + ' ' + r1(y) + A_ds + 'V' + r1(yi - AR) + A_de);
+      s += padDraw(item, x + 2 * AR, yi, item.w);
+      s += pth('M' + r1(x + 2 * AR + item.w) + ' ' + r1(yi) + A_us + 'V' + r1(y + AR) + A_ue);
+      return s;
+    } };
+}
+
+/* くり返し。下に戻り線を回す。label は「2〜5回」など。 */
+function Rep(item, label) {
+  var lw = label ? measure(label, F_LBL) : 0;
+  var inner = Math.max(item.w, lw + 16);
+  var w = inner + 2 * AR;
+  var dy = Math.max(2 * AR, AR + VS + item.down + 6);
+  return { w: w, up: item.up, down: dy + 8, kind: 'rep',
+    draw: function (x, y) {
+      var yl = y + dy;
+      var s = ln(x, y, x + AR, y) + padDraw(item, x + AR, y, inner) + ln(x + AR + inner, y, x + w, y);
+      s += pth('M' + r1(x + w - AR) + ' ' + r1(y) + A_ds + 'V' + r1(yl - AR) + A_dl +
+               'H' + r1(x + AR) + A_lu + 'V' + r1(y + AR) + A_ue);
+      if (label) s += '<text class="rep" x="' + r1(x + w / 2) + '" y="' + r1(yl - 4) +
+                      '" text-anchor="middle">' + esc(label) + '</text>';
+      return s;
+    } };
+}
+
+/* グループの破線囲み。label はグループの説明。 */
+function Boxed(item, label, cls) {
+  var P = 10, w = item.w + 2 * P;
+  var lw = measure(label, F_LBL) + 8;
+  if (lw > w) { P = Math.ceil((lw - item.w) / 2); w = item.w + 2 * P; }
+  return { w: w, up: item.up + 24, down: item.down + 9, kind: 'boxed',
+    draw: function (x, y) {
+      var top = y - item.up - 9, h = item.up + item.down + 18;
+      var s = '<rect class="grp' + (cls ? ' ' + cls : '') + '" x="' + r1(x + 1) + '" y="' + r1(top) +
+              '" width="' + r1(w - 2) + '" height="' + r1(h) + '" rx="6"/>';
+      s += '<text class="glabel' + (cls ? ' ' + cls : '') + '" x="' + r1(x + 5) + '" y="' +
+           r1(top - 5) + '">' + esc(label) + '</text>';
+      s += ln(x, y, x + P, y) + item.draw(x + P, y) + ln(x + P + item.w, y, x + w, y);
+      return s;
+    } };
+}
+
+/* ---- AST → 図 ------------------------------------------------------------ */
+
+var CLASS_JA = { d: '数字', D: '数字以外', w: '英数字か _', W: '英数字と _ 以外',
+                 s: '空白', S: '空白以外' };
+var ANCHOR_JA = { '^': '先頭', '$': '末尾', '\\b': '単語の境目', '\\B': '境目以外' };
+
+function visibleChar(c) {
+  var M = { '\n': '\\n', '\r': '\\r', '\t': '\\t', '\f': '\\f', '\v': '\\v', '\0': '\\0',
+            '\b': '\\b', ' ': '␣' };
+  if (M[c]) return M[c];
+  var n = c.charCodeAt(0);
+  if (n < 32 || n === 127) return '\\x' + ('0' + n.toString(16)).slice(-2);
+  return c;
+}
+
+function classText(node) {
+  var parts = node.items.map(function (it) {
+    if (it.t === 'range') return visibleChar(it.a.c) + '–' + visibleChar(it.b.c);
+    if (it.t === 'char') return visibleChar(it.c);
+    return it.raw;
+  });
+  return '[' + (node.neg ? '^' : '') + parts.join('') + ']';
+}
+
+function build(node) {
+  switch (node.t) {
+    case 'empty': return Skip();
+    case 'char': return Term(visibleChar(node.c), null, null);
+    case 'any': return Term('.', '改行以外の1文字', 'desc');
+    case 'esc': return Term(node.raw, CLASS_JA[node.k], 'desc');
+    case 'uprop': return Term(node.raw, 'この分類の1文字', 'desc');
+    case 'anchor': return Term(node.raw, ANCHOR_JA[node.raw] || '', 'anch');
+    case 'ref': return Term(node.raw, (node.name ? '「' + node.name + '」' : node.num + '番') + 'と同じ文字列', 'desc');
+    case 'class': {
+      var n = node.items.length;
+      return Term(classText(node), node.neg ? 'これ以外の1文字' : (n > 1 ? 'どれか1文字' : '1文字'), 'desc');
+    }
+    case 'seq': return Seq(mergeChars(node.xs).map(build));
+    case 'alt': return Choice(node.xs.map(build));
+    case 'group': {
+      var innerItem = build(node.x);
+      if (node.kind === 'ncap') return innerItem;
+      var L = { cap: '① グループ', named: 'グループ', la: '直後にある（先読み）',
+                nla: '直後にない（否定先読み）', lb: '直前にある（後読み）',
+                nlb: '直前にない（否定後読み）' }[node.kind];
+      if (node.kind === 'cap') L = circled(node.num) + ' グループ';
+      if (node.kind === 'named') L = circled(node.num) + ' <' + node.name + '>';
+      var look = node.kind !== 'cap' && node.kind !== 'named';
+      return Boxed(innerItem, L, look ? 'look' : null);
+    }
+    case 'rep': {
+      var it = build(node.x);
+      var lz = node.lazy ? '・最小一致' : '';
+      if (node.min === 0 && node.max === 1) return Opt(node.lazy ? Boxed(it, '最小一致') : it);
+      if (node.min === 0 && node.max === Infinity) return Opt(Rep(it, '0回以上' + lz));
+      if (node.min === 1 && node.max === Infinity) return Rep(it, '1回以上' + lz);
+      if (node.min === 0) return Opt(Rep(it, node.max + '回まで' + lz));
+      if (node.min === node.max) return node.min === 1 ? it : Rep(it, node.min + '回ちょうど' + lz);
+      if (node.max === Infinity) return Rep(it, node.min + '回以上' + lz);
+      return Rep(it, node.min + '〜' + node.max + '回' + lz);
+    }
+  }
+  return Term('?', null, null);
+}
+
+function circled(n) {
+  return n >= 1 && n <= 20 ? String.fromCharCode(0x2460 + n - 1) : '(' + n + ')';
+}
+
+/* 連続する「ふつうの1文字」は1つの箱にまとめる。abc が3箱に割れると読みにくい。 */
+function mergeChars(xs) {
+  var out = [], buf = null;
+  for (var k = 0; k < xs.length; k++) {
+    var n = xs[k];
+    if (n.t === 'char' && n.c.charCodeAt(0) >= 32 && n.c !== ' ') {
+      if (buf) buf.c += n.c; else { buf = { t: 'char', c: n.c, pos: n.pos, merged: true }; out.push(buf); }
+    } else { buf = null; out.push(n); }
+  }
+  return out;
+}
+
+function renderDiagram(node) {
+  var item = build(node);
+  var PADX = 22, PADY = 12;
+  var y = item.up + PADY, W = item.w + PADX * 2, H = item.up + item.down + PADY * 2;
+  var s = '<svg class="rr" xmlns="http://www.w3.org/2000/svg" width="' + Math.ceil(W) +
+          '" height="' + Math.ceil(H) + '" viewBox="0 0 ' + Math.ceil(W) + ' ' + Math.ceil(H) +
+          '" role="img" aria-label="正規表現の鉄道図">';
+  s += '<path class="track" d="M6 ' + r1(y - 6) + 'v12M6 ' + r1(y) + 'H' + PADX + '"/>';
+  s += item.draw(PADX, y);
+  s += '<path class="track" d="M' + r1(PADX + item.w) + ' ' + r1(y) + 'H' + r1(W - 6) +
+       'M' + r1(W - 6) + ' ' + r1(y - 6) + 'v12"/>';
+  return s + '</svg>';
+}
+
+/* ---- 読み下し ------------------------------------------------------------ */
+
+function readList(node) { return '<ul class="read">' + readItems(node) + '</ul>'; }
+
+function readItems(node) {
+  if (node.t === 'seq') return mergeChars(node.xs).map(readItems).join('');
+  return '<li>' + readOne(node) + '</li>';
+}
+
+function readOne(node) {
+  var c = function (s) { return '<code>' + esc(s) + '</code>'; };
+  switch (node.t) {
+    case 'empty': return '<span class="k">（何もない）</span>';
+    case 'char': return c(node.c.length > 1 ? node.c : visibleChar(node.c)) +
+                        (node.c.length > 1 ? ' という文字の並び' : ' という文字');
+    case 'any': return c('.') + ' 改行以外の任意の1文字';
+    case 'esc': return c(node.raw) + ' ' + CLASS_JA[node.k] + 'の1文字';
+    case 'uprop': return c(node.raw) + ' この分類に入る1文字';
+    case 'anchor': return c(node.raw) + ' ' + ({
+        '^': '行または文字列の先頭（文字は消費しません）',
+        '$': '行または文字列の末尾（文字は消費しません）',
+        '\\b': '単語の境目（文字は消費しません）',
+        '\\B': '単語の境目でないところ' }[node.raw]);
+    case 'ref': return c(node.raw) + ' ' +
+        (node.name ? '「' + node.name + '」' : circled(node.num)) + ' がマッチしたのと同じ文字列';
+    case 'class': return c(classText(node)) + ' ' +
+        (node.neg ? 'これら以外の1文字' : 'これらのどれか1文字');
+    case 'alt': return '次のどれか<ul>' +
+        node.xs.map(function (x) { return '<li>' + readOne(x) + '</li>'; }).join('') + '</ul>';
+    case 'seq': return '順に並ぶ<ul>' + readItems(node) + '</ul>';
+    case 'group': {
+      var head = { cap: circled(node.num) + ' 番のグループ（あとで ' + esc('\\' + node.num) + ' で参照できます）',
+                   named: circled(node.num) + ' 名前つきグループ「' + node.name + '」',
+                   ncap: 'まとめるだけのグループ（番号は付きません）',
+                   la: '直後がこうなっていること（先読み・文字は消費しません）',
+                   nla: '直後がこうなっていないこと（否定先読み・文字は消費しません）',
+                   lb: '直前がこうなっていること（後読み・文字は消費しません）',
+                   nlb: '直前がこうなっていないこと（否定後読み・文字は消費しません）' }[node.kind];
+      return head + '<ul>' + readItems(node.x) + '</ul>';
+    }
+    case 'rep': {
+      var q = node.min === 0 && node.max === 1 ? 'あってもなくてもよい' :
+              node.min === 0 && node.max === Infinity ? '0回以上のくり返し' :
+              node.min === 1 && node.max === Infinity ? '1回以上のくり返し' :
+              node.min === node.max ? node.min + '回ちょうど' :
+              node.max === Infinity ? node.min + '回以上' :
+              node.min + '〜' + node.max + '回';
+      var lz = node.lazy ? '（最小一致＝できるだけ短く取る）' : '';
+      var inner = node.x;
+      var simple = ['char', 'any', 'esc', 'class', 'uprop'].indexOf(inner.t) >= 0;
+      if (simple) return readOne(inner) + ' を <b>' + q + '</b>' + lz;
+      return '<b>' + q + '</b>' + lz + '<ul>' + readItems(inner) + '</ul>';
+    }
+  }
+  return '?';
+}
+
+/* ---- 落とし穴の検出 ------------------------------------------------------ */
+
+function walk(node, fn, stack) {
+  stack = stack || [];
+  fn(node, stack);
+  var next = stack.concat([node]);
+  if (node.xs) node.xs.forEach(function (x) { walk(x, fn, next); });
+  if (node.x) walk(node.x, fn, next);
+}
+
+/* 「空文字にもマッチしうるか」。(a?)* のような無限ループの検出に使う。 */
+function nullable(node) {
+  switch (node.t) {
+    case 'empty': case 'anchor': return true;
+    case 'char': case 'any': case 'esc': case 'class': case 'uprop': return false;
+    case 'ref': return true;                       // 参照先が空なら空
+    case 'seq': return node.xs.every(nullable);
+    case 'alt': return node.xs.some(nullable);
+    case 'group': return node.kind === 'la' || node.kind === 'nla' ||
+                         node.kind === 'lb' || node.kind === 'nlb' ? true : nullable(node.x);
+    case 'rep': return node.min === 0 || nullable(node.x);
+  }
+  return true;
+}
+
+function analyze(parsed, src, flags) {
+  var out = [], node = parsed.node;
+  var has = { any: false, anchor: false, wb: false, dollarCaret: false, nonAscii: false,
+              topAlt: node.t === 'alt', lazy: false, cap: parsed.capCount };
+
+  walk(node, function (n, stack) {
+    if (n.t === 'any') has.any = true;
+    if (n.t === 'anchor') { has.anchor = true; if (n.raw === '\\b' || n.raw === '\\B') has.wb = true;
+                            if (n.raw === '^' || n.raw === '$') has.dollarCaret = true; }
+    if (n.t === 'rep' && n.lazy) has.lazy = true;
+    if (n.t === 'char' && n.c.charCodeAt(0) > 127) has.nonAscii = true;
+
+    // 入れ子のくり返し: (a+)+ のような形。マッチしない入力で指数時間になりうる
+    if (n.t === 'rep' && n.max === Infinity) {
+      var innerRep = false;
+      walk(n.x, function (m) {
+        if (m !== n && m.t === 'rep' && m.max === Infinity) innerRep = true;
+      });
+      if (innerRep) out.push({ lv: 'w', title: 'くり返しの中にくり返しがあります（破滅的バックトラック）',
+        body: '<code>' + esc(n.raw ? srcOf(src, n) : '') + '</code> のように、くり返しの中がさらにくり返しになっていると、' +
+              '<b>マッチしない入力</b>を与えたときに試す組み合わせが指数的に増えることがあります。' +
+              '<code>(a+)+$</code> に <code>aaaaaaaaaaaaaaaaaaaaX</code> を当てると固まる、あの形です。' +
+              '内側と外側で「どこまで取るか」の分け方が何通りもあるのが原因なので、' +
+              '内側を <code>[^…]</code> のように<b>次に来る文字を含まない集合</b>にして、分け方を1通りにするのが定石です。' });
+    }
+    // 空マッチしうる中身の * や +
+    if (n.t === 'rep' && n.max === Infinity && nullable(n.x))
+      out.push({ lv: 'w', title: '中身が空でも通るのに、くり返しています',
+        body: '<code>' + esc(srcOf(src, n)) + '</code> は、中身が0文字でも成立します。' +
+              '進まないまま回り続ける形なので、意図しない空マッチや、実装によっては停止しない原因になります。' +
+              'くり返しの中の <code>?</code> や <code>*</code> を外して、外側だけでくり返す形にできないか確かめてください。' });
+  });
+
+  var f = String(flags || '');
+  if (has.any && f.indexOf('s') < 0)
+    out.push({ lv: 'i', title: '<code>.</code> は改行にマッチしません',
+      body: '既定では <code>.</code> は改行（<code>\\n</code>）以外の1文字です。' +
+            '複数行のテキストを丸ごと取りたいなら <code>s</code> フラグ（dotAll）を付けるか、' +
+            '<code>[\\s\\S]</code> と書きます。' });
+  if (has.dollarCaret && f.indexOf('m') < 0)
+    out.push({ lv: 'i', title: '<code>^</code> と <code>$</code> は「文字列の」先頭と末尾です',
+      body: '<code>m</code> フラグが無いので、行ごとではなく<b>文字列全体</b>の先頭・末尾を指します。' +
+            '行単位で当てたいなら <code>m</code> を付けてください。' +
+            'なお <code>$</code> は、<code>m</code> があるときだけ改行の直前にも当たります。' });
+  if (has.wb)
+    out.push({ lv: 'i', title: '<code>\\b</code> の「単語」は英数字と <code>_</code> だけです',
+      body: '<code>\\b</code> は <code>\\w</code>（<code>[A-Za-z0-9_]</code>）とそれ以外の境目を指します。' +
+            '日本語には <code>\\w</code> に入る文字が無いので、' +
+            '<b>ひらがなや漢字の切れ目では思ったところに境目ができません</b>。' });
+  if (has.nonAscii && f.indexOf('u') < 0)
+    out.push({ lv: 'w', title: 'ASCII 以外の文字があるのに <code>u</code> フラグがありません',
+      body: '<code>u</code> フラグが無いと、絵文字や一部の漢字（サロゲートペアで表される文字）は' +
+            '<b>2つの単位</b>として扱われます。<code>.</code> が半分だけにマッチしたり、' +
+            '文字クラスの範囲指定が思った通りに働かなかったりします。' });
+  if (has.topAlt && /[\^$]/.test(src))
+    out.push({ lv: 'w', title: '<code>|</code> は式全体を分けます',
+      body: '<code>|</code> の優先順位はいちばん低いので、<code>^a|b$</code> は ' +
+            '<code>(^a)|(b$)</code> であって <code>^(a|b)$</code> ではありません。' +
+            '<b>図の分岐が式全体を割っていないか</b>を上の図で確かめてください。' +
+            '分けたい範囲は <code>(?:…)</code> で囲みます。' });
+  if (parsed.capCount > 0 && f.indexOf('g') < 0 && /\\[1-9]/.test(src) === false &&
+      parsed.capCount >= 3)
+    out.push({ lv: 'i', title: 'グループが ' + parsed.capCount + ' 個あります',
+      body: 'まとめたいだけで取り出す気がないグループは <code>(?:…)</code> にしておくと、' +
+            '<b>あとから括弧を足したときに番号がずれません</b>。番号は上の一覧のとおりです。' });
+  var classDots = /\[[^\]]*[.+*?][^\]]*\]/.test(src);
+  if (classDots)
+    out.push({ lv: 'i', title: '文字クラスの中では <code>. + * ?</code> はただの文字です',
+      body: '<code>[.]</code> は「任意の1文字」ではなく「ピリオド1文字」です。' +
+            '同じく <code>[+*?]</code> はその記号そのものを指します。エスケープは要りません' +
+            '（付けても同じ意味になります）。' });
+  if (/\[[^\]^][^\]]*-[^\]]*\]/.test(src) === false && /\[[^\]]*-\]/.test(src))
+    out.push({ lv: 'i', title: '文字クラスの末尾の <code>-</code> はハイフンそのものです',
+      body: '<code>-</code> を範囲の意味にしたくないときは、クラスの<b>先頭か末尾</b>に置くか、' +
+            '<code>\\-</code> と書きます。' });
+  if (has.lazy)
+    out.push({ lv: 'i', title: '最小一致（<code>*?</code>）を使っています',
+      body: '最小一致は「短いほうから試す」だけで、<b>いちばん短い一致を保証するものではありません</b>。' +
+            '左から順に位置を試すので、開始位置は変わらないまま長さだけが短くなります。' });
+  if (f.indexOf('i') < 0 && /[A-Za-z]/.test(src))
+    out.push({ lv: 'i', title: '大文字と小文字は別扱いです',
+      body: '<code>i</code> フラグが無いので、<code>A</code> と <code>a</code> は違う文字として扱われます。' });
+  return out;
+}
+
+function srcOf(src, n) {
+  return n.raw !== undefined ? n.raw : src.slice(n.pos, n.pos + 12);
+}
+
+/* ---- 図から例文字列を作る ------------------------------------------------
+   解析した構造だけを見て文字列を組み立て、それを元の正規表現に当て直す。
+   一致しなければ、図の読み方か解析のどちらかが間違っているということ。   */
+
+var GEN_LIMIT = 3;   // 無限のくり返しは最大3回まで
+/* 例文字列を作るときの、それぞれの記号の見本。
+   長さは必ずここから取ること（数を別に書くと、片方だけ直したときに
+   範囲外を引いて空文字が混ざる。実際にやらかした）。 */
+var ESC_POOL = { d: '0123456789', D: 'abcXY-_', w: 'abzAZ09_', W: '-. !',
+                 s: ' \t', S: 'abcXY09' };
+function makeSample(node, state) {
+  switch (node.t) {
+    case 'empty': return '';
+    case 'char': return node.c;
+    case 'any': return pick(state, 'abcXY0 9-_');
+    case 'esc': return pick(state, ESC_POOL[node.k]);
+    case 'uprop': state.unsure = true; return 'a';
+    case 'anchor': return '';
+    case 'seq': return node.xs.map(function (x) { return makeSample(x, state); }).join('');
+    case 'alt': return makeSample(node.xs[randInt(state, node.xs.length)], state);
+    case 'class': return sampleClass(node, state);
+    case 'ref': {
+      var key = node.name !== undefined ? 'n:' + node.name : 'i:' + node.num;
+      return state.caps[key] !== undefined ? state.caps[key] : '';
+    }
+    case 'group': {
+      // 先読み・後読みは文字を消費しないので、図だけを見て「条件を満たす文字列」を
+      // 組み立てることができない。作った例が当たらなくても式の誤りではないので、
+      // 確かなことは言えない印（unsure）を立てておく。
+      if (node.kind === 'la' || node.kind === 'lb' ||
+          node.kind === 'nla' || node.kind === 'nlb') { state.unsure = true; return ''; }
+      var s = makeSample(node.x, state);
+      if (node.num) {
+        state.caps['i:' + node.num] = s;
+        if (node.name) state.caps['n:' + node.name] = s;
+      }
+      return s;
+    }
+    case 'rep': {
+      var lo = node.min, hi = node.max === Infinity ? lo + GEN_LIMIT : Math.min(node.max, lo + GEN_LIMIT);
+      var n = lo + randInt(state, hi - lo + 1), out = '';
+      for (var k = 0; k < n; k++) {
+        // {100000} のような式で延々と作り続けないための止め木
+        if (--state.budget < 0) { state.unsure = true; break; }
+        out += makeSample(node.x, state);
+      }
+      return out;
+    }
+  }
+  state.unsure = true;
+  return '';
+}
+
+var NEG_POOL = 'abzAZ09_-. !@#\t\n';
+function sampleClass(node, state) {
+  var set = [];
+  node.items.forEach(function (it) {
+    if (it.t === 'char') set.push(it.c);
+    else if (it.t === 'range') {
+      var a = it.a.c.codePointAt(0), b = it.b.c.codePointAt(0);
+      for (var k = a; k <= b && set.length < 400; k++) set.push(String.fromCodePoint(k));
+    } else if (it.t === 'esc') {
+      var s = ESC_POOL[it.k];
+      if (s) for (var j = 0; j < s.length; j++) set.push(s.charAt(j));
+      else state.unsure = true;
+    } else state.unsure = true;
+  });
+  if (!node.neg) {
+    if (!set.length) { state.unsure = true; return ''; }
+    return set[randInt(state, set.length)];
+  }
+  var cand = [];
+  for (var k = 0; k < NEG_POOL.length; k++)
+    if (set.indexOf(NEG_POOL.charAt(k)) < 0) cand.push(NEG_POOL.charAt(k));
+  if (!cand.length) { state.unsure = true; return ''; }
+  return cand[randInt(state, cand.length)];
+}
+
+function pick(state, pool) { return pool.charAt(randInt(state, pool.length)); }
+
+/* 決まった種から擬似乱数を作る。同じ式なら毎回同じ例が出るようにするため。 */
+function rng(seed) {
+  var s = seed >>> 0 || 1;
+  return function () { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+}
+function randInt(state, n) { return n <= 0 ? 0 : Math.floor(state.rnd() * n) % n; }
+
+/* 例文字列を当てる前に、その式が「外れたときに指数時間になる形」かを見る。
+   マッチする文字列を当てるぶんには普通は速いが、こちらの生成が間違っていた場合、
+   外れた瞬間にブラウザごと固まってしまう。長さを詰めておけば最悪でも一瞬で済む。 */
+function backtrackRisk(node) {
+  var risk = false;
+  walk(node, function (n) {
+    if (n.t !== 'rep' || n.max !== Infinity) return;
+    if (nullable(n.x)) { risk = true; return; }
+    walk(n.x, function (m) { if (m !== n && m.t === 'rep' && m.max === Infinity) risk = true; });
+  });
+  return risk;
+}
+
+function selfCheck(parsed, src, flags, count) {
+  var testFlags = String(flags || '').replace(/[gy]/g, '');
+  var re;
+  try { re = new RegExp('^(?:' + src + ')$', testFlags); }
+  catch (e) { return { skipped: true, reason: 'ブラウザがこの式を受け付けませんでした: ' + e.message }; }
+  var cap = backtrackRisk(parsed.node) ? 24 : 400;
+  var seed = 0;
+  for (var k = 0; k < src.length; k++) seed = (seed * 131 + src.charCodeAt(k)) >>> 0;
+  var rnd = rng(seed || 1), rows = [], seen = {}, unsure = false, tries = 0, capped = false;
+  while (rows.length < count && tries < count * 12) {
+    tries++;
+    var state = { caps: {}, rnd: rnd, unsure: false, budget: 600 };
+    var s;
+    try { s = makeSample(parsed.node, state); } catch (e) { unsure = true; break; }
+    if (state.unsure) unsure = true;
+    if (s.length > cap) { capped = true; continue; }
+    if (seen[s] !== undefined) continue;
+    seen[s] = 1;
+    rows.push({ s: s, ok: re.test(s) });
+  }
+  return { rows: rows, unsure: unsure, skipped: false, capped: capped && cap < 400 };
+}
+/*==CORE-END==*/
+
+/* ---- 画面 ---------------------------------------------------------------- */
+
+var PRESETS = [
+  ['日付', '^(\\d{4})-(\\d{2})-(\\d{2})$', ''],
+  ['郵便番号', '^\\d{3}-\\d{4}$', ''],
+  ['時刻', '^([01]\\d|2[0-3]):([0-5]\\d)$', ''],
+  ['メールらしきもの', '^[\\w.+-]+@[\\w-]+(\\.[\\w-]+)+$', ''],
+  ['16進の色', '^#(?:[0-9a-f]{3}|[0-9a-f]{6})$', 'i'],
+  ['HTMLのタグ', '<(\\w+)(?:\\s[^>]*)?>(.*?)</\\1>', 'gs'],
+  ['分岐と後読み', '(?<=¥)\\d+(?:,\\d{3})*(?:円|エン)?', 'g'],
+  ['危ない形', '^(a+)+$', '']
+];
+
+function $(id) { return document.getElementById(id); }
+
+function caretLine(src, pos, len) {
+  var view = src.replace(/\t/g, ' ');
+  return '<span class="where">' + esc(view) + '\n' +
+         new Array(Math.max(0, pos) + 1).join(' ') +
+         new Array(Math.max(1, len) + 1).join('^') + '</span>';
+}
+
+function run() {
+  var src = $('pat').value, flags = $('flags').value.replace(/[^gimsuyd]/g, '');
+  if ($('flags').value !== flags) $('flags').value = flags;
+
+  var parsed;
+  try {
+    parsed = parseRegex(src, flags);
+  } catch (e) {
+    if (!(e instanceof ParseError)) throw e;
+    $('err').className = 'err on';
+    $('err').innerHTML = '<b>' + esc(e.msg) + '</b>' + caretLine(src, e.pos, e.len);
+    $('diag').innerHTML = '';
+    $('read').innerHTML = '';
+    $('notes').innerHTML = '';
+    $('grpPanel').style.display = 'none';
+    $('verdict').className = 'verdict skip';
+    $('verdict').textContent = '式が読めないので、例は作れません。';
+    $('samples').innerHTML = '';
+    return;
+  }
+  $('err').className = 'err';
+
+  try {
+    $('diag').innerHTML = renderDiagram(parsed.node);
+  } catch (e) {
+    $('diag').innerHTML = '<p class="lead">この式は図にするには入り組みすぎています（' +
+                          esc(e.message) + '）。読み下しのほうを見てください。</p>';
+  }
+  $('read').innerHTML = readItems(parsed.node);
+
+  // キャプチャ一覧
+  var caps = [];
+  walk(parsed.node, function (n) { if (n.t === 'group' && n.num) caps.push(n); });
+  caps.sort(function (a, b) { return a.num - b.num; });
+  if (caps.length) {
+    $('grpPanel').style.display = '';
+    var html = '<tr><th>番号</th><th>名前</th><th>中身</th></tr>';
+    caps.forEach(function (g) {
+      html += '<tr><td class="n">' + circled(g.num) + '</td><td>' +
+              (g.name ? esc(g.name) : '<span class="lead">—</span>') + '</td><td class="src">' +
+              esc(src.slice(g.pos, g.pos + g.raw.length)) + '</td></tr>';
+    });
+    $('grpTable').innerHTML = html;
+    $('grpNote').innerHTML = '置換では ' + caps.map(function (g) {
+      return '<code>$' + g.num + '</code>';
+    }).join('・') + ' で使えます。番号は<b>開き括弧の出てくる順</b>です。';
+  } else {
+    $('grpPanel').style.display = 'none';
+  }
+
+  // 落とし穴
+  var notes = analyze(parsed, src, flags);
+  $('notes').innerHTML = notes.length
+    ? notes.map(function (n) {
+        return '<li class="' + n.lv + '"><b>' + n.title + '</b>' + n.body + '</li>';
+      }).join('')
+    : '<li class="i"><b>目についた落とし穴はありません</b>この道具が見ているのは' +
+      'よくある形だけです。安全だと保証するものではありません。</li>';
+
+  // 図から作った例で確かめる
+  var chk = selfCheck(parsed, src, flags, 12);
+  if (chk.skipped) {
+    $('verdict').className = 'verdict skip';
+    $('verdict').textContent = chk.reason;
+    $('samples').innerHTML = '';
+  } else {
+    var bad = chk.rows.filter(function (r) { return !r.ok; }).length;
+    $('verdict').className = 'verdict' + (bad ? (chk.unsure ? ' skip' : ' bad') : (chk.unsure ? ' skip' : ''));
+    $('verdict').innerHTML = (bad && chk.unsure)
+      // 先読み・後読みが入っていると、図だけからは条件を満たす文字列を組み立てられない。
+      // 当たらないのは当然なので、不具合として出さない。
+      ? '<b>' + bad + ' 件は当たりませんでした。</b>この式には<b>文字を消費しない条件</b>' +
+        '（先読み・後読み）が入っているので、図に写っている部分だけを組み立てても' +
+        'その条件は満たせません。<b>式の誤りではありません。</b>' +
+        '当たった例と当たらなかった例の違いを見ると、その条件が何を要求しているかが分かります。'
+      : bad
+      ? '<b>' + bad + ' 件が食い違いました。</b>図の読み方か、この道具の解析のどちらかが間違っています。' +
+        'このページの不具合なので、式のほうは疑わなくて大丈夫です。'
+      : (chk.rows.length === 0
+          ? '例を作れませんでした（この式に当てはまる文字列を組み立てられませんでした）。'
+          : '<b>' + chk.rows.length + ' 件すべてマッチしました。</b>' +
+            (chk.unsure ? '先読み・後読みなど「文字を消費しない条件」が入っているので、' +
+                          '例が必ずマッチするとは限りません（マッチしない例が混ざることがあります）。'
+                        : '図のとおりに作った文字列は、元の正規表現にそのまま当たります。') +
+            (chk.capped ? 'なおこの式は外れたときに時間が跳ねる形なので、' +
+                          '例は短いものだけに絞っています。' : ''));
+    $('samples').innerHTML = chk.rows.map(function (r) {
+      return '<li' + (r.ok ? '' : ' class="bad"') + '><span class="' + (r.ok ? 'y' : 'n') + '">' +
+             (r.ok ? '✓' : '✗') + '</span><span class="m">' +
+             (r.s === '' ? '<span class="lead">（空文字）</span>' : esc(showWs(r.s))) + '</span></li>';
+    }).join('');
+  }
+}
+
+function showWs(s) {
+  return s.replace(/ /g, '␣').replace(/\t/g, '\\t').replace(/\n/g, '\\n');
+}
+
+function init() {
+  $('presets').innerHTML = PRESETS.map(function (p, k) {
+    return '<button type="button" data-k="' + k + '">' + esc(p[0]) + '</button>';
+  }).join('');
+  $('presets').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    var p = PRESETS[+b.getAttribute('data-k')];
+    $('pat').value = p[1];
+    $('flags').value = p[2];
+    run();
+  });
+  $('pat').addEventListener('input', run);
+  $('flags').addEventListener('input', run);
+  run();
+}
+
+init();
+</script>
+</body>
+</html>

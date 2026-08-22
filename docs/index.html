@@ -86,7 +86,7 @@
       "@type": "ItemList",
       "name": "公開中のツール",
       "itemListOrder": "https://schema.org/ItemListOrderAscending",
-      "numberOfItems": 16,
+      "numberOfItems": 17,
       "itemListElement": [
         { "@type": "ListItem", "position": 1, "name": "正規表現テスタ", "url": "https://hirulab-dev.github.io/hirulab-tools/regex/" },
         { "@type": "ListItem", "position": 2, "name": "文字数カウンタ", "url": "https://hirulab-dev.github.io/hirulab-tools/char-counter/" },
@@ -103,7 +103,8 @@
         { "@type": "ListItem", "position": 13, "name": "QRコード作成", "url": "https://hirulab-dev.github.io/hirulab-tools/qr/" },
         { "@type": "ListItem", "position": 14, "name": "cron式の読み下し", "url": "https://hirulab-dev.github.io/hirulab-tools/cron/" },
         { "@type": "ListItem", "position": 15, "name": "タイムゾーン変換", "url": "https://hirulab-dev.github.io/hirulab-tools/tz/" },
-        { "@type": "ListItem", "position": 16, "name": "CSVプレビュー・診断", "url": "https://hirulab-dev.github.io/hirulab-tools/csv/" }
+        { "@type": "ListItem", "position": 16, "name": "CSVプレビュー・診断", "url": "https://hirulab-dev.github.io/hirulab-tools/csv/" },
+        { "@type": "ListItem", "position": 17, "name": "正規表現を鉄道図にする", "url": "https://hirulab-dev.github.io/hirulab-tools/railroad/" }
       ]
     }
   ]
@@ -207,6 +208,11 @@
   <a class="card" href="./csv/">
     <h3>CSVプレビュー・診断</h3>
     <p>CSVを表で開き、<strong>文字コード（Shift_JIS / UTF-8 / EUC-JP）と区切り文字を自動判定</strong>します。引用符の閉じ忘れ・列数の食い違いを<strong>行と列で名指し</strong>し、先頭が0の数字や <code>1-2</code> のような<strong>Excelで開くと壊れる列</strong>も警告します。ファイルは端末から出ません。</p>
+  </a>
+
+  <a class="card" href="./railroad/">
+    <h3>正規表現を鉄道図にする</h3>
+    <p>正規表現を<strong>鉄道図</strong>（分岐とループの線路の絵）にして、日本語に読み下します。<strong>破滅的バックトラック</strong>や <code>.</code> が改行に当たらないといった落とし穴も指摘します。<strong>図から例文字列を作ってその場でマッチを確かめる</strong>ので、図が式と食い違っていないか分かります。</p>
   </a>
 
   <div class="card empty">
