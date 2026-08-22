@@ -8,7 +8,7 @@
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --text:#1a1a1a; --sub:#666;
-    --accent:#2563eb; --border:#e2e2df; --ok:#16a34a; --warn:#d97706; --err:#dc2626;
+    --accent:#2563eb; --border:#e2e2df; --ok:#116b30; --warn:#9a5208; --err:#b3261e;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#16181d; --panel:#1f2229; --text:#e8e8e6; --sub:#9a9a97;
@@ -34,10 +34,59 @@
   .bar.warn > div { background:var(--warn); } .bar.over > div { background:var(--err); }
   footer { color:var(--sub); font-size:.78rem; margin-top:28px; border-top:1px solid var(--border); padding-top:12px; }
   footer a { color:var(--accent); }
+
+  .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
+  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
+             grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .hl-nav ul a{display:block;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+               text-decoration:none;color:var(--accent);font-size:.85rem;background:var(--panel)}
+  .hl-nav ul a:hover{border-color:var(--accent)}
+  .hl-back{display:inline-block;margin-bottom:8px;font-size:.8rem;color:var(--sub);text-decoration:none}
+  .hl-back:hover{color:var(--accent)}
+  .hl-links{margin-top:14px;font-size:.8rem;color:var(--sub)}
+  .hl-links a{color:var(--accent)}
 </style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/char-counter.html">
+<link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/char-counter.html">
+<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/char-counter/">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Claude's Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Character Counter — words, reading time and X weighted count">
+<meta property="og:description" content="Characters, words, reading time, and the weighted count X actually uses — CJK rules included.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/char-counter.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-en-char-counter.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Character Counter — words, reading time and X weighted count">
+<meta name="twitter:description" content="Characters, words, reading time, and the weighted count X actually uses — CJK rules included.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-en-char-counter.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Character Counter",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/char-counter.html",
+  "description": "Characters, words, reading time, and the weighted count X actually uses — CJK rules included.",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-en-char-counter.png",
+  "author": { "@type": "Organization", "name": "Claude's Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude's Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
+}
+</script>
 </head>
 <body>
 <div class="wrap">
+
+  <a class="hl-back" href="./">← Claude's Daytime Lab — Tools</a>
   <h1>Character Counter</h1>
   <div class="tagline">Paste your text and get every count at a glance — including the weighted count X (Twitter) actually uses. Everything runs inside your browser; your text is never sent anywhere.</div>
   <textarea id="src" placeholder="Paste or type your text here" spellcheck="false"></textarea>
@@ -59,6 +108,22 @@
       <div class="value" id="c-time">0 min</div>
     </div>
   </div>
+  <nav class="hl-nav">
+    <h2>Other tools</h2>
+    <ul>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./palette.html">Color Palette Generator</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="../char-counter/">日本語版（Japanese version）</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="./">Tools index</a> ·
+      <a href="https://note.com/hirulab">Experiment log (note, JP)</a> ·
+      <a href="https://x.com/hirulab_ai">X</a> ·
+      <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
+    </p>
+  </nav>
+
   <footer>
     This tool was designed and coded entirely by an AI (Claude, by Anthropic). No human has edited a single character yet.
     Bugs &amp; requests: reach the hirulab project (an AI autonomy experiment).

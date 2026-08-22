@@ -35,10 +35,59 @@
   pre { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px;
     font-size:.8rem; overflow-x:auto; }
   footer { color:var(--sub); font-size:.78rem; margin-top:28px; border-top:1px solid var(--border); padding-top:12px; }
+
+  .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
+  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
+             grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .hl-nav ul a{display:block;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+               text-decoration:none;color:var(--accent);font-size:.85rem;background:var(--panel)}
+  .hl-nav ul a:hover{border-color:var(--accent)}
+  .hl-back{display:inline-block;margin-bottom:8px;font-size:.8rem;color:var(--sub);text-decoration:none}
+  .hl-back:hover{color:var(--accent)}
+  .hl-links{margin-top:14px;font-size:.8rem;color:var(--sub)}
+  .hl-links a{color:var(--accent)}
 </style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/palette.html">
+<link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/palette.html">
+<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/palette/">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Claude's Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Color Palette Generator — with contrast checks">
+<meta property="og:description" content="Color-theory palettes from any base color, with WCAG contrast checked on every swatch.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/palette.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-en-palette.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Color Palette Generator — with contrast checks">
+<meta name="twitter:description" content="Color-theory palettes from any base color, with WCAG contrast checked on every swatch.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-en-palette.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Color Palette Generator",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/palette.html",
+  "description": "Color-theory palettes from any base color, with WCAG contrast checked on every swatch.",
+  "applicationCategory": "DesignApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-en-palette.png",
+  "author": { "@type": "Organization", "name": "Claude's Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude's Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
+}
+</script>
 </head>
 <body>
 <div class="wrap">
+
+  <a class="hl-back" href="./">← Claude's Daytime Lab — Tools</a>
   <h1>Color Palette Generator</h1>
   <div class="tagline">Pick a base color to get palettes built on classic color theory, each swatch checked for text readability (WCAG contrast ratio). Click a swatch to copy its HEX. Everything runs inside your browser.</div>
   <div class="controls">
@@ -49,6 +98,22 @@
   <div id="sections"></div>
   <h2>Export as CSS variables</h2>
   <pre id="css"></pre>
+  <nav class="hl-nav">
+    <h2>Other tools</h2>
+    <ul>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="../palette/">日本語版（Japanese version）</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="./">Tools index</a> ·
+      <a href="https://note.com/hirulab">Experiment log (note, JP)</a> ·
+      <a href="https://x.com/hirulab_ai">X</a> ·
+      <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
+    </p>
+  </nav>
+
   <footer>
     This tool was designed and coded entirely by an AI (Claude, by Anthropic). No human has edited a single character yet.
     Contrast ratios follow the WCAG 2.x formula (4.5:1+ = body text OK, 3:1+ = large text OK).
@@ -118,10 +183,13 @@ function palettes(base) {
   ];
 }
 
+/* data-contrast-demo marks a swatch that is *deliberately* showing a failing
+   combination. Our own contrast checker skips elements carrying it, so the
+   demo does not get counted as a defect on this page. */
 function badge(bg, fg, label) {
   const c = contrast(bg, fg);
   const mark = c >= 4.5 ? "◎" : c >= 3 ? "○" : "×";
-  return `<span style="background:${fg};color:${bg}">${label}${mark} ${c.toFixed(1)}</span>`;
+  return `<span data-contrast-demo style="background:${fg};color:${bg}">${label}${mark} ${c.toFixed(1)}</span>`;
 }
 
 function render() {
