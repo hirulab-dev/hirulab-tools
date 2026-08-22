@@ -5,7 +5,7 @@
 
 | スクリプト | 何と突き合わせるか |
 |---|---|
-| `test_timezone.py` | [タイムゾーン変換](https://hirulab-dev.github.io/hirulab-tools/tz/) と Python の `zoneinfo`。72ゾーン × 1970年代〜2030年で 132,996 件 |
+| `test_timezone.py` | [タイムゾーン変換](https://hirulab-dev.github.io/hirulab-tools/tz/) と Python の `zoneinfo`。72ゾーン × 2015〜2030年で 132,996 件 |
 
 ## 使い方
 
