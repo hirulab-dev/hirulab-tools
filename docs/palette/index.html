@@ -3,38 +3,83 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>カラーパレット生成 — 配色+コントラスト検査</title>
-<meta name="description" content="基準色から配色(補色・類似色・トライアド等)を生成し、WCAGコントラスト比まで検査。AI(Claude)が作ったブラウザ完結ツール。データは送信されません。">
+<title>カラーパレット生成 — 配色を作って、読める明るさまで寄せる</title>
+<meta name="description" content="基準色から配色理論に沿ったパレット(類似色・補色・トライアドなど)を作り、載せる文字色に対するコントラスト比を1色ずつ表示します。AAに足りない色は、色みを保ったまま明るさだけを動かして基準を満たす位置まで自動で寄せられます。ブラウザ内で完結し、データはどこにも送信されません。">
 <style>
-  :root { --bg:#f7f7f5; --panel:#fff; --text:#1a1a1a; --sub:#666; --border:#e2e2df; --accent:#2563eb; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#16181d; --panel:#1f2229; --text:#e8e8e6; --sub:#9a9a97; --border:#33363e; --accent:#60a5fa; }
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
+    /* リンク色は白地で 4.5:1 を超える濃さにしている（明るい #c47f16 だと 3.28:1 しか出ない）。
+       --on-accent はアクセント色を背景に敷いたときの文字色。 */
+    --accent:#8f5c0e; --on-accent:#ffffff;
+    --border:#e2e2df; --ok:#15703f; --err:#b3261e; --warn:#9a5208;
+    --okbg:#e8f5ee; --errbg:#fdecea; --hi:#fdf4e3;
   }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--text);
-    font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif; line-height:1.6; }
-  .wrap { max-width:860px; margin:0 auto; padding:24px 16px 48px; }
-  h1 { font-size:1.4rem; margin:0 0 4px; }
-  .tagline { color:var(--sub); font-size:.85rem; margin-bottom:20px; }
-  .controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
-  input[type=color] { width:64px; height:44px; border:1px solid var(--border); border-radius:8px; background:var(--panel); cursor:pointer; }
-  input[type=text] { width:110px; border:1px solid var(--border); border-radius:8px; background:var(--panel);
-    color:var(--text); padding:10px; font-family:ui-monospace,Menlo,monospace; }
-  button { border:1px solid var(--border); background:var(--panel); color:var(--text);
-    border-radius:8px; padding:10px 16px; cursor:pointer; font-size:.9rem; }
-  button:hover { border-color:var(--accent); color:var(--accent); }
-  h2 { font-size:.95rem; margin:22px 0 8px; }
-  .row { display:grid; grid-template-columns:repeat(auto-fit,minmax(96px,1fr)); gap:8px; }
-  .sw { border-radius:10px; overflow:hidden; border:1px solid var(--border); cursor:pointer; }
-  .sw .chip { height:64px; display:flex; align-items:flex-end; padding:6px; gap:4px; }
-  .sw .chip span { font-size:.65rem; padding:1px 5px; border-radius:4px; font-weight:600; }
-  .sw .meta { background:var(--panel); font-size:.72rem; padding:4px 8px; font-family:ui-monospace,Menlo,monospace; }
-  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--text); color:var(--bg);
-    padding:8px 18px; border-radius:999px; font-size:.85rem; opacity:0; transition:opacity .25s; pointer-events:none; }
-  .toast.on { opacity:1; }
-  pre { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px;
-    font-size:.8rem; overflow-x:auto; }
-  footer { color:var(--sub); font-size:.78rem; margin-top:28px; border-top:1px solid var(--border); padding-top:12px; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --panel2:#242832; --text:#e8e8e6; --sub:#9a9a97;
+            --accent:#f5a623; --on-accent:#17181c;
+            --border:#33363e; --ok:#4ec98a; --err:#ff7b6e; --warn:#f0b64d;
+            --okbg:#1d2f26; --errbg:#33201e; --hi:#2e2a1f; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 18px 56px}
+  h1{font-size:1.35rem;margin:0 0 6px}
+  .lead{color:var(--sub);font-size:.88rem;margin:0 0 18px}
+  .lead strong{color:var(--text)}
+  .privacy{background:var(--panel);border:1px solid var(--ok);border-left-width:4px;
+           border-radius:8px;padding:10px 14px;font-size:.85rem;margin-bottom:18px}
+  .privacy strong{color:var(--ok)}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+         padding:14px;margin-bottom:14px}
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  input[type=color]{width:56px;height:42px;border:1px solid var(--border);border-radius:8px;
+       background:var(--panel2);cursor:pointer;padding:2px}
+  input[type=text]{width:120px;border:1px solid var(--border);border-radius:8px;
+       background:var(--panel2);color:var(--text);padding:10px 12px;
+       font-family:"SFMono-Regular",Consolas,"Courier New",monospace;outline:none}
+  input[type=text]:focus{border-color:var(--accent)}
+  button.mini{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+       border-radius:8px;padding:9px 14px;cursor:pointer;font-size:.85rem;font-family:inherit}
+  button.mini:hover{border-color:var(--accent)}
+  .opts{display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:14px;
+        padding-top:12px;border-top:1px solid var(--border);font-size:.83rem;color:var(--sub)}
+  .opts label{display:flex;align-items:center;gap:6px;cursor:pointer}
+  .opts select{border:1px solid var(--border);border-radius:8px;background:var(--panel2);
+       color:var(--text);padding:6px 8px;font-size:.83rem;font-family:inherit}
+  .opts input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
+  .fixnote{margin-top:10px;font-size:.82rem;color:var(--sub);line-height:1.6;
+       background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 12px}
+  h2{font-size:.95rem;margin:20px 0 4px}
+  .why{font-size:.8rem;color:var(--sub);margin:0 0 9px;line-height:1.55}
+  .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px}
+  .sw{border-radius:10px;overflow:hidden;border:1px solid var(--border);cursor:pointer;
+      background:var(--panel);text-align:left;padding:0;font-family:inherit;color:inherit;width:100%}
+  .sw:hover{border-color:var(--accent)}
+  .sw:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .sw .chip{height:66px;display:flex;align-items:flex-end;padding:6px;gap:4px;flex-wrap:wrap}
+  .sw .chip span{font-size:.65rem;padding:1px 5px;border-radius:4px;font-weight:700;
+       font-family:"SFMono-Regular",Consolas,monospace}
+  .sw .meta{background:var(--panel);font-size:.72rem;padding:5px 8px;
+       font-family:"SFMono-Regular",Consolas,monospace;color:var(--text)}
+  .sw .moved{display:block;font-size:.66rem;color:var(--warn);font-family:inherit;
+       margin-top:1px;line-height:1.3}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(14px);
+       background:#1a1a1a;color:#fff;padding:8px 16px;border-radius:999px;font-size:.83rem;
+       opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease}
+  .toast.on{opacity:.94;transform:translateX(-50%) translateY(0)}
+  pre{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:12px;
+      font-size:.8rem;overflow-x:auto;font-family:"SFMono-Regular",Consolas,monospace;
+      color:var(--text)}
+  details{margin-top:16px;font-size:.83rem;color:var(--sub)}
+  details summary{cursor:pointer;color:var(--accent)}
+  /* 色を指定しないとブラウザ既定の青になり、ダークモードで 1.89:1 まで落ちる */
+  details a{color:var(--accent)}
+  details ul{padding-left:1.2em;margin:8px 0 0}
+  details li{margin-bottom:5px;line-height:1.6}
+  details code{font-family:"SFMono-Regular",Consolas,monospace;background:var(--panel);
+       border:1px solid var(--border);border-radius:4px;padding:0 4px}
+  @media (max-width:560px){ .wrap{padding:20px 12px 48px} }
   .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
   .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600;border:0;padding:0}
   .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
@@ -46,20 +91,117 @@
   .hl-back:hover{color:var(--accent)}
   .hl-links{margin-top:14px;font-size:.8rem;color:var(--sub)}
   .hl-links a{color:var(--accent)}
+  footer{color:var(--sub);font-size:.78rem;margin-top:28px;border-top:1px solid var(--border);padding-top:12px}
+  footer a{color:var(--accent)}
 </style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/palette/">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="クロードの昼ラボ">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="カラーパレット生成 — 配色を作って、読める明るさまで寄せる">
+<meta property="og:description" content="基準色から配色を作り、載せる文字に対するコントラスト比を1色ずつ表示。AAに足りない色は色みを保ったまま明るさだけ動かして基準まで寄せられます。ブラウザ内で完結します。">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/palette/">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-palette.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="カラーパレット生成 — 配色を作って、読める明るさまで寄せる">
+<meta name="twitter:description" content="配色を作り、コントラスト比を1色ずつ表示。AAに足りない色は明るさだけ動かして基準まで寄せられます。">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-palette.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "カラーパレット生成",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/palette/",
+  "description": "基準色から配色理論に沿ったパレットを作り、載せる文字色に対するコントラスト比を1色ずつ表示します。AAに足りない色は色みを保ったまま明るさだけを動かして基準を満たす位置まで自動で寄せられます。ブラウザ内で完結します。",
+  "applicationCategory": "DesignApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "JavaScript が有効なモダンブラウザ",
+  "inLanguage": "ja",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-palette.png",
+  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+}
+</script>
 </head>
 <body>
 <div class="wrap">
+
+  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
   <h1>カラーパレット生成</h1>
-  <div class="tagline">基準色を選ぶと配色理論に沿ったパレットと、文字色との読みやすさ(WCAGコントラスト比)を出します。スウォッチをクリックでHEXコピー。すべてブラウザ内で完結します。</div>
-  <div class="controls">
-    <input type="color" id="base" value="#2b6cb0">
-    <input type="text" id="hex" value="#2b6cb0" spellcheck="false">
-    <button id="rand">🎲 ランダム</button>
+  <p class="lead">基準色をひとつ選ぶと、配色理論に沿った組み合わせが出ます。
+    そのうえで<strong>その色に文字を載せたとき読めるか</strong>を1色ずつ判定し、
+    <strong>足りない色は、色みを変えずに明るさだけ動かして基準を満たす位置まで寄せられます。</strong>
+    きれいな配色を出す道具は山ほどあるので、この道具は「出した色が使えるか」のほうに寄せてあります。</p>
+
+  <div class="privacy">
+    <strong>このページは通信を一切行いません。</strong>
+    配色もコントラスト比の計算もすべてブラウザの中でやっています。
+    読み込んだあとは機内モードでも動きます。
   </div>
+
+  <div class="panel">
+    <div class="controls">
+      <input type="color" id="base" value="#2b6cb0" aria-label="基準色">
+      <input type="text" id="hex" value="#2b6cb0" spellcheck="false" aria-label="基準色（16進数）">
+      <button class="mini" id="rand">ランダムに選ぶ</button>
+    </div>
+    <div class="opts">
+      <label for="fg">載せる文字の色
+        <select id="fg">
+          <option value="#ffffff">白 #ffffff</option>
+          <option value="#1a1a1a" selected>黒 #1a1a1a</option>
+          <option value="auto">明るさで自動（白か黒か読めるほう）</option>
+        </select>
+      </label>
+      <label for="level">満たしたい基準
+        <select id="level">
+          <option value="4.5" selected>AA 本文（4.5:1）</option>
+          <option value="3">AA 大きな文字（3:1）</option>
+          <option value="7">AAA 本文（7:1）</option>
+        </select>
+      </label>
+      <label for="fix"><input type="checkbox" id="fix"> 足りない色を基準まで寄せる</label>
+    </div>
+    <p class="fixnote" id="fixnote"></p>
+  </div>
+
   <div id="sections"></div>
+
   <h2>CSS変数として書き出し</h2>
   <pre id="css"></pre>
+
+  <details>
+    <summary>どうやって「寄せて」いるか、と、この道具の限界</summary>
+    <ul>
+      <li><b>動かすのは明るさ(HSL の L)だけです。</b>色相と彩度はそのままにして、
+        基準を満たす一番近い明るさを二分探索で探します。色みが変わらないので、
+        配色としてのまとまりが崩れにくい。</li>
+      <li><b>上にも下にも探して、動く量が少ないほうを採ります。</b>暗くして満たせるなら暗く、
+        明るくしたほうが近いなら明るく。移動量は「L を何ポイント動かしたか」で表示します。</li>
+      <li><b>動かす量には上限（30ポイント）を置いています。</b>HSL は明るさ 0 が黒・1 が白なので、
+        理屈のうえでは<b>どんな色でも必ず基準を満たせます</b>。ただし満たせることと、
+        満たしていいことは別です。たとえば黄色 <code>#ffff00</code> に白い文字を載せて 4.5:1 に
+        届かせるには明るさを 26 ポイント下げることになり、出てくるのは <code>#7a7a00</code>、
+        もう黄色ではありません。<b>上限を超えるものは寄せずに、必要な量だけをお伝えします。</b>
+        黙って別の色に差し替えることはしません。</li>
+      <li><b>コントラスト比の式は WCAG 2.1 のものです。</b>相対輝度を求めて
+        <code>(明るいほう + 0.05) / (暗いほう + 0.05)</code>。4.5:1 以上で本文、3:1 以上で
+        大きな文字(24px 以上、または 18.66px 以上の太字)が AA を満たします。</li>
+      <li><b>この式は万能ではありません。</b>WCAG 2.x のコントラスト比は、
+        濃い背景に薄い文字を載せたときの見え方を実感より高く評価する傾向が知られています。
+        数字を満たしたうえで、最後は自分の目で見てください。</li>
+      <li><b>色覚特性のシミュレーションはこの道具には入れていません。</b>
+        同じ場所で公開している<a href="../contrast/">コントラスト比チェッカー</a>のほうに入っています。
+        2色を突き合わせて詰めるときはそちらへどうぞ。</li>
+      <li><b>スウォッチをクリックすると16進数をコピーします。</b>
+        「寄せる」を有効にしているときは、寄せたあとの値をコピーします。</li>
+    </ul>
+  </details>
 
   <nav class="hl-nav">
     <h2>ほかの道具</h2>
@@ -87,16 +229,17 @@
   </nav>
 
   <footer>
-    このツールはAI(Anthropic社のClaude)が設計からコードまで自分で書きました。人間はまだ1文字も直していません。
-    コントラスト比はWCAG 2.xの計算式です(4.5:1以上=本文OK、3:1以上=大きな文字OK)。
+    作ったのは「クロードの昼ラボ」（AIのClaude）です。使用は無料・登録不要。
+    コントラスト比は WCAG 2.1 の計算式です（4.5:1 以上=本文 OK、3:1 以上=大きな文字 OK）。
   </footer>
 </div>
 <div class="toast" id="toast">コピーしました</div>
+
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
 
-// ---- 色変換 ----
+/* ---- 色変換 ---- */
 function hexToRgb(h) {
   const m = h.replace("#", "");
   return [parseInt(m.slice(0,2),16), parseInt(m.slice(2,4),16), parseInt(m.slice(4,6),16)];
@@ -130,7 +273,7 @@ const shift = (hex, dh, ds=0, dl=0) => {
   return rgbToHex(...hslToRgb(h+dh, Math.max(0,Math.min(1,s+ds)), Math.max(0,Math.min(1,l+dl))));
 };
 
-// ---- WCAGコントラスト ----
+/* ---- WCAG 2.1 のコントラスト比 ---- */
 function luminance(hex) {
   const [r,g,b] = hexToRgb(hex).map(v => {
     v /= 255;
@@ -142,49 +285,144 @@ function contrast(a, b) {
   const [l1, l2] = [luminance(a), luminance(b)].sort((x,y)=>y-x);
   return (l1 + 0.05) / (l2 + 0.05);
 }
+const readableOn = hex => contrast(hex, "#ffffff") >= contrast(hex, "#1a1a1a") ? "#ffffff" : "#1a1a1a";
 
-// ---- パレット定義 ----
+/* ---- 基準を満たす一番近い明るさを探す --------------------------------
+   色相と彩度は動かさない。L だけを二分探索する。上下どちらにも探して、
+   満たせたほうのうち移動量が小さいほうを採る。
+
+   HSL は L=0 が黒・L=1 が白なので、理屈のうえでは **どんな色でも必ず満たせる**。
+   だが黄色に白文字を載せる例だと、4.5:1 に届くには L を 26 ポイント下げることになり、
+   出てくるのは #7a7a00 のオリーブで、もう黄色ではない。
+   「必ず直せる」は「必ず直していい」ではないので、動かす量に上限を置いて、
+   超えるものは **直さずに、必要な量を伝える** ことにした。 */
+const MAX_MOVE = 0.30;      // L を 30 ポイント以上動かすなら、それは別の色
+
+function nudgeToContrast(hex, fg, need) {
+  if (contrast(hex, fg) >= need) return { hex, moved: 0 };
+  const [h, s, l0] = rgbToHsl(...hexToRgb(hex));
+  const at = l => rgbToHex(...hslToRgb(h, s, l));
+
+  const search = (lo, hi) => {           // lo 側が未達、hi 側が達成、である前提で詰める
+    for (let i = 0; i < 24; i++) {
+      const mid = (lo + hi) / 2;
+      if (contrast(at(mid), fg) >= need) hi = mid; else lo = mid;
+    }
+    return hi;
+  };
+
+  const cands = [];
+  if (contrast(at(0), fg) >= need) cands.push(search(l0, 0));   // 暗くして満たす
+  if (contrast(at(1), fg) >= need) cands.push(search(l0, 1));   // 明るくして満たす
+  if (!cands.length) return null;
+
+  let best = cands[0];
+  for (const c of cands) if (Math.abs(c - l0) < Math.abs(best - l0)) best = c;
+  const moved = Math.round((best - l0) * 100);
+  if (Math.abs(best - l0) > MAX_MOVE) return { hex, moved: 0, tooFar: Math.abs(moved) };
+  return { hex: at(best), moved };
+}
+
+/* ---- パレット定義 ---- */
 function palettes(base) {
   return [
-    ["類似色(なじむ)", [shift(base,-30), shift(base,-15), base, shift(base,15), shift(base,30)]],
-    ["補色(強い対比)", [base, shift(base,180), shift(base,180,-.15,.15), shift(base,0,-.2,.25)]],
-    ["分裂補色(対比+安定)", [base, shift(base,150), shift(base,210)]],
-    ["トライアド(にぎやか)", [base, shift(base,120), shift(base,240)]],
-    ["明暗バリエーション", [shift(base,0,0,-.3), shift(base,0,0,-.15), base, shift(base,0,0,.15), shift(base,0,0,.3)]],
-    ["くすみ(上品トーン)", [shift(base,0,-.35,.1), shift(base,20,-.4,.2), shift(base,-20,-.4,.25), shift(base,0,-.3,.35)]],
+    ["類似色", "隣り合う色相でそろえる。まとまりが出るぶん、めりはりは弱い",
+      [shift(base,-30), shift(base,-15), base, shift(base,15), shift(base,30)]],
+    ["補色", "真反対の色相を当てる。目を引くが、面積を同じにすると喧嘩する",
+      [base, shift(base,180), shift(base,180,-.15,.15), shift(base,0,-.2,.25)]],
+    ["分裂補色", "反対色の両隣を使う。対比を残しつつ、補色ほどぶつからない",
+      [base, shift(base,150), shift(base,210)]],
+    ["トライアド", "色相を三等分する。にぎやかになるので、1色を主役に決めて使う",
+      [base, shift(base,120), shift(base,240)]],
+    ["明暗バリエーション", "同じ色の濃淡だけで組む。UIの階層を作るときはこれが安全",
+      [shift(base,0,0,-.3), shift(base,0,0,-.15), base, shift(base,0,0,.15), shift(base,0,0,.3)]],
+    ["くすみトーン", "彩度を落として明度を上げる。文字を載せる面には向くことが多い",
+      [shift(base,0,-.35,.1), shift(base,20,-.4,.2), shift(base,-20,-.4,.25), shift(base,0,-.3,.35)]],
   ];
 }
 
-function badge(bg, fg, label) {
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* data-contrast-demo は「わざと不合格の例を見せている」印。
+   自前のコントラスト検査スクリプトはこの印が付いた要素を数えない。 */
+function badge(bg, fg, label, need) {
   const c = contrast(bg, fg);
-  const mark = c >= 4.5 ? "◎" : c >= 3 ? "○" : "×";
-  return `<span style="background:${fg};color:${bg}">${label}${mark} ${c.toFixed(1)}</span>`;
+  const mark = c >= need ? "○" : "×";
+  return `<span data-contrast-demo style="background:${fg};color:${bg}">${label}${mark} ${c.toFixed(1)}</span>`;
 }
 
 function render() {
-  const base = $("hex").value.match(/^#[0-9a-fA-F]{6}$/) ? $("hex").value.toLowerCase() : $("base").value;
+  const raw = $("hex").value.trim();
+  const base = /^#[0-9a-fA-F]{6}$/.test(raw) ? raw.toLowerCase() : $("base").value;
   $("base").value = base; $("hex").value = base;
-  let html = "", cssLines = [];
-  for (const [name, cols] of palettes(base)) {
-    html += `<h2>${name}</h2><div class="row">`;
-    cols.forEach((c, i) => {
-      html += `<div class="sw" data-hex="${c}">
-        <div class="chip" style="background:${c}">${badge(c,"#ffffff","白")}${badge(c,"#1a1a1a","黒")}</div>
-        <div class="meta">${c}</div></div>`;
-      cssLines.push(`--${name.replace(/\(.*/,"").trim()}-${i+1}: ${c};`.replace(/類似色/,"analogous").replace(/補色/,"complement").replace(/分裂complement/,"split").replace(/トライアド/,"triad").replace(/明暗バリエーション/,"shade").replace(/くすみ/,"muted"));
+
+  const fgSel = $("fg").value;
+  const need = parseFloat($("level").value);
+  const doFix = $("fix").checked;
+
+  let html = "", cssLines = [], nFixed = 0, nImpossible = 0, nTotal = 0;
+
+  for (const [name, why, cols] of palettes(base)) {
+    html += `<h2>${esc(name)}</h2><p class="why">${esc(why)}</p><div class="row">`;
+    cols.forEach((c0, i) => {
+      const fg = fgSel === "auto" ? readableOn(c0) : fgSel;
+      let c = c0, movedText = "";
+      nTotal++;
+      if (doFix) {
+        const r = nudgeToContrast(c0, fg, need);
+        if (r === null || r.tooFar) {
+          nImpossible++;
+          // 長い文にするとスウォッチの高さが揃わなくなるので、ここは短く。
+          // 事情は下の説明文（fixnote）と details に書いてある。
+          movedText = `<span class="moved">${r && r.tooFar ? "要 " + r.tooFar + " ・寄せず" : "寄せられません"}</span>`;
+        }
+        else if (r.moved !== 0) {
+          c = r.hex; nFixed++;
+          movedText = `<span class="moved">明るさ ${r.moved > 0 ? "+" : ""}${r.moved} 寄せた</span>`;
+        }
+      }
+      const ratio = contrast(c, fg);
+      const other = fg === "#ffffff" ? "#1a1a1a" : "#ffffff";
+      html += `<button class="sw" type="button" data-hex="${c}"
+                 aria-label="${esc(c)} をコピー（コントラスト比 ${ratio.toFixed(2)}）">
+        <div class="chip" style="background:${c}">
+          ${badge(c, fg, fg === "#ffffff" ? "白" : "黒", need)}
+          ${badge(c, other, other === "#ffffff" ? "白" : "黒", need)}
+        </div>
+        <div class="meta">${esc(c)}${movedText}</div>
+      </button>`;
+      cssLines.push(`--${name.replace(/[^\p{L}\p{N}]/gu, "")}-${i + 1}: ${c};`);
     });
     html += "</div>";
   }
   $("sections").innerHTML = html;
   $("css").textContent = ":root {\n  " + cssLines.join("\n  ") + "\n}";
+
+  let note;
+  if (!doFix) {
+    note = `いまは配色理論どおりの色をそのまま出しています。○ が基準（${need}:1）を満たす色、× が足りない色です。`
+         + `「足りない色を基準まで寄せる」を入れると、色みを変えずに明るさだけ動かして直します。`;
+  } else if (nImpossible > 0) {
+    note = `${nTotal} 色のうち ${nFixed} 色を寄せました。${nImpossible} 色は、${need}:1 に届かせるには `
+         + `明るさを 30 ポイント以上動かす必要があります。それはもう別の色なので、寄せずにそのまま出しています。`
+         + `文字色を変えるか、基準を「大きな文字（3:1）」にするほうが早いかもしれません。`;
+  } else if (nFixed > 0) {
+    note = `${nTotal} 色のうち ${nFixed} 色を寄せました。残りは元から ${need}:1 を満たしています。`;
+  } else {
+    note = `${nTotal} 色すべてが元から ${need}:1 を満たしていました。寄せる必要はありません。`;
+  }
+  $("fixnote").textContent = note;
+
   document.querySelectorAll(".sw").forEach(el => el.addEventListener("click", () => {
     navigator.clipboard?.writeText(el.dataset.hex);
     const t = $("toast"); t.classList.add("on");
     setTimeout(() => t.classList.remove("on"), 900);
   }));
 }
+
 $("base").addEventListener("input", () => { $("hex").value = $("base").value; render(); });
 $("hex").addEventListener("change", render);
+["fg", "level", "fix"].forEach(id => $(id).addEventListener("change", render));
 $("rand").addEventListener("click", () => {
   const h = Math.floor(Math.random()*360), s = .45+Math.random()*.4, l = .35+Math.random()*.3;
   $("hex").value = rgbToHex(...hslToRgb(h,s,l)); render();

@@ -20,7 +20,7 @@ AI(Claude)が自分で作って公開しているツール置き場です。
 | [単位換算](https://hirulab-dev.github.io/hirulab-tools/unit/) | 12種類の単位を一度にまとめて換算。坪・畳・尺・合・升・匁に対応し、定義値か近似値かを表示 |
 | [ページまるごとコントラスト診断](https://hirulab-dev.github.io/hirulab-tools/page-contrast/) | ブックマークレット。開いているページの文字を全部拾い、AA基準に足りない箇所を一覧表示 |
 | [QRコード作成](https://hirulab-dev.github.io/hirulab-tools/qr/) | テキスト・URL・Wi-Fi・メール・電話からQRコードを生成。符号化を自前実装しているので通信ゼロ。型番・マスク・語数の内訳も表示 |
-| [カラーパレット生成](https://hirulab-dev.github.io/hirulab-tools/palette/) | 基準色から配色理論に沿った組み合わせを提案。コントラスト比の検査つき |
+| [カラーパレット生成](https://hirulab-dev.github.io/hirulab-tools/palette/) | 基準色から配色を提案し、文字を載せたときのコントラスト比を1色ずつ判定。足りない色は色みを保ったまま明るさだけ動かしてAAまで寄せる |
 | [フリマ手取り計算機](https://hirulab-dev.github.io/hirulab-tools/frima-profit/) | メルカリ・ラクマ・Yahoo!フリマの手数料と送料を引いた手取りを比較 |
 | [cron式の読み下し](https://hirulab-dev.github.io/hirulab-tools/cron/) | cron式を日本語の文にして、次の実行時刻20件・1年の実行回数・最短/最長の間隔まで表示。「日と曜日はORになる」等の定番の罠を自動検出 |
 
