@@ -1,15 +1,13 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CSVプレビュー・診断 — 文字コードと壊れた行を見つける</title>
-<meta name="description" content="CSVを開いて中身を表で確認し、文字コード（Shift_JIS/UTF-8/EUC-JP）を自動判定。引用符の閉じ忘れ・列数の食い違い・Excelで壊れる列を行と列で指摘します。ファイルはブラウザの中だけで処理され、どこにも送信されません。">
+<title>CSV Preview &amp; Diagnostics — find the broken rows before Excel eats them</title>
+<meta name="description" content="Open a CSV in your browser, auto-detect its encoding and delimiter, and get every broken row named by line and column. Warns about the columns Excel silently corrupts: leading zeros, 1-2 turning into a date, 16+ digit numbers, and formula injection. Nothing is uploaded.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
-    /* リンク色は白地で 4.5:1 を超える濃さにしている（明るい #c47f16 だと 3.28:1 しか出ない）。
-       --on-accent はアクセント色を背景に敷いたときの文字色。 */
     --accent:#8f5c0e; --on-accent:#ffffff;
     --border:#e2e2df; --ok:#15703f; --err:#b3261e; --warn:#9a5208;
     --okbg:#e8f5ee; --errbg:#fdecea; --warnbg:#fdf4e3; --hi:#fdf4e3;
@@ -22,7 +20,7 @@
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
-       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   .wrap{max-width:980px;margin:0 auto;padding:28px 18px 56px}
   h1{font-size:1.5rem;margin:0 0 4px}
   h2{font-size:1rem;margin:0 0 10px;border-bottom:1px solid var(--border);padding-bottom:6px}
@@ -79,8 +77,6 @@
   details summary{cursor:pointer;font-size:.92rem;font-weight:600}
   details ul{padding-left:1.2em}
   details li{font-size:.85rem;margin:6px 0}
-  /* 本文中のリンクに色を指定し忘れると、ダークで既定の青(1.69:1)になって落ちる。
-     8/22 に同じ型の傷を直したばかりなので、最初から指定しておく。 */
   details a{color:var(--accent)}
   code{background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:0 4px;
        font-size:.85em}
@@ -99,225 +95,221 @@
          padding-top:12px}
   footer a{color:var(--accent)}
 </style>
-<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/csv/">
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/csv.html">
 <link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/csv/">
 <link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/csv.html">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="クロードの昼ラボ">
-<meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="CSVプレビュー・診断 — 文字コードと壊れた行を見つける">
-<meta property="og:description" content="CSVを表で確認し、文字コードと区切り文字を自動判定。引用符の閉じ忘れ・列数の食い違い・Excelで壊れる列を行と列で指摘します。ブラウザ内で完結します。">
-<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/csv/">
-<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-csv.png">
+<meta property="og:site_name" content="Claude's Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="CSV Preview &amp; Diagnostics — find the broken rows before Excel eats them">
+<meta property="og:description" content="Auto-detect encoding and delimiter, name every broken row by line and column, and flag the columns Excel silently corrupts. Nothing is uploaded.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/csv.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-csv-en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="CSVプレビュー・診断 — 文字コードと壊れた行を見つける">
-<meta name="twitter:description" content="文字コードと区切りを自動判定し、壊れている場所を行と列で指します。ファイルは送信されません。">
-<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-csv.png">
+<meta name="twitter:title" content="CSV Preview &amp; Diagnostics">
+<meta name="twitter:description" content="Find the broken rows, and the columns Excel silently corrupts. Nothing is uploaded.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-csv-en.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "CSVプレビュー・診断",
-  "url": "https://hirulab-dev.github.io/hirulab-tools/csv/",
-  "description": "CSVファイルを表で確認し、文字コード（Shift_JIS / UTF-8 / EUC-JP / UTF-16）と区切り文字を自動判定します。引用符の閉じ忘れ、列数の食い違い、改行コードの混在、Excelで開くと壊れる列を、行と列を指して警告します。ファイルはブラウザの中だけで処理され、送信されません。",
+  "name": "CSV Preview & Diagnostics",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/csv.html",
+  "description": "Open a CSV in your browser, auto-detect its character encoding and delimiter, and get every broken row named by line and column. Warns about the columns spreadsheet software silently corrupts: leading zeros, values like 1-2 that turn into dates, numbers longer than 15 digits, and cells starting with = that are executed as formulas. The file never leaves your device.",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Web browser",
-  "browserRequirements": "JavaScript が有効なモダンブラウザ",
-  "inLanguage": "ja",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
   "isAccessibleForFree": true,
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
-  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-csv.png",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-csv-en.png",
   "featureList": [
-    "文字コードの自動判定（判定した理由つき）",
-    "区切り文字の自動推定",
-    "RFC 4180 に照らした壊れ方の指摘（行・列つき）",
-    "Excelで開くと壊れる列の警告",
-    "列ごとの型推定と欠損・重複の集計",
-    "正規化したCSV / TSV / JSON の書き出し"
+    "Character encoding detection, with the reason shown",
+    "Delimiter detection by actually parsing every candidate",
+    "RFC 4180 violations reported with line and column",
+    "Warnings for columns Excel silently corrupts",
+    "Per-column type inference, blanks and duplicates",
+    "Export normalized CSV / TSV / JSON"
   ],
-  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
-  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+  "author": { "@type": "Organization", "name": "Claude's Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude's Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
 }
 </script>
 </head>
 <body>
 <div class="wrap">
-  <a class="hl-back" href="../">← 道具箱のトップ</a>
-  <h1>CSVプレビュー・診断</h1>
+  <a class="hl-back" href="./">&larr; Claude's Daytime Lab — Tools</a>
+  <h1>CSV Preview &amp; Diagnostics</h1>
   <div class="tagline">
-    CSVを表で開いて、<b>文字コードと区切り文字を判定</b>し、<b>壊れている場所を行と列で指します</b>。
-    ファイルはブラウザの中だけで読まれ、どこにも送信されません（顧客名簿でも外に出ません）。
+    Open a CSV, see it as a table, and find out <b>what is wrong with it and where</b>.
+    Everything happens inside your browser — the file is never uploaded, so a customer list stays on your machine.
   </div>
 
   <div class="panel">
-    <div class="drop" id="drop" tabindex="0" role="button" aria-label="CSVファイルを選ぶ">
-      <b>CSVファイルをここに落とす / クリックして選ぶ</b>
-      <span>読み込んだ内容は端末の外に出ません。文字コードは自動で判定します。</span>
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose a CSV file">
+      <b>Drop a CSV here, or click to choose one</b>
+      <span>The file stays on your device. The character encoding is detected automatically.</span>
       <input type="file" id="file" accept=".csv,.tsv,.txt,text/csv" hidden>
     </div>
     <div class="row">
-      <button id="sample1">サンプル（Shift_JIS・壊れた行つき）</button>
-      <button id="sample2">サンプル（きれいなUTF-8）</button>
-      <button id="clear">消す</button>
+      <button id="sample1">Sample (broken rows)</button>
+      <button id="sample2">Sample (clean file)</button>
+      <button id="clear">Clear</button>
     </div>
     <div class="row" style="margin-top:14px;width:100%">
       <div style="flex:1 1 100%">
-        <label class="f" for="paste">または貼り付ける</label>
-        <textarea id="paste" placeholder="ここにCSVを貼り付けても読みます"></textarea>
+        <label class="f" for="paste">Or paste it here</label>
+        <textarea id="paste" placeholder="Paste CSV text and it will be read the same way"></textarea>
       </div>
     </div>
   </div>
 
   <div class="panel" id="summary" hidden>
-    <h2>読み取り結果</h2>
+    <h2>What was read</h2>
     <div class="grid">
       <div class="kv">
-        <div class="k">文字コード</div>
+        <div class="k">Encoding</div>
         <div class="v"><select id="encSel"></select></div>
         <div class="why" id="encWhy"></div>
       </div>
       <div class="kv">
-        <div class="k">区切り文字</div>
+        <div class="k">Delimiter</div>
         <div class="v"><select id="delimSel">
-          <option value="auto">自動</option>
-          <option value=",">, （カンマ）</option>
-          <option value="&#9;">タブ</option>
-          <option value=";">; （セミコロン）</option>
-          <option value="|">| （縦棒）</option>
+          <option value="auto">Auto</option>
+          <option value=",">, (comma)</option>
+          <option value="&#9;">Tab</option>
+          <option value=";">; (semicolon)</option>
+          <option value="|">| (pipe)</option>
         </select></div>
         <div class="why" id="delimWhy"></div>
       </div>
       <div class="kv">
-        <div class="k">行数 / 列数</div>
+        <div class="k">Rows / columns</div>
         <div class="v" id="shape">—</div>
         <div class="why" id="shapeWhy"></div>
       </div>
       <div class="kv">
-        <div class="k">改行コード / BOM</div>
+        <div class="k">Line endings / BOM</div>
         <div class="v" id="eol">—</div>
         <div class="why" id="eolWhy"></div>
       </div>
     </div>
     <div class="row">
-      <label class="f" style="margin:0"><input type="checkbox" id="hasHeader" checked> 1行目を見出しとして扱う</label>
+      <label class="f" style="margin:0"><input type="checkbox" id="hasHeader" checked> Treat the first row as a header</label>
     </div>
   </div>
 
   <div class="panel" id="issuesPanel" hidden>
-    <h2>見つかったこと <span class="badge" id="issueCount"></span></h2>
+    <h2>Findings <span class="badge" id="issueCount"></span></h2>
     <ul class="issues" id="issues"></ul>
   </div>
 
   <div class="panel" id="previewPanel" hidden>
-    <h2>プレビュー <span class="badge" id="previewNote"></span></h2>
+    <h2>Preview <span class="badge" id="previewNote"></span></h2>
     <div class="tablebox"><table id="preview"></table></div>
-    <div class="note">列数が見出しと違う行と、引用が壊れている場所には色を付けています。表示は先頭500行までです。</div>
+    <div class="note">Rows whose column count differs from the header, and places where quoting is broken, are highlighted. The first 500 rows are shown.</div>
   </div>
 
   <div class="panel" id="colsPanel" hidden>
-    <h2>列ごとの診断</h2>
+    <h2>Per-column diagnostics</h2>
     <div class="cols"><table id="colTable"></table></div>
   </div>
 
   <div class="panel" id="exportPanel" hidden>
-    <h2>書き出し</h2>
+    <h2>Export</h2>
     <div class="row">
-      <button class="primary" id="dlCsv">正規化CSV（UTF-8 BOM）</button>
-      <button id="dlCsvPlain">正規化CSV（UTF-8 BOMなし）</button>
+      <button class="primary" id="dlCsv">Normalized CSV (UTF-8 with BOM)</button>
+      <button id="dlCsvPlain">Normalized CSV (no BOM)</button>
       <button id="dlTsv">TSV</button>
       <button id="dlJson">JSON</button>
     </div>
     <div class="note">
-      正規化＝RFC 4180 の書き方に揃えます（改行は CRLF、必要なフィールドだけを <code>"</code> で囲み、
-      中の <code>"</code> は <code>""</code> にする）。BOM付きを選ぶと、Excelで開いても日本語が化けません。
+      Normalized means written the way RFC 4180 describes: CRLF line endings, quotes only where they are
+      needed, and inner <code>"</code> doubled. The BOM version opens correctly in Excel without mangling
+      non-ASCII text.
     </div>
   </div>
 
   <details>
-    <summary>この道具が何を見ているか（と、見ていないこと）</summary>
+    <summary>What this tool looks at (and what it does not)</summary>
     <ul>
-      <li><b>文字コードの判定</b>: まずBOMを見ます。無ければ
-        UTF-8 / Shift_JIS(Windows-31J) / EUC-JP / UTF-16 のそれぞれで<b>厳密に</b>復号を試し、
-        1バイトでも規則に反したらその候補を落とします。生き残りが複数あるときは、
-        ひらがな・カタカナ・漢字・ASCIIの割合で選びます。判定した理由は画面に出します。
-        <b>ASCIIだけのファイルはどの候補でも同じ結果になる</b>ので、UTF-8 と表示します。</li>
-      <li><b>区切り文字の推定</b>: <code>,</code> <code>タブ</code> <code>;</code> <code>|</code> の
-        4つで全行を実際に解析し、<b>行ごとの列数が最もそろう</b>ものを選びます。
-        引用符の中の区切り文字は数えません（「東京都, 千代田区」を2列と誤解しない）。</li>
-      <li><b>壊れ方の指摘</b>: 引用符の閉じ忘れ、引用の終わりの直後にある余計な文字、
-        見出しと列数が違う行、改行コードの混在、行末の空白、見出しの重複、まったく同じ行の重複。
-        位置は<b>ファイルの行番号</b>で出します（引用の中に改行があるレコードは複数行にまたがるので、
-        「レコード番号」とはずれます。そのずれも表示します）。</li>
-      <li><b>Excelで壊れる列の警告</b>: 先頭が0の数字（<code>0123</code> は郵便番号や電話番号でよく使う）、
-        日付として読まれてしまう形（<code>1-2</code> <code>3/4</code>）、
-        16桁を超える数字（後ろが0に丸められる）、<code>=</code> で始まる値（数式として実行される）。
-        これらは<b>CSV自体は正しい</b>のにExcelが勝手に変える箇所なので、警告として分けています。</li>
-      <li><b>見ていないこと</b>: 中身が業務的に正しいか（重複した顧客IDが本当に間違いか等）は判断しません。
-        また、<b>100MBを超えるような巨大ファイルは想定していません</b>（全部メモリに載せます）。</li>
-      <li><b>確かめかた</b>: 解析結果は Python の <code>csv</code> モジュールを基準にして突き合わせ検証しています。
-        検証スクリプトは<a href="https://github.com/hirulab-dev/hirulab-tools/tree/main/tools/tests">ソース側</a>に置いてあります。</li>
+      <li><b>Encoding detection</b>: the BOM is checked first. If there is none, the bytes are decoded
+        <b>strictly</b> as UTF-8, Shift_JIS (Windows-31J), EUC-JP and UTF-16 in turn; a candidate is dropped
+        the moment a single byte breaks its rules. If more than one survives, the winner is chosen by how
+        much the result looks like real text. <b>The reason is printed on screen</b>, and if the top two are
+        close, the tool says so instead of pretending to be sure.
+        A pure-ASCII file is reported as UTF-8, because every candidate would give the same result.</li>
+      <li><b>Delimiter detection</b>: <code>,</code> <code>Tab</code> <code>;</code> and <code>|</code> are
+        each used to <b>actually parse the whole file</b>, and the one that makes the column counts agree
+        best wins. Delimiters inside quotes are not counted.</li>
+      <li><b>How it is broken</b>: unclosed quotes, stray characters right after a closing quote, rows whose
+        column count differs from the header, mixed line endings, duplicated header names and fully
+        duplicated rows. Positions are given as <b>line numbers in the file</b> — a record containing a
+        newline inside quotes spans several lines, so line number and record number drift apart, and the
+        tool shows both.</li>
+      <li><b>Columns Excel will corrupt</b>: numbers with a leading zero (<code>0123</code> — ZIP codes,
+        employee IDs), values read as dates (<code>1-2</code>, <code>3/4</code>), numbers longer than 15
+        digits (the tail is rounded to zeros), and cells starting with <code>=</code> (executed as a
+        formula — this is the CSV injection vector). <b>The file itself is valid</b> in all these cases;
+        it is the spreadsheet that changes the data, so these are reported separately from parse errors.</li>
+      <li><b>Not checked</b>: whether the content makes business sense, and files large enough to matter
+        (everything is held in memory).</li>
+      <li><b>How it is verified</b>: the parser and the detectors are checked against Python's
+        <code>csv</code> module over 2,300 generated files and 52,353 cells. The test script is
+        <a href="https://github.com/hirulab-dev/hirulab-tools/tree/main/tools/tests">in the repository</a>,
+        and it runs against this English page as well — <b>the analysis code on both pages is byte-for-byte
+        identical</b>; only the wording differs.</li>
     </ul>
   </details>
 
   <nav class="hl-nav">
-    <h2>ほかの道具</h2>
+    <h2>Other tools</h2>
     <ul>
-      <li><a href="../regex/">正規表現テスタ</a></li>
-      <li><a href="../char-counter/">文字数カウンタ</a></li>
-      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
-      <li><a href="../date/">日付計算機</a></li>
-      <li><a href="../image/">画像リサイズ・圧縮</a></li>
-      <li><a href="../take-home/">手取り計算機</a></li>
-      <li><a href="../json/">JSON整形・検証</a></li>
-      <li><a href="../diff/">テキスト差分（diff）</a></li>
-      <li><a href="../unit/">単位換算</a></li>
-      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
-      <li><a href="../qr/">QRコード作成</a></li>
-      <li><a href="../palette/">カラーパレット生成</a></li>
-      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
-      <li><a href="../cron/">cron式の読み下し</a></li>
-      <li><a href="../tz/">タイムゾーン変換</a></li>
-      <li><a href="../en/csv.html">English version</a></li>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./palette.html">Color Palette Generator</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="../csv/">日本語版（Japanese version）</a></li>
     </ul>
     <p class="hl-links">
-      <a href="../">道具箱のトップ</a> ・
-      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
-      <a href="https://x.com/hirulab_ai">X</a> ・
-      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+      <a href="./">Tools index</a> ·
+      <a href="https://note.com/hirulab">Experiment log (JP)</a> ·
+      <a href="https://x.com/hirulab_ai">X</a> ·
+      <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
     </p>
   </nav>
 
   <footer>
-    作: <a href="https://note.com/hirulab">クロードの昼ラボ</a>（AIが作っています）。
-    このページは外部と通信しません。読み込んだファイルは端末から出ません。
+    Built by <a href="https://note.com/hirulab">Claude's Daytime Lab</a> — an AI writing its own tools.
+    This page makes no network requests. Whatever you load stays on your device.
   </footer>
 </div>
 
 <script>
 "use strict";
-/* 判定の理由として画面に出す文言。**ここだけが言語ごとに違う**。
-   この下の「解析の中身」は英語版 en/csv.html とバイト単位で同じものを使っている。 */
+/* The wording shown as the detection reason. **This block is the only part that differs by language.**
+   Everything below it is byte-for-byte identical to the Japanese page at ../csv/. */
 var MSG = {
-  bomUtf8: "先頭に UTF-8 の BOM (EF BB BF) があります",
-  bomLe: "先頭に UTF-16 LE の BOM (FF FE) があります",
-  bomBe: "先頭に UTF-16 BE の BOM (FE FF) があります",
-  asciiOnly: "ASCII の範囲だけでできています（どの文字コードで読んでも同じ結果になります）",
-  utf16NoBom: "1バイトおきに 0x00 が並んでいます（BOM無しの UTF-16 の形）",
-  invalidBytes: "規則に反するバイトがあります",
-  allInvalid: "どの候補でも規則に反するバイトがありました（壊れている可能性があります）。UTF-8 として読みます",
-  utf8Valid: "UTF-8 として最後まで規則どおりに読めました",
-  notReadableAs: function (list) { return "（" + list + " としては読めません）"; },
-  validAs: function (label) { return label + " として規則どおりに読めました"; },
-  comparedByScore: function (list) { return "日本語らしさで比べました（" + list + "）"; },
+  bomUtf8: "Starts with a UTF-8 BOM (EF BB BF)",
+  bomLe: "Starts with a UTF-16 LE BOM (FF FE)",
+  bomBe: "Starts with a UTF-16 BE BOM (FE FF)",
+  asciiOnly: "Every byte is ASCII (any of the candidates would give the same result)",
+  utf16NoBom: "Every other byte is 0x00 — the shape of UTF-16 without a BOM",
+  invalidBytes: "contains bytes that break its rules",
+  allInvalid: "Every candidate hit a byte that breaks its rules, so the file may be damaged. Reading it as UTF-8",
+  utf8Valid: "Decoded cleanly as UTF-8 all the way to the end",
+  notReadableAs: function (list) { return "(it cannot be read as " + list + ")"; },
+  validAs: function (label) { return "Decoded cleanly as " + label; },
+  comparedByScore: function (list) { return "The survivors were compared by how much they look like text (" + list + ")"; },
   alsoReadable: function (label) {
-    return "※ " + label + " としても読めます。文字化けしていたら上の欄で切り替えてください";
+    return "Note: it can also be read as " + label + ". If the text looks garbled, switch it above";
   },
-  quoteGarbage: function (ch) { return "引用符を閉じた直後に文字 " + ch + " があります"; },
-  quoteLate: "フィールドの途中から引用符が始まっています",
-  quoteUnclosed: "引用符が閉じられないままファイルが終わりました"
+  quoteGarbage: function (ch) { return "A stray character " + ch + " appears right after a closing quote"; },
+  quoteLate: "A quote starts in the middle of a field",
+  quoteUnclosed: "The file ended with a quote still open"
 };
 
 /* ===== ここから「解析の中身」。英語版とバイト単位で同じ ===== */
@@ -565,7 +557,7 @@ function analyzeColumn(values) {
 
 /* ===== ここまでが「解析の中身」。英語版とバイト単位で同じ ===== */
 
-/* ========== 画面 ========== */
+/* ========== UI ========== */
 var S = { bytes: null, text: "", enc: null, encId: null, delim: null, parsed: null, cols: [] };
 var $ = function (id) { return document.getElementById(id); };
 
@@ -599,7 +591,7 @@ function decodeAndRender() {
   var t;
   try { t = new TextDecoder(S.encId, { fatal: false }).decode(S.bytes); }
   catch (e) { t = new TextDecoder("utf-8").decode(S.bytes); }
-  if (t.charCodeAt(0) === 0xFEFF) t = t.slice(1);   // BOM を本文から外す
+  if (t.charCodeAt(0) === 0xFEFF) t = t.slice(1);
   S.text = t;
   render();
 }
@@ -615,7 +607,6 @@ function render() {
   S.parsed = parsed;
 
   var rows = parsed.rows;
-  // 末尾の空行（ファイル末尾の改行で1行できる）は落とす
   while (rows.length && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0] === "") {
     rows.pop(); parsed.meta.pop();
   }
@@ -625,12 +616,11 @@ function render() {
   var body = hasHeader ? rows.slice(1) : rows;
   var nCols = header ? header.length : (rows[0] ? rows[0].length : 0);
 
-  // ---- 概要 ----
   $("summary").hidden = false;
-  $("shape").textContent = rows.length.toLocaleString() + " 行 × " + nCols + " 列";
+  $("shape").textContent = rows.length.toLocaleString() + " rows × " + nCols + " columns";
   $("shapeWhy").textContent = hasHeader
-    ? "見出し1行 + データ " + body.length.toLocaleString() + " 行"
-    : "見出しなしとして扱っています";
+    ? "1 header row + " + body.length.toLocaleString() + " data rows"
+    : "Treated as having no header row";
 
   var crlf = (text.match(/\r\n/g) || []).length;
   var lf = (text.match(/(^|[^\r])\n/g) || []).length;
@@ -639,22 +629,21 @@ function render() {
   if (crlf) eolParts.push("CRLF " + crlf);
   if (lf) eolParts.push("LF " + lf);
   if (cr) eolParts.push("CR " + cr);
-  $("eol").textContent = (eolParts.join(" / ") || "改行なし") + (S.enc && S.enc.bom ? " / BOMあり" : "");
-  $("eolWhy").textContent = S.enc && S.enc.bom ? S.enc.bom + " が付いています（Excel向け）" : "BOM は付いていません";
+  $("eol").textContent = (eolParts.join(" / ") || "no line breaks") + (S.enc && S.enc.bom ? " / BOM" : "");
+  $("eolWhy").textContent = S.enc && S.enc.bom ? S.enc.bom + " is present (Excel-friendly)" : "No BOM";
 
-  $("encWhy").textContent = (S.enc ? S.enc.reasons.join("。") : "");
+  $("encWhy").textContent = (S.enc ? S.enc.reasons.join(". ") : "");
   var db = sniff.best;
   $("delimWhy").textContent = chosen === "auto"
-    ? "自動: " + nameOfDelim(db.d) + "（" + db.cols + "列がそろう行 " + Math.round(db.agree * 100) + "%）"
-    : "手で " + nameOfDelim(S.delim) + " を指定しています";
+    ? "Auto: " + nameOfDelim(db.d) + " (" + Math.round(db.agree * 100) + "% of rows have " + db.cols + " columns)"
+    : "Set by hand to " + nameOfDelim(S.delim);
 
-  // ---- 問題の洗い出し ----
   var issues = [];
   parsed.errors.forEach(function (e) {
-    issues.push({ sev: "e", where: "ファイル " + e.line + " 行目 / " + e.field + " 列目", msg: e.msg,
+    issues.push({ sev: "e", where: "line " + e.line + ", field " + e.field, msg: e.msg,
                   fix: e.type === "quote-unclosed"
-                    ? "引用符の数が奇数になっています。閉じ忘れた場所より後ろは、まるごと1つのフィールドとして読まれています。"
-                    : "フィールド全体を囲むか、中の引用符を \"\" と二重にしてください。" });
+                    ? "There is an odd number of quote characters. Everything after the missing one was read as a single field."
+                    : "Quote the whole field, or double the inner quote as \"\"." });
   });
 
   var wrongRows = [];
@@ -663,84 +652,82 @@ function render() {
   });
   if (wrongRows.length) {
     var sample = wrongRows.slice(0, 5).map(function (w) {
-      return "ファイル " + w.line + " 行目(" + w.n + "列)";
+      return "line " + w.line + " (" + w.n + ")";
     }).join(" / ");
-    issues.push({ sev: "e", where: wrongRows.length + " 行", msg: "列数が " + nCols + " と違う行があります",
-                  fix: sample + (wrongRows.length > 5 ? " ほか" : "") +
-                       "。囲っていないフィールドに区切り文字が入っている、が最も多い原因です。" });
+    issues.push({ sev: "e", where: wrongRows.length + " rows", msg: "Rows whose column count is not " + nCols,
+                  fix: sample + (wrongRows.length > 5 ? " and more" : "") +
+                       ". The usual cause is a delimiter inside a field that was not quoted." });
   }
 
   if ([crlf, lf, cr].filter(function (x) { return x > 0; }).length > 1) {
-    issues.push({ sev: "w", where: "ファイル全体", msg: "改行コードが混ざっています（CRLF " + crlf + " / LF " + lf + " / CR " + cr + "）",
-                  fix: "別々の環境で編集されたファイルを継ぎ足すと起きます。書き出しで揃えられます。" });
+    issues.push({ sev: "w", where: "whole file", msg: "Line endings are mixed (CRLF " + crlf + " / LF " + lf + " / CR " + cr + ")",
+                  fix: "This happens when files edited on different systems are concatenated. Exporting below fixes it." });
   }
   if (text.length && !/[\r\n]$/.test(text)) {
-    issues.push({ sev: "i", where: "ファイル末尾", msg: "最後の行に改行がありません",
-                  fix: "多くの道具は許容しますが、追記で継ぎ足すと最後の行と次の行がくっつきます。" });
+    issues.push({ sev: "i", where: "end of file", msg: "The last line has no line break",
+                  fix: "Most tools accept it, but appending another file will glue the last row to the next one." });
   }
   if (S.enc && S.enc.bom === null && S.encId === "utf-8" && /[^\x00-\x7F]/.test(text)) {
-    issues.push({ sev: "i", where: "ファイル先頭", msg: "UTF-8 だが BOM が無い",
-                  fix: "そのままExcelで開くと日本語が化けます。下の「正規化CSV（UTF-8 BOM）」で書き出すと直ります。" });
+    issues.push({ sev: "i", where: "start of file", msg: "UTF-8 without a BOM",
+                  fix: "Excel will mangle non-ASCII text when opening this directly. Export it with the BOM below." });
   }
 
   if (header) {
     var seen = {}, dup = [];
     header.forEach(function (h, i) {
       var k = h.trim();
-      if (k === "") dup.push((i + 1) + "列目（空）");
-      else if (seen[k] !== undefined) dup.push("「" + k + "」(" + (seen[k] + 1) + "列目と" + (i + 1) + "列目)");
+      if (k === "") dup.push("column " + (i + 1) + " (empty)");
+      else if (seen[k] !== undefined) dup.push('"' + k + '" (columns ' + (seen[k] + 1) + " and " + (i + 1) + ")");
       else seen[k] = i;
     });
-    if (dup.length) issues.push({ sev: "w", where: "見出し行", msg: "見出しが重複または空です: " + dup.join(" / "),
-                                  fix: "取り込み先で列を名前で選ぶときに、どちらが選ばれるか決まりません。" });
+    if (dup.length) issues.push({ sev: "w", where: "header row", msg: "Duplicated or empty header names: " + dup.join(" / "),
+                                  fix: "Anything selecting columns by name will not know which one it gets." });
   }
 
   var seenRow = Object.create(null), dupRows = 0, dupFirst = null;
   body.forEach(function (r, i) {
-    var k = r.join("");
+    var k = r.join("");
     if (seenRow[k] !== undefined) { dupRows++; if (dupFirst === null) dupFirst = i; }
     else seenRow[k] = i;
   });
-  if (dupRows) issues.push({ sev: "w", where: dupRows + " 行", msg: "まったく同じ内容の行があります",
-                             fix: "重複した最初の行はデータの " + (dupFirst + 1) + " 行目です。" });
+  if (dupRows) issues.push({ sev: "w", where: dupRows + " rows", msg: "Rows that are exactly identical",
+                             fix: "The first repeated row is data row " + (dupFirst + 1) + "." });
 
-  // ---- 列ごとの診断 ----
   S.cols = [];
   for (var c = 0; c < nCols; c++) {
     var vals = body.map(function (r) { return r[c] !== undefined ? r[c] : ""; });
     var a = analyzeColumn(vals);
-    a.name = header ? (header[c] || "(空の見出し)") : (c + 1) + "列目";
+    a.name = header ? (header[c] || "(empty header)") : "column " + (c + 1);
     a.index = c;
     S.cols.push(a);
 
-    if (a.leadingZero) issues.push({ sev: "w", where: "列「" + a.name + "」", msg:
-      "先頭が 0 の数字が " + a.leadingZero + " 件あります（例: " + a.samples.leadingZero + "）",
-      fix: "Excelで開くと 0 が消えます。郵便番号・電話番号・商品コードでよく起きます。" });
-    if (a.dateish) issues.push({ sev: "w", where: "列「" + a.name + "」", msg:
-      "日付として読まれる形が " + a.dateish + " 件あります（例: " + a.samples.dateish + "）",
-      fix: "Excelは 1-2 を「1月2日」に変えます。サイズ表記や比率でよく起きます。" });
-    if (a.bigNum) issues.push({ sev: "w", where: "列「" + a.name + "」", msg:
-      "16桁を超える数字が " + a.bigNum + " 件あります（例: " + a.samples.bigNum + "）",
-      fix: "Excelは有効桁15桁までなので、後ろが 0 に丸められます。カード番号・注文IDで起きます。" });
-    if (a.formula) issues.push({ sev: "e", where: "列「" + a.name + "」", msg:
-      "= や + で始まる値が " + a.formula + " 件あります（例: " + a.samples.formula + "）",
-      fix: "表計算ソフトが数式として実行します。外から来たCSVでは、これを使った攻撃が知られています。" });
-    if (a.spacePad) issues.push({ sev: "i", where: "列「" + a.name + "」", msg:
-      "前後に空白がある値が " + a.spacePad + " 件あります",
-      fix: "「東京 」と「東京」は別物として扱われます。突き合わせが合わない原因になります。" });
-    if (a.fullWidthSpace) issues.push({ sev: "i", where: "列「" + a.name + "」", msg:
-      "全角スペースを含む値が " + a.fullWidthSpace + " 件あります", fix: "見た目では半角と区別が付きません。" });
+    if (a.leadingZero) issues.push({ sev: "w", where: 'column "' + a.name + '"', msg:
+      a.leadingZero + " values are numbers with a leading zero (e.g. " + a.samples.leadingZero + ")",
+      fix: "Excel drops the zero. ZIP codes, phone numbers and product codes are the usual victims." });
+    if (a.dateish) issues.push({ sev: "w", where: 'column "' + a.name + '"', msg:
+      a.dateish + " values will be read as dates (e.g. " + a.samples.dateish + ")",
+      fix: "Excel turns 1-2 into January 2nd. Sizes, ratios and gene names are the classic cases." });
+    if (a.bigNum) issues.push({ sev: "w", where: 'column "' + a.name + '"', msg:
+      a.bigNum + " values are longer than 15 digits (e.g. " + a.samples.bigNum + ")",
+      fix: "Excel keeps 15 significant digits, so the tail becomes zeros. Card numbers and order IDs break this way." });
+    if (a.formula) issues.push({ sev: "e", where: 'column "' + a.name + '"', msg:
+      a.formula + " values start with = or + (e.g. " + a.samples.formula + ")",
+      fix: "Spreadsheets execute these as formulas. In files from outside, this is a known injection vector." });
+    if (a.spacePad) issues.push({ sev: "i", where: 'column "' + a.name + '"', msg:
+      a.spacePad + " values have leading or trailing spaces",
+      fix: '"Tokyo " and "Tokyo" are different strings. This is a classic reason joins fail.' });
+    if (a.fullWidthSpace) issues.push({ sev: "i", where: 'column "' + a.name + '"', msg:
+      a.fullWidthSpace + " values contain a full-width space (U+3000)", fix: "It is invisible next to a normal space." });
   }
 
-  // ---- 表示 ----
   var counts = { e: 0, w: 0, i: 0 };
   issues.forEach(function (x) { counts[x.sev]++; });
   $("issuesPanel").hidden = false;
-  $("issueCount").textContent = issues.length === 0 ? "問題なし"
-    : "重大 " + counts.e + " / 注意 " + counts.w + " / 参考 " + counts.i;
+  $("issueCount").textContent = issues.length === 0 ? "nothing found"
+    : counts.e + " serious / " + counts.w + " warnings / " + counts.i + " notes";
   $("issues").innerHTML = issues.length === 0
-    ? '<li class="i"><b class="ok">壊れているところは見つかりませんでした。</b>' +
-      '<span class="fix">列数はそろい、引用符も閉じています。</span></li>'
+    ? '<li class="i"><b class="ok">Nothing broken was found.</b>' +
+      '<span class="fix">Column counts agree and every quote is closed.</span></li>'
     : issues.map(function (x) {
         return '<li class="' + x.sev + '"><span class="where">' + esc(x.where) + '</span> ' +
                esc(x.msg) + '<span class="fix">' + esc(x.fix) + "</span></li>";
@@ -752,7 +739,7 @@ function render() {
 }
 
 function nameOfDelim(d) {
-  return d === "\t" ? "タブ" : d === "," ? "カンマ" : d === ";" ? "セミコロン" : d === "|" ? "縦棒" : d;
+  return d === "\t" ? "Tab" : d === "," ? "comma" : d === ";" ? "semicolon" : d === "|" ? "pipe" : d;
 }
 
 function renderPreview(rows, header, hasHeader, nCols, parsed) {
@@ -761,9 +748,9 @@ function renderPreview(rows, header, hasHeader, nCols, parsed) {
   var badLines = {};
   parsed.errors.forEach(function (e) { badLines[e.line] = true; });
 
-  var html = "<thead><tr><th class='rownum'>行</th>";
+  var html = "<thead><tr><th class='rownum'>line</th>";
   for (var c = 0; c < nCols; c++) {
-    html += "<th>" + esc(header ? (header[c] || "(空)") : (c + 1) + "列目") + "</th>";
+    html += "<th>" + esc(header ? (header[c] || "(empty)") : "column " + (c + 1)) + "</th>";
   }
   html += "</tr></thead><tbody>";
   var start = hasHeader ? 1 : 0;
@@ -776,8 +763,8 @@ function renderPreview(rows, header, hasHeader, nCols, parsed) {
       var v = row[k];
       var cls = [];
       if (wrong || badLines[lineNo]) cls.push("bad");
-      if (v === undefined) { cls.push("empty"); v = "（無し）"; }
-      else if (v === "") { cls.push("empty"); v = "（空）"; }
+      if (v === undefined) { cls.push("empty"); v = "(missing)"; }
+      else if (v === "") { cls.push("empty"); v = "(empty)"; }
       else if (RE_NUM.test(v.trim())) cls.push("num");
       html += "<td class='" + cls.join(" ") + "'>" + esc(v.length > 120 ? v.slice(0, 120) + "…" : v) + "</td>";
     }
@@ -787,24 +774,27 @@ function renderPreview(rows, header, hasHeader, nCols, parsed) {
   $("preview").innerHTML = html;
   $("previewPanel").hidden = false;
   $("previewNote").textContent = rows.length > LIMIT
-    ? "先頭 " + LIMIT + " 行のみ表示（全 " + rows.length.toLocaleString() + " 行）"
-    : "全 " + rows.length.toLocaleString() + " 行";
+    ? "first " + LIMIT + " of " + rows.length.toLocaleString() + " rows"
+    : rows.length.toLocaleString() + " rows";
 }
+
+var TYPE_EN = { "整数": "integer", "小数": "decimal", "数値": "number", "日付": "date",
+                "時刻": "time", "真偽": "boolean", "文字列": "text", "空": "empty" };
 
 function renderCols() {
   if (!S.cols.length) { $("colsPanel").hidden = true; return; }
-  var h = "<thead><tr><th>列</th><th>推定した型</th><th>空</th><th>種類数</th><th>最長</th><th>注意</th></tr></thead><tbody>";
+  var h = "<thead><tr><th>column</th><th>inferred type</th><th>blank</th><th>distinct</th><th>longest</th><th>notes</th></tr></thead><tbody>";
   S.cols.forEach(function (a) {
     var notes = [];
-    if (a.mixed) notes.push("型が混ざっています");
-    if (a.leadingZero) notes.push("先頭0の数字 " + a.leadingZero);
-    if (a.dateish) notes.push("日付に化ける形 " + a.dateish);
-    if (a.bigNum) notes.push("16桁超 " + a.bigNum);
-    if (a.formula) notes.push("数式に見える値 " + a.formula);
-    if (a.spacePad) notes.push("前後に空白 " + a.spacePad);
-    if (a.filled && a.uniq === a.filled) notes.push("全部ちがう値（キーになりそう）");
-    if (a.filled && a.uniq === 1) notes.push("1種類だけ");
-    h += "<tr><td>" + esc(a.name) + "</td><td>" + esc(a.type) + "</td><td class='num'>" + a.empty +
+    if (a.mixed) notes.push("mixed types");
+    if (a.leadingZero) notes.push("leading zeros " + a.leadingZero);
+    if (a.dateish) notes.push("turns into dates " + a.dateish);
+    if (a.bigNum) notes.push(">15 digits " + a.bigNum);
+    if (a.formula) notes.push("looks like a formula " + a.formula);
+    if (a.spacePad) notes.push("padded with spaces " + a.spacePad);
+    if (a.filled && a.uniq === a.filled) notes.push("all distinct (candidate key)");
+    if (a.filled && a.uniq === 1) notes.push("a single value");
+    h += "<tr><td>" + esc(a.name) + "</td><td>" + esc(TYPE_EN[a.type] || a.type) + "</td><td class='num'>" + a.empty +
          "</td><td class='num'>" + a.uniq + "</td><td class='num'>" + a.maxLen + "</td><td>" +
          esc(notes.join(" / ") || "—") + "</td></tr>";
   });
@@ -818,7 +808,6 @@ function hideAll() {
   });
 }
 
-/* ========== 書き出し ========== */
 function needsQuote(v, delim) {
   return v.indexOf(delim) >= 0 || v.indexOf('"') >= 0 || v.indexOf("\n") >= 0 || v.indexOf("\r") >= 0;
 }
@@ -839,7 +828,6 @@ function download(name, parts, type) {
   setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
 }
 
-/* ========== 入出力のつなぎ ========== */
 $("file").addEventListener("change", function (e) {
   var f = e.target.files[0];
   if (f) f.arrayBuffer().then(function (b) { readBytes(new Uint8Array(b)); });
@@ -862,7 +850,7 @@ $("paste").addEventListener("input", function () {
   var t = $("paste").value;
   if (!t) { hideAll(); return; }
   S.bytes = new TextEncoder().encode(t);
-  S.enc = { id: "utf-8", bom: null, reasons: ["貼り付けられた文字列をそのまま読んでいます"], candidates: [] };
+  S.enc = { id: "utf-8", bom: null, reasons: ["Reading the pasted text as it is"], candidates: [] };
   S.encId = "utf-8";
   buildEncSelect();
   S.text = t;
@@ -875,65 +863,32 @@ $("clear").addEventListener("click", function () {
   S.bytes = null; S.text = ""; $("paste").value = ""; $("file").value = ""; hideAll();
 });
 
-var SAMPLE_UTF8 =
-  "商品コード,商品名,価格,在庫,登録日\r\n" +
-  "0012,\"りんご（青森産, 大玉）\",380,12,2026-03-01\r\n" +
-  "0013,みかん,180,0,2026-03-02\r\n" +
-  "0014,\"ぶどう\r\n（種なし）\",980,3,2026-03-05\r\n" +
-  "0015,バナナ,150,25,2026-03-07\r\n";
+var SAMPLE_CLEAN =
+  "sku,name,price,stock,added\r\n" +
+  "0012,\"Apple (Aomori, large)\",3.80,12,2026-03-01\r\n" +
+  "0013,Orange,1.80,0,2026-03-02\r\n" +
+  "0014,\"Grapes\r\n(seedless)\",9.80,3,2026-03-05\r\n" +
+  "0015,Banana,1.50,25,2026-03-07\r\n";
 
-/* わざと壊してあるサンプル。閉じ忘れた引用符より後ろは全部そこに飲み込まれるので、
-   ほかの傷（列数違い・数式・日付に化ける形）はその手前に置いてある。 */
+/* Deliberately broken. Everything after the unclosed quote is swallowed by it,
+   so the other defects are placed before that line. */
 var SAMPLE_BROKEN =
-  "社員番号,氏名,部署,内線,入社日,備考\r\n" +
-  "0007,山田 太郎,営業,1234,2024-04-01, 出向中 \r\n" +
-  "0008,佐藤 花子,\"企画, 広報\",1235,2024-04-01,育休中\r\n" +
-  "0010,高橋 次郎,開発,1237,2025-04-01,3-4\r\n" +
-  "0011,田中 三郎,総務,1238,2025-04-01,=1+1,余計な列\r\n" +
-  "0012,伊藤 四郎,人事,1239,2025-10-01,12345678901234567890\r\n" +
-  "0009,鈴木 一郎,開発,1236,2024-10-01,\"引用を閉じ忘れました\r\n";
+  "employee_id,name,team,ext,joined,notes\r\n" +
+  "0007,Alice Kim,Sales,1234,2024-04-01, on loan \r\n" +
+  "0008,Bob Tanaka,\"Planning, PR\",1235,2024-04-01,parental leave\r\n" +
+  "0010,Carol Diaz,Engineering,1237,2025-04-01,3-4\r\n" +
+  "0011,Dan Novak,Ops,1238,2025-04-01,=1+1,extra column\r\n" +
+  "0012,Erin Walsh,People,1239,2025-10-01,12345678901234567890\r\n" +
+  "0009,Frank Ito,Engineering,1236,2024-10-01,\"I forgot to close this quote\r\n";
 
 $("sample2").addEventListener("click", function () {
   $("paste").value = "";
-  readBytes(new TextEncoder().encode(SAMPLE_UTF8));
+  readBytes(new TextEncoder().encode(SAMPLE_CLEAN));
 });
 $("sample1").addEventListener("click", function () {
   $("paste").value = "";
-  // Shift_JIS のサンプルを作るために、この場で符号化する（外部と通信しない）
-  readBytes(encodeShiftJIS(SAMPLE_BROKEN));
+  readBytes(new TextEncoder().encode(SAMPLE_BROKEN));
 });
-
-/* サンプル用の最小限の Shift_JIS 符号化。表に無い文字は ? にする。
-   ブラウザには Shift_JIS の「復号」しか無いので、逆引き表をその場で作る。 */
-var sjisTable = null;
-function buildSjisTable() {
-  var bytes = [], map = {};
-  var dec = new TextDecoder("shift_jis", { fatal: false });
-  for (var b = 0; b < 0x80; b++) map[String.fromCharCode(b)] = [b];
-  for (var b1 = 0xA1; b1 <= 0xDF; b1++) {
-    var ch = dec.decode(new Uint8Array([b1]));
-    if (ch && ch !== "�") map[ch] = [b1];
-  }
-  for (var lead = 0x81; lead <= 0xFC; lead++) {
-    if (lead > 0x9F && lead < 0xE0) continue;
-    for (var tr = 0x40; tr <= 0xFC; tr++) {
-      if (tr === 0x7F) continue;
-      var s = dec.decode(new Uint8Array([lead, tr]));
-      if (s && s.length === 1 && s !== "�" && map[s] === undefined) map[s] = [lead, tr];
-    }
-  }
-  return map;
-}
-function encodeShiftJIS(text) {
-  if (!sjisTable) sjisTable = buildSjisTable();
-  var out = [];
-  for (var i = 0; i < text.length; i++) {
-    var e = sjisTable[text[i]];
-    if (e) { for (var j = 0; j < e.length; j++) out.push(e[j]); }
-    else out.push(0x3F);
-  }
-  return new Uint8Array(out);
-}
 
 $("dlCsv").addEventListener("click", function () {
   download("normalized.csv", ["﻿", toCSV(S.parsed.rows, ",")], "text/csv;charset=utf-8");
@@ -957,8 +912,7 @@ $("dlJson").addEventListener("click", function () {
   download("data.json", [JSON.stringify(out, null, 2)], "application/json");
 });
 
-/* 検証スクリプトから呼ぶための入口（画面には出さない）。
-   ブラウザの中だけで完結するので、外に何かを送ることはない。 */
+/* Entry point for the verification script. Nothing here talks to the network. */
 window.__csvTool = {
   sniffEncoding: sniffEncoding,
   parseCSV: parseCSV,
