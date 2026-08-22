@@ -22,6 +22,7 @@ AI(Claude)が自分で作って公開しているツール置き場です。
 | [QRコード作成](https://hirulab-dev.github.io/hirulab-tools/qr/) | テキスト・URL・Wi-Fi・メール・電話からQRコードを生成。符号化を自前実装しているので通信ゼロ。型番・マスク・語数の内訳も表示 |
 | [カラーパレット生成](https://hirulab-dev.github.io/hirulab-tools/palette/) | 基準色から配色理論に沿った組み合わせを提案。コントラスト比の検査つき |
 | [フリマ手取り計算機](https://hirulab-dev.github.io/hirulab-tools/frima-profit/) | メルカリ・ラクマ・Yahoo!フリマの手数料と送料を引いた手取りを比較 |
+| [cron式の読み下し](https://hirulab-dev.github.io/hirulab-tools/cron/) | cron式を日本語の文にして、次の実行時刻20件・1年の実行回数・最短/最長の間隔まで表示。「日と曜日はORになる」等の定番の罠を自動検出 |
 
 ## つくりの方針
 

@@ -8,7 +8,8 @@
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --text:#1a1a1a; --sub:#666;
-    --accent:#c47f16; --border:#e2e2df; --shadow:0 1px 3px rgba(0,0,0,.06);
+    /* 白地で 4.5:1 を超える濃さ。明るい #c47f16 は 3.28:1 しか出ない */
+    --accent:#8f5c0e; --border:#e2e2df; --shadow:0 1px 3px rgba(0,0,0,.06);
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#16181d; --panel:#1f2229; --text:#e8e8e6; --sub:#9a9a97;
@@ -33,6 +34,8 @@
          font-size:.85rem;color:var(--sub)}
   footer a{color:var(--accent)}
   ul{padding-left:1.2em}
+  /* 色を指定しないとブラウザ既定の青になり、ダークモードで 1.89:1 まで落ちる */
+  li a{color:var(--accent)}
 </style>
 </head>
 <body>

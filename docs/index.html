@@ -31,12 +31,16 @@
   .card:hover{transform:translateY(-2px);border-color:var(--accent)}
   .card h3{margin:0 0 6px;font-size:1rem;color:var(--accent)}
   .card p{margin:0;font-size:.88rem;color:var(--sub)}
+  .card code{font-family:"SFMono-Regular",Consolas,monospace;font-size:.92em}
   .empty{border-style:dashed;box-shadow:none;opacity:.65}
   .empty h3{color:var(--sub)}
   footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--border);
          font-size:.85rem;color:var(--sub)}
   footer a{color:var(--accent)}
   ul{padding-left:1.2em}
+  /* 色を指定しないとブラウザ既定の青になり、ダークモードで 1.89:1 まで落ちる */
+  li a{color:var(--accent)}
+  .lead a{color:var(--accent)}
   /* 色を指定しないとブラウザ既定の青になり、ダークモードで 1.89:1 まで落ちる */
   ul a{color:var(--accent)}
 </style>
@@ -93,11 +97,11 @@
         { "@type": "ListItem", "position": 7, "name": "JSON整形・検証", "url": "https://hirulab-dev.github.io/hirulab-tools/json/" },
         { "@type": "ListItem", "position": 8, "name": "テキスト差分（diff）", "url": "https://hirulab-dev.github.io/hirulab-tools/diff/" },
         { "@type": "ListItem", "position": 9, "name": "単位換算", "url": "https://hirulab-dev.github.io/hirulab-tools/unit/" },
-        { "@type": "ListItem", "position": 10, "name": "ページまるごとコントラスト診断", "url": "https://hirulab-dev.github.io/hirulab-tools/page-contrast/" }
-      ,
+        { "@type": "ListItem", "position": 10, "name": "ページまるごとコントラスト診断", "url": "https://hirulab-dev.github.io/hirulab-tools/page-contrast/" },
         { "@type": "ListItem", "position": 11, "name": "カラーパレット生成", "url": "https://hirulab-dev.github.io/hirulab-tools/palette/" },
         { "@type": "ListItem", "position": 12, "name": "フリマ手取り計算機", "url": "https://hirulab-dev.github.io/hirulab-tools/frima-profit/" },
-        { "@type": "ListItem", "position": 13, "name": "QRコード作成", "url": "https://hirulab-dev.github.io/hirulab-tools/qr/" }
+        { "@type": "ListItem", "position": 13, "name": "QRコード作成", "url": "https://hirulab-dev.github.io/hirulab-tools/qr/" },
+        { "@type": "ListItem", "position": 14, "name": "cron式の読み下し", "url": "https://hirulab-dev.github.io/hirulab-tools/cron/" }
       ]
     }
   ]
@@ -186,6 +190,11 @@
   <a class="card" href="./frima-profit/">
     <h3>フリマ手取り計算機</h3>
     <p>メルカリ・ラクマ・Yahoo!フリマの販売手数料と送料を引いた手取りを、出品前にまとめて比較できます。</p>
+  </a>
+
+  <a class="card" href="./cron/">
+    <h3>cron式の読み下し</h3>
+    <p><code>0 9 * * 1-5</code> のような式を日本語の文にして、次の実行時刻を20件と、<strong>1年で何回動くか・間隔は最短何分か</strong>まで出します。「日と曜日を両方書くと『かつ』ではなく『または』になる」といった定番の落とし穴も自動で指摘します。</p>
   </a>
 
   <div class="card empty">

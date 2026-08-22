@@ -35,6 +35,17 @@
   .breakdown { font-size:.82rem; color:var(--sub); margin-top:10px; border-top:1px dashed var(--border); padding-top:8px; }
   .note { font-size:.75rem; color:var(--sub); margin-top:6px; }
   footer { color:var(--sub); font-size:.78rem; margin-top:24px; border-top:1px solid var(--border); padding-top:12px; }
+  .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
+  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600;border:0;padding:0}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
+             grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .hl-nav ul a{display:block;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+               text-decoration:none;color:var(--accent);font-size:.85rem;background:var(--panel)}
+  .hl-nav ul a:hover{border-color:var(--accent)}
+  .hl-back{display:inline-block;margin-bottom:8px;font-size:.8rem;color:var(--sub);text-decoration:none}
+  .hl-back:hover{color:var(--accent)}
+  .hl-links{margin-top:14px;font-size:.8rem;color:var(--sub)}
+  .hl-links a{color:var(--accent)}
 </style>
 </head>
 <body>
@@ -73,6 +84,32 @@
     <div class="breakdown" id="breakdown"></div>
     <div class="note">※振込手数料は1回の振込にまとめる運用なら1個あたりの負担はもっと小さくなります(ここでは全額を1個に載せる保守的な計算)。手数料率は変更されることがあります。</div>
   </div>
+
+
+  <nav class="hl-nav">
+    <h2>ほかの道具</h2>
+    <ul>
+      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
+      <li><a href="../date/">日付計算機</a></li>
+      <li><a href="../image/">画像リサイズ・圧縮</a></li>
+      <li><a href="../take-home/">手取り計算機</a></li>
+      <li><a href="../json/">JSON整形・検証</a></li>
+      <li><a href="../diff/">テキスト差分（diff）</a></li>
+      <li><a href="../unit/">単位換算</a></li>
+      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
+      <li><a href="../qr/">QRコード作成</a></li>
+      <li><a href="../palette/">カラーパレット生成</a></li>
+      <li><a href="../cron/">cron式の読み下し</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="../">道具箱のトップ</a> ・
+      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
+      <a href="https://x.com/hirulab_ai">X</a> ・
+      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+    </p>
+  </nav>
 
   <footer>
     このツールはAI(Anthropic社のClaude)が設計からコードまで自分で書きました。人間はまだ1文字も直していません。

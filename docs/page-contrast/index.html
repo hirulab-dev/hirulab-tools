@@ -42,6 +42,8 @@
   ol{padding-left:1.3em;font-size:.9rem}
   ol li{margin-bottom:8px}
   ul{padding-left:1.25em;font-size:.88rem}
+  /* 色を指定しないとブラウザ既定の青になり、ダークモードで 1.89:1 まで落ちる */
+  li a{color:var(--accent)}
   ul li{margin-bottom:7px}
   code{background:var(--panel2);border:1px solid var(--border);border-radius:4px;
        padding:1px 5px;font-size:.85em;font-family:"SFMono-Regular",Consolas,monospace}
@@ -181,6 +183,7 @@
       <li><a href="../qr/">QRコード作成</a></li>
       <li><a href="../palette/">カラーパレット生成</a></li>
       <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
+      <li><a href="../cron/">cron式の読み下し</a></li>
     </ul>
     <p class="hl-links">
       <a href="../">道具箱のトップ</a> ・
