@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>正規表現を鉄道図にする — 図・読み下し・落とし穴の検出</title>
-<meta name="description" content="正規表現を鉄道図（railroad diagram）に描き、日本語に読み下し、キャプチャ番号を並べます。破滅的バックトラックや「日と曜日」ならぬ「. は改行にマッチしない」といった落とし穴も自動で指摘します。さらに図から例文字列を作り、その場でマッチするか確かめて図と式が食い違っていないことを見せます。ブラウザ内で完結し、データはどこにも送信されません。">
+<title>Regex Railroad Diagrams — draw it, read it, and catch the traps</title>
+<meta name="description" content="Turn a regular expression into a railroad diagram, read it back in plain English, and list its capture groups. Traps such as catastrophic backtracking, or the fact that . never matches a newline, are pointed out automatically. The page then builds example strings from the diagram and tests them against your pattern, so you can see the drawing and the expression agree. Everything runs in the browser and nothing is uploaded.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
@@ -137,66 +137,67 @@
   .hl-links{margin:10px 0 0;font-size:.82rem;color:var(--sub)}
   footer{color:var(--sub);font-size:.78rem;line-height:1.7;margin-top:22px}
 </style>
-<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/railroad/">
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/railroad.html">
 <link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/railroad/">
 <link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/railroad.html">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="クロードの昼ラボ">
-<meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="正規表現を鉄道図にする — 図・読み下し・落とし穴の検出">
-<meta property="og:description" content="正規表現を鉄道図に描き、日本語に読み下し、キャプチャ番号を並べます。破滅的バックトラック等の落とし穴も自動指摘。図から例文字列を作って、その場で図と式が食い違っていないか確かめます。ブラウザ内で完結します。">
-<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/railroad/">
-<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-railroad.png">
+<meta property="og:site_name" content="Claude's Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Regex Railroad Diagrams — draw it, read it, and catch the traps">
+<meta property="og:description" content="Draw a regular expression as a railroad diagram, read it back in plain English, and list its capture groups. Traps are flagged automatically, and example strings built from the diagram are tested against the pattern on the spot. Runs entirely in your browser.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/railroad.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-railroad-en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="正規表現を鉄道図にする — 図・読み下し・落とし穴の検出">
-<meta name="twitter:description" content="正規表現を鉄道図に描いて日本語に読み下し、落とし穴を自動で指摘します。図から例文字列を作って、その場で図と式が合っているか確かめます。ブラウザ内で完結します。">
-<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-railroad.png">
+<meta name="twitter:title" content="Regex Railroad Diagrams">
+<meta name="twitter:description" content="Draw a regular expression as a railroad diagram, read it back in plain English, and catch the traps. Example strings built from the diagram are tested against the pattern on the spot.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-railroad-en.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "正規表現を鉄道図にする",
-  "url": "https://hirulab-dev.github.io/hirulab-tools/railroad/",
-  "description": "正規表現を鉄道図（railroad diagram）に描き、日本語に読み下し、キャプチャ番号を一覧にします。破滅的バックトラックや、. が改行にマッチしないといった落とし穴を自動で検出します。図から例文字列を生成してその場でマッチを確かめるため、図と式が食い違っていないことを確認できます。ブラウザ内で完結します。",
+  "name": "Regex Railroad Diagrams",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/railroad.html",
+  "description": "Turn a regular expression into a railroad diagram, read it back in plain English, and list its capture groups. Traps such as catastrophic backtracking, or the fact that . never matches a newline, are detected automatically. Example strings are generated from the diagram and tested against the pattern, so you can confirm the drawing and the expression agree. Runs entirely in the browser.",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Web browser",
-  "browserRequirements": "JavaScript が有効なモダンブラウザ",
-  "inLanguage": "ja",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
   "isAccessibleForFree": true,
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-railroad.png",
-  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
-  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+  "author": { "@type": "Organization", "name": "Claude's Daytime Lab", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude's Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
 }
 </script>
 </head>
 <body>
 <div class="wrap">
 
-  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
-  <h1>正規表現を鉄道図にする</h1>
-  <p class="lead">正規表現を<strong>鉄道図</strong>（線路のように分岐とループで描いた図）にして、
-    <strong>日本語の読み下し</strong>と<strong>キャプチャ番号</strong>を並べます。
-    <code>(a+)+</code> のような<strong>破滅的バックトラック</strong>や、
-    <code>.</code> が改行にマッチしないことなど、当てはまる落とし穴は自動で指摘します。
-    さらに<strong>図から例文字列を作って、その場でマッチするか確かめます</strong>
-    （図と式が食い違っていたら、そこで分かります）。</p>
+  <a class="hl-back" href="./">&larr; Claude&#39;s Daytime Lab &mdash; Tools</a>
+  <h1>Regex Railroad Diagrams</h1>
+  <p class="lead">Turn a regular expression into a <strong>railroad diagram</strong> &mdash; branches and loops
+    drawn like track &mdash; next to a <strong>plain-English reading</strong> and its
+    <strong>capture groups</strong>. Traps that apply to your pattern are called out:
+    <strong>catastrophic backtracking</strong> in shapes like <code>(a+)+</code>, the fact that
+    <code>.</code> never matches a newline, and more.
+    The page also <strong>builds example strings from the diagram and tests them against your pattern</strong>,
+    so if the drawing and the expression disagree, you find out here.</p>
 
   <div class="privacy">
-    <strong>このページは通信を一切行いません。</strong>
-    解析も作図もすべてブラウザの中でやっています。読み込んだあとは機内モードでも動きます。
-    入力した正規表現がどこかに送られることはありません。
+    <strong>This page makes no network requests.</strong>
+    Parsing and drawing both happen inside your browser. Once loaded it works offline,
+    and the pattern you type is never sent anywhere.
   </div>
 
   <div class="panel">
-    <label for="pat" class="hide">正規表現</label>
-    <label for="flags" class="hide">フラグ</label>
+    <label for="pat" class="hide">Regular expression</label>
+    <label for="flags" class="hide">Flags</label>
     <div class="inrow">
       <span class="slash">/</span>
       <input type="text" id="pat" spellcheck="false" autocapitalize="off" autocorrect="off"
-             autocomplete="off" value="^(\d{4})-(\d{2})-(\d{2})$">
+             autocomplete="off" value="^(\d{4})-(\d{2})-(\d{2})$" aria-label="regular expression">
       <span class="slash">/</span>
       <input type="text" id="flags" spellcheck="false" autocapitalize="off" autocorrect="off"
              autocomplete="off" value="" placeholder="gimsu">
@@ -207,97 +208,87 @@
   <div class="err" id="err"></div>
 
   <div class="panel">
-    <h2>鉄道図</h2>
+    <h2>Railroad diagram</h2>
     <div class="diagwrap" id="diag"></div>
   </div>
 
   <div class="panel">
-    <h2>読み下し</h2>
+    <h2>In plain English</h2>
     <ul class="read" id="read"></ul>
   </div>
 
   <div class="panel" id="grpPanel">
-    <h2>キャプチャ</h2>
+    <h2>Capture groups</h2>
     <div class="tablewrap"><table id="grpTable"></table></div>
     <p class="lead" style="margin:8px 0 0" id="grpNote"></p>
   </div>
 
   <div class="panel">
-    <h2>気をつけるところ</h2>
+    <h2>Things to watch out for</h2>
     <ul class="notes" id="notes"></ul>
   </div>
 
   <div class="panel">
-    <h2>図から作った例で確かめる</h2>
+    <h2>Check it with examples built from the diagram</h2>
     <p class="verdict" id="verdict"></p>
     <ul class="samples" id="samples"></ul>
     <p class="lead" style="margin:10px 0 0">
-      図（＝解析した構造）だけを見て文字列を組み立て、それを<strong>元の正規表現そのもの</strong>に
-      当てています。全部 ✓ なら、図の読み方と式の意味はここまでは食い違っていません。
-      文字列を入れて試したいときは <a href="../regex/">正規表現テスタ</a> へ。
+      Each example is assembled from the parsed structure alone &mdash; the same structure the diagram
+      is drawn from &mdash; and then tested against <strong>your original expression</strong>.
+      All ticks means the way the diagram reads and the way the pattern behaves have not diverged.
+      To try your own strings, use the <a href="./regex-tester.html">Regex Tester</a>.
     </p>
   </div>
 
   <details>
-    <summary>この図の読み方と、作りの話</summary>
+    <summary>How to read the diagram, and how it is built</summary>
     <ul>
-      <li><b>線をたどれる形にマッチする</b>: 左の <code>▶</code> から右の <code>◀</code> まで、
-        線に沿って通った箱の中身をつなげたものが、この正規表現にマッチする文字列です。
-        分岐はどれか1つを選び、ループは戻ってきた回数だけくり返します。</li>
-      <li><b>上が既定の道</b>: 分岐は上から順に試されます（正規表現の <code>|</code> は左から順）。
-        ループの脇に「最小一致」と出ているときは、<code>*?</code> のように
-        <b>できるだけ回らない</b>ほうを先に試します。</li>
-      <li><b>破線の箱</b>: グループです。丸数字が付いているものは
-        <code>\1</code> や <code>$1</code> で後から参照できます。
-        オレンジの破線は<b>先読み・後読み</b>で、
-        <b>条件を見るだけで文字を消費しません</b>（通っても位置が進みません）。</li>
-      <li><b>作り</b>: 正規表現の解析も作図もライブラリなしの自前です。
-        図は SVG を組み立てて描いています。箱の幅は
-        <code>canvas</code> の文字幅測定で実際に測っているので、フォントが変わってもはみ出しません。</li>
-      <li><b>確かめかた</b>: 解析結果から例文字列を作り、
-        <b>元の正規表現に当て直して</b>マッチするかをその場で見ています（上の欄）。
-        加えて、ランダムに作った正規表現で
-        「自前の解析が受け付ける／拒む」がブラウザの <code>RegExp</code> と一致するかを
-        まとめて突き合わせる検証を <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>側に置いています。</li>
-      <li><b>対応していないもの</b>: <code>v</code> フラグの文字クラスの集合演算、
-        <code>\p{...}</code> の細かい分類は、図では1つの箱にまとめて表示します。
-        図が描けないほど複雑なときは、その旨を出します。</li>
+      <li><b>Anything you can trace matches</b>: follow the line from the <code>&#9654;</code> on the left
+        to the <code>&#9664;</code> on the right, and the boxes you pass through, concatenated,
+        form a string this expression matches. At a branch you take exactly one path;
+        at a loop you repeat as many times as you go around.</li>
+      <li><b>The top path is tried first</b>: branches are attempted top to bottom, matching the way
+        <code>|</code> is tried left to right. Where a loop is labelled <b>lazy</b>, as with
+        <code>*?</code>, the engine tries <b>going around as few times as possible</b> first.</li>
+      <li><b>Dashed boxes</b> are groups. Numbered ones can be referred to afterwards as
+        <code>\1</code> or <code>$1</code>. An orange dashed box is a <b>lookahead or lookbehind</b>:
+        it <b>checks a condition without consuming any characters</b>, so passing through it
+        does not move the position forward.</li>
+      <li><b>How it is built</b>: the parser and the drawing are both written from scratch, no libraries.
+        The diagram is assembled as SVG, and every box is sized by <b>measuring the text</b> with
+        <code>canvas</code>, so nothing overflows when the font differs.</li>
+      <li><b>How it is checked</b>: examples are built from the parse result and tested against
+        <b>your original expression</b> on the spot (the panel above). On top of that, a script in the
+        <a href="https://github.com/hirulab-dev/hirulab-tools">source repository</a> feeds thousands of
+        randomly generated patterns through both this parser and the browser&#39;s own
+        <code>RegExp</code>, and checks that they accept and reject exactly the same ones.</li>
+      <li><b>Not covered</b>: set operations in <code>v</code>-flag character classes and the finer
+        <code>\p{...}</code> categories are shown as a single box rather than expanded.
+        If a pattern is too tangled to draw, the page says so instead of drawing something wrong.</li>
     </ul>
   </details>
 
   <nav class="hl-nav">
-    <h2>ほかの道具</h2>
+    <h2>Other tools</h2>
     <ul>
-      <li><a href="../regex/">正規表現テスタ</a></li>
-      <li><a href="../char-counter/">文字数カウンタ</a></li>
-      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
-      <li><a href="../date/">日付計算機</a></li>
-      <li><a href="../image/">画像リサイズ・圧縮</a></li>
-      <li><a href="../take-home/">手取り計算機</a></li>
-      <li><a href="../json/">JSON整形・検証</a></li>
-      <li><a href="../diff/">テキスト差分（diff）</a></li>
-      <li><a href="../unit/">単位換算</a></li>
-      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
-      <li><a href="../qr/">QRコード作成</a></li>
-      <li><a href="../palette/">カラーパレット生成</a></li>
-      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
-      <li><a href="../cron/">cron式の読み下し</a></li>
-      <li><a href="../tz/">タイムゾーン変換</a></li>
-      <li><a href="../csv/">CSVプレビュー・診断</a></li>
-      <li><a href="../en/railroad.html">English version</a></li>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./palette.html">Color Palette Generator</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
     </ul>
     <p class="hl-links">
-      <a href="../">道具箱のトップ</a> ・
-      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
-      <a href="https://x.com/hirulab_ai">X</a> ・
-      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+      <a href="./">All tools</a> &middot;
+      <a href="../railroad/">&#26085;&#26412;&#35486;&#29256;</a> &middot;
+      <a href="https://x.com/hirulab_ai">X</a> &middot;
+      <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
     </p>
   </nav>
 
   <footer>
-    作ったのは「クロードの昼ラボ」（AIのClaude）です。使用は無料・登録不要。
-    図は JavaScript の正規表現（ECMAScript）の書き方に合わせています。
-    Python や PCRE では意味が違う記号があるので、他の言語で使うときは確かめてください。
+    Built by Claude&#39;s Daytime Lab (an AI, Claude). Free, no sign-up.
+    The diagram follows JavaScript&#39;s flavour of regular expressions (ECMAScript).
+    A few symbols mean something different in Python or PCRE, so check before carrying a pattern across.
   </footer>
 </div>
 
@@ -343,16 +334,16 @@ function parseRegex(src, flags) {
     var atom = parseAtom(), q = readQuantifier();
     if (!q) return atom;
     if (atom.t === 'anchor')
-      err('「' + atom.raw + '」は位置を指す記号なので、くり返せません', atom.pos, atom.raw.length);
+      err('"' + atom.raw + '" marks a position rather than a character, so it cannot be repeated', atom.pos, atom.raw.length);
     // 後読みはくり返せない。先読みは u フラグ無しのときだけ通る（後方互換の名残）
     if (atom.t === 'group' && (atom.kind === 'lb' || atom.kind === 'nlb'))
-      err('後読みはくり返せません', q.pos, q.raw.length);
+      err('a lookbehind cannot be repeated', q.pos, q.raw.length);
     if (U && atom.t === 'group' && (atom.kind === 'la' || atom.kind === 'nla'))
-      err('u フラグがあるときは先読みをくり返せません', q.pos, q.raw.length);
+      err('with the u flag, a lookahead cannot be repeated', q.pos, q.raw.length);
     // くり返しの直後にもう1つくり返しは書けない（a** や a?{2} など）。
     // ただし a?? の2つめの ? は「最小一致」として readQuantifier が食べているので、ここには来ない。
     if (isQuantifierAt(i))
-      err('くり返しの記号が続いています。まとめたいときは (?:…) で囲んでください', i, 1);
+      err('two repeat markers in a row. Wrap the part you want to repeat in (?:...)', i, 1);
     return { t: 'rep', x: atom, min: q.min, max: q.max, lazy: q.lazy, raw: q.raw, pos: atom.pos };
   }
 
@@ -376,31 +367,31 @@ function parseRegex(src, flags) {
       min = parseInt(mm[1], 10);
       max = mm[2] === undefined ? min : (mm[3] === '' ? Infinity : parseInt(mm[3], 10));
       if (min > max)
-        err('くり返しの下限が上限より大きいです（' + min + ' > ' + max + '）', start, mm[0].length);
+        err('the lower bound is above the upper bound (' + min + ' > ' + max + ')', start, mm[0].length);
     } else return null;
     var lazy = false;
     if (src[i] === '?') { i++; lazy = true; }
-    else if (src[i] === '+') err('この書き方（絶対最大量指定子）は JavaScript にはありません', i, 1);
+    else if (src[i] === '+') err('JavaScript has no possessive quantifiers', i, 1);
     return { min: min, max: max, lazy: lazy, raw: src.slice(start, i), pos: start };
   }
 
   function parseAtom() {
     var start = i, c = src[i];
-    if (c === undefined) err('式が途中で終わっています');
+    if (c === undefined) err('the pattern ends in the middle of something');
     if (c === '(') return parseGroup();
     if (c === '[') return parseClass();
-    if (c === ')') err('対応する「(」のない「)」です', i, 1);
+    if (c === ')') err('this ")" has no matching "("', i, 1);
     if (c === '*' || c === '+' || c === '?')
-      err('「' + c + '」の前にくり返す対象がありません', i, 1);
+      err('"' + c + '" has nothing before it to repeat', i, 1);
     if (c === '.') { i++; return { t: 'any', raw: '.', pos: start }; }
     if (c === '^' || c === '$') { i++; return { t: 'anchor', k: c, raw: c, pos: start }; }
     if (c === '\\') return parseEscape(false);
-    if (isQuantifierAt(i)) err('「' + /^\{\d+(,\d*)?\}/.exec(src.slice(i))[0] +
-                               '」の前にくり返す対象がありません', i,
+    if (isQuantifierAt(i)) err('"' + /^\{\d+(,\d*)?\}/.exec(src.slice(i))[0] +
+                               '" has nothing before it to repeat', i,
                                /^\{\d+(,\d*)?\}/.exec(src.slice(i))[0].length);
     // u フラグ無しの ECMAScript は { } ] をそのままの文字として通すが、u があると通らない
     if (U && (c === '{' || c === '}' || c === ']'))
-      err('u フラグがあるときは「' + c + '」をそのまま書けません（\\ を前に付けます）', i, 1);
+      err('with the u flag, "' + c + '" has to be escaped with a backslash', i, 1);
     i++;
     return { t: 'char', c: c, raw: c, pos: start };
   }
@@ -418,25 +409,25 @@ function parseRegex(src, flags) {
         kind = src[i + 2] === '=' ? 'lb' : 'nlb'; i += 3;
       } else if (c2 === '<') {
         var mn = /^\(\?<([A-Za-z_$][\w$]*)>/.exec(src.slice(start));
-        if (!mn) err('グループ名の書き方が違います（<名前> の形にしてください）', start, 3);
+        if (!mn) err('a group name has to be written as <name>', start, 3);
         kind = 'named'; name = mn[1]; i = start + mn[0].length;
-      } else err('「(?」のあとの書き方が分かりません', i + 1, 1);
+      } else err('cannot tell what this "(?" is meant to be', i + 1, 1);
     }
     if (kind === 'cap' || kind === 'named') num = ++capIndex;
     var inner = parseAlt();
-    if (!eat(')')) err('「(」に対応する「)」がありません', start, 1);
+    if (!eat(')')) err('this "(" is never closed', start, 1);
     return { t: 'group', kind: kind, name: name, num: num, x: inner,
              raw: src.slice(start, i), pos: start };
   }
 
-  var CLASS_ESC = { d: '数字', D: '数字以外', w: '英数字か _', W: '英数字と _ 以外',
-                    s: '空白', S: '空白以外' };
+  var CLASS_ESC = { d: 'a digit', D: 'not a digit', w: 'letter, digit or _', W: 'not a letter, digit or _',
+                    s: 'whitespace', S: 'not whitespace' };
 
   function parseEscape(inClass) {
     var start = i;
     i++; // backslash
     var c = src[i];
-    if (c === undefined) err('「\\」で式が終わっています', start, 1);
+    if (c === undefined) err('the pattern ends with a backslash', start, 1);
     if (CLASS_ESC[c]) { i++; return { t: 'esc', k: c, raw: '\\' + c, pos: start }; }
     if (!inClass && (c === 'b' || c === 'B')) { i++; return { t: 'anchor', k: '\\' + c, raw: '\\' + c, pos: start }; }
     if (inClass && c === 'b') { i++; return { t: 'char', c: '\b', raw: '\\b', pos: start }; }
@@ -445,8 +436,8 @@ function parseRegex(src, flags) {
     // u フラグがあるときは後方互換が効かないので、いつでも参照として読む。
     if (!inClass && c === 'k' && (names.length || U)) {
       var mk = /^\\k<([A-Za-z_$][\w$]*)>/.exec(src.slice(start));
-      if (!mk) err('「\\k<名前>」の書き方が違います', start, 2);
-      if (names.indexOf(mk[1]) < 0) err('その名前のグループがありません: ' + mk[1], start, mk[0].length);
+      if (!mk) err('a named backreference has to be written as \\k<name>', start, 2);
+      if (names.indexOf(mk[1]) < 0) err('there is no group with that name: ' + mk[1], start, mk[0].length);
       i = start + mk[0].length;
       return { t: 'ref', name: mk[1], raw: mk[0], pos: start };
     }
@@ -462,7 +453,7 @@ function parseRegex(src, flags) {
     var SIMPLE = { n: '\n', r: '\r', t: '\t', f: '\f', v: '\v', 0: '\0' };
     if (SIMPLE[c] !== undefined) {
       if (c === '0' && U && /\d/.test(src[i + 1] || ''))
-        err('u フラグがあるときは 8進エスケープを書けません', start, 2);
+        err('octal escapes are not allowed when the u flag is on', start, 2);
       i++; return { t: 'char', c: SIMPLE[c], raw: '\\' + c, pos: start };
     }
     /* \x \u \c は、形が揃っていないとエラー…にはならない。ECMAScript（u フラグなし）は
@@ -474,7 +465,7 @@ function parseRegex(src, flags) {
         i = start + mx[0].length;
         return { t: 'char', c: String.fromCharCode(parseInt(mx[1], 16)), raw: mx[0], pos: start };
       }
-      if (U) err('「\\x」のあとは16進2桁です（u フラグがあるので読み流せません）', start, 2);
+      if (U) err('\\x needs two hex digits, and the u flag stops it from being read as plain text', start, 2);
       i++;
       return { t: 'char', c: 'x', raw: '\\x', pos: start };
     }
@@ -483,13 +474,13 @@ function parseRegex(src, flags) {
       // 「u」1文字 + {…} のくり返し指定として読まれる（/\u{2}/ は "uu" にマッチする）。
       var mu = U ? /^\\u\{([0-9a-fA-F]{1,6})\}/.exec(src.slice(start)) : null;
       if (mu && parseInt(mu[1], 16) > 0x10FFFF)
-        err('符号位置が大きすぎます（上限は 10FFFF）', start, mu[0].length);
+        err('code point is too large (the maximum is 10FFFF)', start, mu[0].length);
       if (!mu) mu = /^\\u([0-9a-fA-F]{4})/.exec(src.slice(start));
       if (mu) {
         i = start + mu[0].length;
         return { t: 'char', c: String.fromCodePoint(parseInt(mu[1], 16)), raw: mu[0], pos: start };
       }
-      if (U) err('「\\u」のあとは16進4桁か {…} です（u フラグがあるので読み流せません）', start, 2);
+      if (U) err('\\u needs four hex digits or {...}, and the u flag stops it from being read as plain text', start, 2);
       i++;
       return { t: 'char', c: 'u', raw: '\\u', pos: start };
     }
@@ -500,12 +491,12 @@ function parseRegex(src, flags) {
         return { t: 'char', c: String.fromCharCode(mc[1].toUpperCase().charCodeAt(0) - 64),
                  raw: mc[0], pos: start };
       }
-      if (U) err('「\\c」のあとは英字1文字です（u フラグがあるので読み流せません）', start, 2);
+      if (U) err('\\c needs one letter after it, and the u flag stops it from being read as plain text', start, 2);
       // \c のあとが英字でないときは「\」そのもの。c は次の文字として読み直す
       return { t: 'char', c: '\\', raw: '\\', pos: start };
     }
     if (U && IDENT_OK_U.indexOf(c) < 0 && !(inClass && c === '-'))
-      err('u フラグがあるときは「\\' + c + '」とは書けません（意味のないエスケープ）', start, 2);
+      err('with the u flag, "\\' + c + '" is not a valid escape', start, 2);
     i++;
     return { t: 'char', c: c, raw: '\\' + c, pos: start, escaped: true };
   }
@@ -515,7 +506,7 @@ function parseRegex(src, flags) {
     i++; // [
     var neg = eat('^'), items = [], first = true;
     while (true) {
-      if (i >= src.length) err('「[」に対応する「]」がありません', start, 1);
+      if (i >= src.length) err('this "[" is never closed', start, 1);
       if (src[i] === ']' && !first) { i++; break; }
       if (src[i] === ']' && first) { i++; break; }   // [] は空集合（何にもマッチしない）
       first = false;
@@ -527,10 +518,10 @@ function parseRegex(src, flags) {
         if (lo.t !== 'char' || hi.t !== 'char') {
           // [\d-x] のように範囲にできない組み合わせ。u フラグ無しの ECMAScript は
           // 「-」をただの文字として扱うが、u があるとエラーになる
-          if (U) err('この「-」は範囲になりません（u フラグがあるので \- と書く必要があります）', dashPos, 1);
+          if (U) err('this "-" cannot form a range, and with the u flag it has to be written as \\-', dashPos, 1);
           items.push(lo); items.push({ t: 'char', c: '-', raw: '-', pos: dashPos }); items.push(hi);
         } else if (lo.c.codePointAt(0) > hi.c.codePointAt(0)) {
-          err('文字の範囲が逆向きです（' + lo.raw + ' のほうが ' + hi.raw + ' より後ろの文字です）',
+          err('this character range runs backwards (' + lo.raw + ' comes after ' + hi.raw + ' in character order)',
               lo.pos, (hi.pos + hi.raw.length) - lo.pos);
         } else items.push({ t: 'range', a: lo, b: hi, pos: lo.pos });
       } else items.push(lo);
@@ -546,7 +537,7 @@ function parseRegex(src, flags) {
   }
 
   var node = parseAlt();
-  if (i < src.length) err('ここから先が読めません', i, 1);
+  if (i < src.length) err('cannot read the pattern from here on', i, 1);
 
   /* \3 と書いてあってもグループが2個しか無いことがある。u フラグがあればエラーだが、
      無ければ ECMAScript は 8進エスケープ（\3 = \x03）として読む。
@@ -554,7 +545,7 @@ function parseRegex(src, flags) {
   (function fixRefs(n) {
     if (!n) return;
     if (n.t === 'ref' && n.num !== undefined && n.num > capIndex) {
-      if (U) err('グループが ' + capIndex + ' 個しかないので \\' + n.num + ' は参照できません',
+      if (U) err('there are ' + capIndex + ' groups, so \\' + n.num + ' cannot refer to anything',
                  n.pos, n.raw.length);
       var oct = /^[0-7]{1,3}/.exec(String(n.num));
       n.t = 'char';
@@ -583,8 +574,8 @@ function parseRegex(src, flags) {
         ok = pa[k].node === pb[k].node && pa[k].node.t === 'alt' && pa[k].k !== pb[k].k;
         break;
       }
-      if (!ok) err('同じ名前のグループが2つあります: ' + named[b].n.name +
-                   '（同じ「|」の別の枝どうしなら置けます）', named[b].n.pos, 1);
+      if (!ok) err('two groups share the same name: ' + named[b].n.name +
+                   ' (allowed only when the two sit in different branches of the same "|")', named[b].n.pos, 1);
     }
 
   return { node: node, capCount: capIndex, names: names, unicode: U };
@@ -760,9 +751,9 @@ function Boxed(item, label, cls) {
 
 /* ---- AST → 図 ------------------------------------------------------------ */
 
-var CLASS_JA = { d: '数字', D: '数字以外', w: '英数字か _', W: '英数字と _ 以外',
-                 s: '空白', S: '空白以外' };
-var ANCHOR_JA = { '^': '先頭', '$': '末尾', '\\b': '単語の境目', '\\B': '境目以外' };
+var CLASS_JA = { d: 'a digit', D: 'not a digit', w: 'letter, digit or _', W: 'not a letter, digit or _',
+                 s: 'whitespace', S: 'not whitespace' };
+var ANCHOR_JA = { '^': 'start', '$': 'end', '\\b': 'word boundary', '\\B': 'not a boundary' };
 
 function visibleChar(c) {
   var M = { '\n': '\\n', '\r': '\\r', '\t': '\\t', '\f': '\\f', '\v': '\\v', '\0': '\\0',
@@ -786,38 +777,38 @@ function build(node) {
   switch (node.t) {
     case 'empty': return Skip();
     case 'char': return Term(visibleChar(node.c), null, null);
-    case 'any': return Term('.', '改行以外の1文字', 'desc');
+    case 'any': return Term('.', 'any char but a newline', 'desc');
     case 'esc': return Term(node.raw, CLASS_JA[node.k], 'desc');
-    case 'uprop': return Term(node.raw, 'この分類の1文字', 'desc');
+    case 'uprop': return Term(node.raw, 'one char of this class', 'desc');
     case 'anchor': return Term(node.raw, ANCHOR_JA[node.raw] || '', 'anch');
-    case 'ref': return Term(node.raw, (node.name ? '「' + node.name + '」' : node.num + '番') + 'と同じ文字列', 'desc');
+    case 'ref': return Term(node.raw, (node.name ? '"' + node.name + '"' : node.num + '') + ' — same text as that group', 'desc');
     case 'class': {
       var n = node.items.length;
-      return Term(classText(node), node.neg ? 'これ以外の1文字' : (n > 1 ? 'どれか1文字' : '1文字'), 'desc');
+      return Term(classText(node), node.neg ? 'any char but these' : (n > 1 ? 'one of these' : 'this one char'), 'desc');
     }
     case 'seq': return Seq(mergeChars(node.xs).map(build));
     case 'alt': return Choice(node.xs.map(build));
     case 'group': {
       var innerItem = build(node.x);
       if (node.kind === 'ncap') return innerItem;
-      var L = { cap: '① グループ', named: 'グループ', la: '直後にある（先読み）',
-                nla: '直後にない（否定先読み）', lb: '直前にある（後読み）',
-                nlb: '直前にない（否定後読み）' }[node.kind];
-      if (node.kind === 'cap') L = circled(node.num) + ' グループ';
+      var L = { cap: 'group', named: 'group', la: 'must follow (lookahead)',
+                nla: 'must not follow (negative lookahead)', lb: 'must precede (lookbehind)',
+                nlb: 'must not precede (negative lookbehind)' }[node.kind];
+      if (node.kind === 'cap') L = circled(node.num) + ' group';
       if (node.kind === 'named') L = circled(node.num) + ' <' + node.name + '>';
       var look = node.kind !== 'cap' && node.kind !== 'named';
       return Boxed(innerItem, L, look ? 'look' : null);
     }
     case 'rep': {
       var it = build(node.x);
-      var lz = node.lazy ? '・最小一致' : '';
-      if (node.min === 0 && node.max === 1) return Opt(node.lazy ? Boxed(it, '最小一致') : it);
-      if (node.min === 0 && node.max === Infinity) return Opt(Rep(it, '0回以上' + lz));
-      if (node.min === 1 && node.max === Infinity) return Rep(it, '1回以上' + lz);
-      if (node.min === 0) return Opt(Rep(it, node.max + '回まで' + lz));
-      if (node.min === node.max) return node.min === 1 ? it : Rep(it, node.min + '回ちょうど' + lz);
-      if (node.max === Infinity) return Rep(it, node.min + '回以上' + lz);
-      return Rep(it, node.min + '〜' + node.max + '回' + lz);
+      var lz = node.lazy ? ', lazy' : '';
+      if (node.min === 0 && node.max === 1) return Opt(node.lazy ? Boxed(it, 'lazy') : it);
+      if (node.min === 0 && node.max === Infinity) return Opt(Rep(it, '0 or more' + lz));
+      if (node.min === 1 && node.max === Infinity) return Rep(it, '1 or more' + lz);
+      if (node.min === 0) return Opt(Rep(it, node.max + ' times at most' + lz));
+      if (node.min === node.max) return node.min === 1 ? it : Rep(it, node.min + ' times exactly' + lz);
+      if (node.max === Infinity) return Rep(it, node.min + ' or more times' + lz);
+      return Rep(it, node.min + ' to ' + node.max + ' times' + lz);
     }
   }
   return Term('?', null, null);
@@ -845,7 +836,7 @@ function renderDiagram(node) {
   var y = item.up + PADY, W = item.w + PADX * 2, H = item.up + item.down + PADY * 2;
   var s = '<svg class="rr" xmlns="http://www.w3.org/2000/svg" width="' + Math.ceil(W) +
           '" height="' + Math.ceil(H) + '" viewBox="0 0 ' + Math.ceil(W) + ' ' + Math.ceil(H) +
-          '" role="img" aria-label="正規表現の鉄道図">';
+          '" role="img" aria-label="railroad diagram of the regular expression">';
   s += '<path class="track" d="M6 ' + r1(y - 6) + 'v12M6 ' + r1(y) + 'H' + PADX + '"/>';
   s += item.draw(PADX, y);
   s += '<path class="track" d="M' + r1(PADX + item.w) + ' ' + r1(y) + 'H' + r1(W - 6) +
@@ -865,45 +856,45 @@ function readItems(node) {
 function readOne(node) {
   var c = function (s) { return '<code>' + esc(s) + '</code>'; };
   switch (node.t) {
-    case 'empty': return '<span class="k">（何もない）</span>';
+    case 'empty': return '<span class="k">(nothing)</span>';
     case 'char': return c(node.c.length > 1 ? node.c : visibleChar(node.c)) +
-                        (node.c.length > 1 ? ' という文字の並び' : ' という文字');
-    case 'any': return c('.') + ' 改行以外の任意の1文字';
-    case 'esc': return c(node.raw) + ' ' + CLASS_JA[node.k] + 'の1文字';
-    case 'uprop': return c(node.raw) + ' この分類に入る1文字';
+                        (node.c.length > 1 ? ' — these characters in this order' : ' — this character');
+    case 'any': return c('.') + ' any single character except a newline';
+    case 'esc': return c(node.raw) + ' ' + CLASS_JA[node.k] + '';
+    case 'uprop': return c(node.raw) + ' one character in this Unicode class';
     case 'anchor': return c(node.raw) + ' ' + ({
-        '^': '行または文字列の先頭（文字は消費しません）',
-        '$': '行または文字列の末尾（文字は消費しません）',
-        '\\b': '単語の境目（文字は消費しません）',
-        '\\B': '単語の境目でないところ' }[node.raw]);
+        '^': 'the start of the string, or of a line with the m flag (consumes nothing)',
+        '$': 'the end of the string, or of a line with the m flag (consumes nothing)',
+        '\\b': 'a word boundary (consumes nothing)',
+        '\\B': 'a position that is not a word boundary' }[node.raw]);
     case 'ref': return c(node.raw) + ' ' +
-        (node.name ? '「' + node.name + '」' : circled(node.num)) + ' がマッチしたのと同じ文字列';
+        (node.name ? '"' + node.name + '"' : circled(node.num)) + ' matched, again — the same text';
     case 'class': return c(classText(node)) + ' ' +
-        (node.neg ? 'これら以外の1文字' : 'これらのどれか1文字');
-    case 'alt': return '次のどれか<ul>' +
+        (node.neg ? ' one character that is not in this set' : ' one character from this set');
+    case 'alt': return 'any one of the following<ul>' +
         node.xs.map(function (x) { return '<li>' + readOne(x) + '</li>'; }).join('') + '</ul>';
-    case 'seq': return '順に並ぶ<ul>' + readItems(node) + '</ul>';
+    case 'seq': return 'these, in order<ul>' + readItems(node) + '</ul>';
     case 'group': {
-      var head = { cap: circled(node.num) + ' 番のグループ（あとで ' + esc('\\' + node.num) + ' で参照できます）',
-                   named: circled(node.num) + ' 名前つきグループ「' + node.name + '」',
-                   ncap: 'まとめるだけのグループ（番号は付きません）',
-                   la: '直後がこうなっていること（先読み・文字は消費しません）',
-                   nla: '直後がこうなっていないこと（否定先読み・文字は消費しません）',
-                   lb: '直前がこうなっていること（後読み・文字は消費しません）',
-                   nlb: '直前がこうなっていないこと（否定後読み・文字は消費しません）' }[node.kind];
+      var head = { cap: circled(node.num) + ' capture group (available afterwards as ' + esc('\\' + node.num) + ')',
+                   named: circled(node.num) + ' named group "' + node.name + '"',
+                   ncap: 'a group used only for grouping (it gets no number)',
+                   la: 'what follows has to look like this (lookahead — consumes nothing)',
+                   nla: 'what follows must not look like this (negative lookahead — consumes nothing)',
+                   lb: 'what comes before has to look like this (lookbehind — consumes nothing)',
+                   nlb: 'what comes before must not look like this (negative lookbehind — consumes nothing)' }[node.kind];
       return head + '<ul>' + readItems(node.x) + '</ul>';
     }
     case 'rep': {
-      var q = node.min === 0 && node.max === 1 ? 'あってもなくてもよい' :
-              node.min === 0 && node.max === Infinity ? '0回以上のくり返し' :
-              node.min === 1 && node.max === Infinity ? '1回以上のくり返し' :
-              node.min === node.max ? node.min + '回ちょうど' :
-              node.max === Infinity ? node.min + '回以上' :
-              node.min + '〜' + node.max + '回';
-      var lz = node.lazy ? '（最小一致＝できるだけ短く取る）' : '';
+      var q = node.min === 0 && node.max === 1 ? 'optional — it may be there or not' :
+              node.min === 0 && node.max === Infinity ? 'repeated 0 or more times' :
+              node.min === 1 && node.max === Infinity ? 'repeated 1 or more times' :
+              node.min === node.max ? node.min + ' times exactly' :
+              node.max === Infinity ? node.min + ' or more times' :
+              node.min + ' to ' + node.max + ' times';
+      var lz = node.lazy ? ' (lazy — takes as little as it can)' : '';
       var inner = node.x;
       var simple = ['char', 'any', 'esc', 'class', 'uprop'].indexOf(inner.t) >= 0;
-      if (simple) return readOne(inner) + ' を <b>' + q + '</b>' + lz;
+      if (simple) return readOne(inner) + ' — <b>' + q + '</b>' + lz;
       return '<b>' + q + '</b>' + lz + '<ul>' + readItems(inner) + '</ul>';
     }
   }
@@ -953,70 +944,70 @@ function analyze(parsed, src, flags) {
       walk(n.x, function (m) {
         if (m !== n && m.t === 'rep' && m.max === Infinity) innerRep = true;
       });
-      if (innerRep) out.push({ lv: 'w', title: 'くり返しの中にくり返しがあります（破滅的バックトラック）',
-        body: '<code>' + esc(n.raw ? srcOf(src, n) : '') + '</code> のように、くり返しの中がさらにくり返しになっていると、' +
-              '<b>マッチしない入力</b>を与えたときに試す組み合わせが指数的に増えることがあります。' +
-              '<code>(a+)+$</code> に <code>aaaaaaaaaaaaaaaaaaaaX</code> を当てると固まる、あの形です。' +
-              '内側と外側で「どこまで取るか」の分け方が何通りもあるのが原因なので、' +
-              '内側を <code>[^…]</code> のように<b>次に来る文字を含まない集合</b>にして、分け方を1通りにするのが定石です。' });
+      if (innerRep) out.push({ lv: 'w', title: 'a repeat inside a repeat (catastrophic backtracking)',
+        body: '<code>' + esc(n.raw ? srcOf(src, n) : '') + '</code> repeats something that already repeats. When that happens, ' +
+              'the number of ways to split the input can grow exponentially <b>on input that does not match</b>. ' +
+              'This is the shape that hangs when you run <code>(a+)+$</code> against <code>aaaaaaaaaaaaaaaaaaaaX</code>. ' +
+              'The cause is that the inner and outer repeats can divide the same text in many ways, so ' +
+              'the usual fix is to make the inner part a set that <b>excludes whatever comes next</b>, such as <code>[^...]</code>, which leaves exactly one way to divide it.' });
     }
     // 空マッチしうる中身の * や +
     if (n.t === 'rep' && n.max === Infinity && nullable(n.x))
-      out.push({ lv: 'w', title: '中身が空でも通るのに、くり返しています',
-        body: '<code>' + esc(srcOf(src, n)) + '</code> は、中身が0文字でも成立します。' +
-              '進まないまま回り続ける形なので、意図しない空マッチや、実装によっては停止しない原因になります。' +
-              'くり返しの中の <code>?</code> や <code>*</code> を外して、外側だけでくり返す形にできないか確かめてください。' });
+      out.push({ lv: 'w', title: 'repeating something that can match nothing',
+        body: '<code>' + esc(srcOf(src, n)) + '</code> succeeds even when it consumes no characters. ' +
+              'It can loop without moving forward, which leads to surprise empty matches and, in some engines, to a loop that never ends. ' +
+              'See whether the inner <code>?</code> or <code>*</code> can be dropped so that only the outer part repeats.' });
   });
 
   var f = String(flags || '');
   if (has.any && f.indexOf('s') < 0)
-    out.push({ lv: 'i', title: '<code>.</code> は改行にマッチしません',
-      body: '既定では <code>.</code> は改行（<code>\\n</code>）以外の1文字です。' +
-            '複数行のテキストを丸ごと取りたいなら <code>s</code> フラグ（dotAll）を付けるか、' +
-            '<code>[\\s\\S]</code> と書きます。' });
+    out.push({ lv: 'i', title: '<code>.</code> does not match a newline',
+      body: 'By default <code>.</code> is any character except a newline (<code>\\n</code>). ' +
+            'To take multi-line text in one go, add the <code>s</code> flag (dotAll), or write ' +
+            '<code>[\\s\\S]</code> instead.' });
   if (has.dollarCaret && f.indexOf('m') < 0)
-    out.push({ lv: 'i', title: '<code>^</code> と <code>$</code> は「文字列の」先頭と末尾です',
-      body: '<code>m</code> フラグが無いので、行ごとではなく<b>文字列全体</b>の先頭・末尾を指します。' +
-            '行単位で当てたいなら <code>m</code> を付けてください。' +
-            'なお <code>$</code> は、<code>m</code> があるときだけ改行の直前にも当たります。' });
+    out.push({ lv: 'i', title: '<code>^</code> and <code>$</code> mean the ends of the <i>string</i>, not of a line',
+      body: 'There is no <code>m</code> flag, so they mark the start and end of <b>the whole string</b>. ' +
+            'Add <code>m</code> if you want them to work line by line. ' +
+            'Note that <code>$</code> matches just before a newline only when <code>m</code> is on.' });
   if (has.wb)
-    out.push({ lv: 'i', title: '<code>\\b</code> の「単語」は英数字と <code>_</code> だけです',
-      body: '<code>\\b</code> は <code>\\w</code>（<code>[A-Za-z0-9_]</code>）とそれ以外の境目を指します。' +
-            '日本語には <code>\\w</code> に入る文字が無いので、' +
-            '<b>ひらがなや漢字の切れ目では思ったところに境目ができません</b>。' });
+    out.push({ lv: 'i', title: 'the "word" in <code>\\b</code> means only letters, digits and <code>_</code>',
+      body: '<code>\\b</code> sits between <code>\\w</code> (<code>[A-Za-z0-9_]</code>) and anything else. ' +
+            'Scripts without those characters, such as Japanese or Chinese, contain no <code>\\w</code> at all, ' +
+            'so <b>no boundary appears where you would expect one between words</b>.' });
   if (has.nonAscii && f.indexOf('u') < 0)
-    out.push({ lv: 'w', title: 'ASCII 以外の文字があるのに <code>u</code> フラグがありません',
-      body: '<code>u</code> フラグが無いと、絵文字や一部の漢字（サロゲートペアで表される文字）は' +
-            '<b>2つの単位</b>として扱われます。<code>.</code> が半分だけにマッチしたり、' +
-            '文字クラスの範囲指定が思った通りに働かなかったりします。' });
+    out.push({ lv: 'w', title: 'there are non-ASCII characters but no <code>u</code> flag',
+      body: 'Without the <code>u</code> flag, emoji and other characters made of a surrogate pair are ' +
+            'treated as <b>two units</b>. <code>.</code> can match half of one, and ' +
+            'ranges inside a character class stop behaving the way you expect.' });
   if (has.topAlt && /[\^$]/.test(src))
-    out.push({ lv: 'w', title: '<code>|</code> は式全体を分けます',
-      body: '<code>|</code> の優先順位はいちばん低いので、<code>^a|b$</code> は ' +
-            '<code>(^a)|(b$)</code> であって <code>^(a|b)$</code> ではありません。' +
-            '<b>図の分岐が式全体を割っていないか</b>を上の図で確かめてください。' +
-            '分けたい範囲は <code>(?:…)</code> で囲みます。' });
+    out.push({ lv: 'w', title: '<code>|</code> splits the whole pattern',
+      body: '<code>|</code> binds the loosest of everything, so <code>^a|b$</code> means ' +
+            '<code>(^a)|(b$)</code>, not <code>^(a|b)$</code>. ' +
+            'Check the diagram above to see <b>whether the branch cuts across the entire pattern</b>. ' +
+            'Wrap the part you actually want to split in <code>(?:...)</code>.' });
   if (parsed.capCount > 0 && f.indexOf('g') < 0 && /\\[1-9]/.test(src) === false &&
       parsed.capCount >= 3)
-    out.push({ lv: 'i', title: 'グループが ' + parsed.capCount + ' 個あります',
-      body: 'まとめたいだけで取り出す気がないグループは <code>(?:…)</code> にしておくと、' +
-            '<b>あとから括弧を足したときに番号がずれません</b>。番号は上の一覧のとおりです。' });
+    out.push({ lv: 'i', title: 'there are ' + parsed.capCount + ' capture groups',
+      body: 'Writing <code>(?:...)</code> for the groups you never read back means ' +
+            '<b>the numbers do not shift when you add another pair of parentheses later</b>. The current numbering is in the table above.' });
   var classDots = /\[[^\]]*[.+*?][^\]]*\]/.test(src);
   if (classDots)
-    out.push({ lv: 'i', title: '文字クラスの中では <code>. + * ?</code> はただの文字です',
-      body: '<code>[.]</code> は「任意の1文字」ではなく「ピリオド1文字」です。' +
-            '同じく <code>[+*?]</code> はその記号そのものを指します。エスケープは要りません' +
-            '（付けても同じ意味になります）。' });
+    out.push({ lv: 'i', title: 'inside a character class, <code>. + * ?</code> are ordinary characters',
+      body: '<code>[.]</code> means one period, not any character. ' +
+            'In the same way <code>[+*?]</code> means those three symbols themselves. No escaping is needed ' +
+            '(escaping them changes nothing).' });
   if (/\[[^\]^][^\]]*-[^\]]*\]/.test(src) === false && /\[[^\]]*-\]/.test(src))
-    out.push({ lv: 'i', title: '文字クラスの末尾の <code>-</code> はハイフンそのものです',
-      body: '<code>-</code> を範囲の意味にしたくないときは、クラスの<b>先頭か末尾</b>に置くか、' +
-            '<code>\\-</code> と書きます。' });
+    out.push({ lv: 'i', title: 'a <code>-</code> at the end of a character class is a plain hyphen',
+      body: 'To keep <code>-</code> from forming a range, put it <b>first or last</b> in the class, or write ' +
+            '<code>\\-</code>.' });
   if (has.lazy)
-    out.push({ lv: 'i', title: '最小一致（<code>*?</code>）を使っています',
-      body: '最小一致は「短いほうから試す」だけで、<b>いちばん短い一致を保証するものではありません</b>。' +
-            '左から順に位置を試すので、開始位置は変わらないまま長さだけが短くなります。' });
+    out.push({ lv: 'i', title: 'this pattern uses a lazy quantifier (<code>*?</code>)',
+      body: 'Lazy only means "try the shorter option first"; it <b>does not guarantee the shortest match overall</b>. ' +
+            'Starting positions are still tried left to right, so only the length gets shorter, never the starting point.' });
   if (f.indexOf('i') < 0 && /[A-Za-z]/.test(src))
-    out.push({ lv: 'i', title: '大文字と小文字は別扱いです',
-      body: '<code>i</code> フラグが無いので、<code>A</code> と <code>a</code> は違う文字として扱われます。' });
+    out.push({ lv: 'i', title: 'upper and lower case are different characters here',
+      body: 'There is no <code>i</code> flag, so <code>A</code> and <code>a</code> do not match each other.' });
   return out;
 }
 
@@ -1128,7 +1119,7 @@ function selfCheck(parsed, src, flags, count) {
   var testFlags = String(flags || '').replace(/[gy]/g, '');
   var re;
   try { re = new RegExp('^(?:' + src + ')$', testFlags); }
-  catch (e) { return { skipped: true, reason: 'ブラウザがこの式を受け付けませんでした: ' + e.message }; }
+  catch (e) { return { skipped: true, reason: 'the browser refused this pattern: ' + e.message }; }
   var cap = backtrackRisk(parsed.node) ? 24 : 400;
   var seed = 0;
   for (var k = 0; k < src.length; k++) seed = (seed * 131 + src.charCodeAt(k)) >>> 0;
@@ -1151,14 +1142,14 @@ function selfCheck(parsed, src, flags, count) {
 /* ---- 画面 ---------------------------------------------------------------- */
 
 var PRESETS = [
-  ['日付', '^(\\d{4})-(\\d{2})-(\\d{2})$', ''],
-  ['郵便番号', '^\\d{3}-\\d{4}$', ''],
-  ['時刻', '^([01]\\d|2[0-3]):([0-5]\\d)$', ''],
-  ['メールらしきもの', '^[\\w.+-]+@[\\w-]+(\\.[\\w-]+)+$', ''],
-  ['16進の色', '^#(?:[0-9a-f]{3}|[0-9a-f]{6})$', 'i'],
-  ['HTMLのタグ', '<(\\w+)(?:\\s[^>]*)?>(.*?)</\\1>', 'gs'],
-  ['分岐と後読み', '(?<=¥)\\d+(?:,\\d{3})*(?:円|エン)?', 'g'],
-  ['危ない形', '^(a+)+$', '']
+  ['Date', '^(\\d{4})-(\\d{2})-(\\d{2})$', ''],
+  ['Postcode', '^\\d{3}-\\d{4}$', ''],
+  ['Time of day', '^([01]\\d|2[0-3]):([0-5]\\d)$', ''],
+  ['Email-ish', '^[\\w.+-]+@[\\w-]+(\\.[\\w-]+)+$', ''],
+  ['Hex color', '^#(?:[0-9a-f]{3}|[0-9a-f]{6})$', 'i'],
+  ['HTML tag', '<(\\w+)(?:\\s[^>]*)?>(.*?)</\\1>', 'gs'],
+  ['Branch and lookbehind', '(?<=\\$)\\d+(?:,\\d{3})*(?:\\.\\d{2})?', 'g'],
+  ['A dangerous shape', '^(a+)+$', '']
 ];
 
 function $(id) { return document.getElementById(id); }
@@ -1186,7 +1177,7 @@ function run() {
     $('notes').innerHTML = '';
     $('grpPanel').style.display = 'none';
     $('verdict').className = 'verdict skip';
-    $('verdict').textContent = '式が読めないので、例は作れません。';
+    $('verdict').textContent = 'The pattern does not parse, so no examples can be built.';
     $('samples').innerHTML = '';
     return;
   }
@@ -1195,8 +1186,8 @@ function run() {
   try {
     $('diag').innerHTML = renderDiagram(parsed.node);
   } catch (e) {
-    $('diag').innerHTML = '<p class="lead">この式は図にするには入り組みすぎています（' +
-                          esc(e.message) + '）。読み下しのほうを見てください。</p>';
+    $('diag').innerHTML = '<p class="lead">This pattern is too tangled to draw (' +
+                          esc(e.message) + '). Read the plain-English version below instead.</p>';
   }
   $('read').innerHTML = readItems(parsed.node);
 
@@ -1206,16 +1197,16 @@ function run() {
   caps.sort(function (a, b) { return a.num - b.num; });
   if (caps.length) {
     $('grpPanel').style.display = '';
-    var html = '<tr><th>番号</th><th>名前</th><th>中身</th></tr>';
+    var html = '<tr><th>No.</th><th>Name</th><th>Contents</th></tr>';
     caps.forEach(function (g) {
       html += '<tr><td class="n">' + circled(g.num) + '</td><td>' +
               (g.name ? esc(g.name) : '<span class="lead">—</span>') + '</td><td class="src">' +
               esc(src.slice(g.pos, g.pos + g.raw.length)) + '</td></tr>';
     });
     $('grpTable').innerHTML = html;
-    $('grpNote').innerHTML = '置換では ' + caps.map(function (g) {
+    $('grpNote').innerHTML = 'In a replacement these are ' + caps.map(function (g) {
       return '<code>$' + g.num + '</code>';
-    }).join('・') + ' で使えます。番号は<b>開き括弧の出てくる順</b>です。';
+    }).join(', ') + '. Groups are numbered <b>in the order their opening parenthesis appears</b>.';
   } else {
     $('grpPanel').style.display = 'none';
   }
@@ -1226,8 +1217,8 @@ function run() {
     ? notes.map(function (n) {
         return '<li class="' + n.lv + '"><b>' + n.title + '</b>' + n.body + '</li>';
       }).join('')
-    : '<li class="i"><b>目についた落とし穴はありません</b>この道具が見ているのは' +
-      'よくある形だけです。安全だと保証するものではありません。</li>';
+    : '<li class="i"><b>Nothing stood out</b>This page only looks for ' +
+      'the common traps. That is not a guarantee that the pattern is safe.</li>';
 
   // 図から作った例で確かめる
   var chk = selfCheck(parsed, src, flags, 12);
@@ -1241,25 +1232,25 @@ function run() {
     $('verdict').innerHTML = (bad && chk.unsure)
       // 先読み・後読みが入っていると、図だけからは条件を満たす文字列を組み立てられない。
       // 当たらないのは当然なので、不具合として出さない。
-      ? '<b>' + bad + ' 件は当たりませんでした。</b>この式には<b>文字を消費しない条件</b>' +
-        '（先読み・後読み）が入っているので、図に写っている部分だけを組み立てても' +
-        'その条件は満たせません。<b>式の誤りではありません。</b>' +
-        '当たった例と当たらなかった例の違いを見ると、その条件が何を要求しているかが分かります。'
+      ? '<b>' + bad + ' examples did not match.</b> This pattern contains a <b>condition that consumes no characters</b> ' +
+        '(a lookahead or lookbehind), so a string assembled from the visible parts of the diagram alone ' +
+        'cannot satisfy it. <b>This is not a fault in your pattern.</b> ' +
+        'Comparing the examples that matched against the ones that did not shows what the condition is asking for.'
       : bad
-      ? '<b>' + bad + ' 件が食い違いました。</b>図の読み方か、この道具の解析のどちらかが間違っています。' +
-        'このページの不具合なので、式のほうは疑わなくて大丈夫です。'
+      ? '<b>' + bad + ' examples disagreed.</b> Either the diagram is being read wrongly or this page parsed the pattern wrongly. ' +
+        'That is a bug on this page, so there is no need to doubt your expression.'
       : (chk.rows.length === 0
-          ? '例を作れませんでした（この式に当てはまる文字列を組み立てられませんでした）。'
-          : '<b>' + chk.rows.length + ' 件すべてマッチしました。</b>' +
-            (chk.unsure ? '先読み・後読みなど「文字を消費しない条件」が入っているので、' +
-                          '例が必ずマッチするとは限りません（マッチしない例が混ざることがあります）。'
-                        : '図のとおりに作った文字列は、元の正規表現にそのまま当たります。') +
-            (chk.capped ? 'なおこの式は外れたときに時間が跳ねる形なので、' +
-                          '例は短いものだけに絞っています。' : ''));
+          ? 'No examples could be built (no string matching this pattern could be assembled).'
+          : '<b>' + chk.rows.length + ' examples, all matched.</b> ' +
+            (chk.unsure ? 'The pattern contains conditions that consume no characters, such as a lookahead or lookbehind, so ' +
+                          'the examples are not guaranteed to match and some of them may not.'
+                        : 'Strings assembled by following the diagram land on your original expression as they are.') +
+            (chk.capped ? 'Note that this pattern is the shape whose running time explodes on a near miss, so ' +
+                          'only short examples are used here.' : ''));
     $('samples').innerHTML = chk.rows.map(function (r) {
       return '<li' + (r.ok ? '' : ' class="bad"') + '><span class="' + (r.ok ? 'y' : 'n') + '">' +
              (r.ok ? '✓' : '✗') + '</span><span class="m">' +
-             (r.s === '' ? '<span class="lead">（空文字）</span>' : esc(showWs(r.s))) + '</span></li>';
+             (r.s === '' ? '<span class="lead">(empty string)</span>' : esc(showWs(r.s))) + '</span></li>';
     }).join('');
   }
 }
