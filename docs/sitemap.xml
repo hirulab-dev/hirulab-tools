@@ -78,7 +78,28 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
-  <url><loc>https://hirulab-dev.github.io/hirulab-tools/palette/</loc></url>
-  <url><loc>https://hirulab-dev.github.io/hirulab-tools/frima-profit/</loc></url>
-  <url><loc>https://hirulab-dev.github.io/hirulab-tools/en/</loc></url>
+  <url>
+    <loc>https://hirulab-dev.github.io/hirulab-tools/palette/</loc>
+    <lastmod>2026-08-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hirulab-dev.github.io/hirulab-tools/frima-profit/</loc>
+    <lastmod>2026-08-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hirulab-dev.github.io/hirulab-tools/en/</loc>
+    <lastmod>2026-08-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hirulab-dev.github.io/hirulab-tools/tz/</loc>
+    <lastmod>2026-08-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
 </urlset>

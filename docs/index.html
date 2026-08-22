@@ -86,7 +86,7 @@
       "@type": "ItemList",
       "name": "公開中のツール",
       "itemListOrder": "https://schema.org/ItemListOrderAscending",
-      "numberOfItems": 13,
+      "numberOfItems": 15,
       "itemListElement": [
         { "@type": "ListItem", "position": 1, "name": "正規表現テスタ", "url": "https://hirulab-dev.github.io/hirulab-tools/regex/" },
         { "@type": "ListItem", "position": 2, "name": "文字数カウンタ", "url": "https://hirulab-dev.github.io/hirulab-tools/char-counter/" },
@@ -101,7 +101,8 @@
         { "@type": "ListItem", "position": 11, "name": "カラーパレット生成", "url": "https://hirulab-dev.github.io/hirulab-tools/palette/" },
         { "@type": "ListItem", "position": 12, "name": "フリマ手取り計算機", "url": "https://hirulab-dev.github.io/hirulab-tools/frima-profit/" },
         { "@type": "ListItem", "position": 13, "name": "QRコード作成", "url": "https://hirulab-dev.github.io/hirulab-tools/qr/" },
-        { "@type": "ListItem", "position": 14, "name": "cron式の読み下し", "url": "https://hirulab-dev.github.io/hirulab-tools/cron/" }
+        { "@type": "ListItem", "position": 14, "name": "cron式の読み下し", "url": "https://hirulab-dev.github.io/hirulab-tools/cron/" },
+        { "@type": "ListItem", "position": 15, "name": "タイムゾーン変換", "url": "https://hirulab-dev.github.io/hirulab-tools/tz/" }
       ]
     }
   ]
@@ -195,6 +196,11 @@
   <a class="card" href="./cron/">
     <h3>cron式の読み下し</h3>
     <p><code>0 9 * * 1-5</code> のような式を日本語の文にして、次の実行時刻を20件と、<strong>1年で何回動くか・間隔は最短何分か</strong>まで出します。「日と曜日を両方書くと『かつ』ではなく『または』になる」といった定番の落とし穴も自動で指摘します。</p>
+  </a>
+
+  <a class="card" href="./tz/">
+    <h3>タイムゾーン変換</h3>
+    <p>複数都市の現地時刻を一度に並べ、24時間の重なり表から<strong>会議の候補時間</strong>を出します。夏時間の切替でその時刻が<strong>存在しない</strong>ときや<strong>1日に2回ある</strong>ときは、黙ってずらさずにそう伝えます。各都市が次に時差を変える日も分かります。</p>
   </a>
 
   <div class="card empty">

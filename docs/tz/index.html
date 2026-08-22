@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>タイムゾーン変換 — 都市の時差・夏時間の切替・会議の重なり</title>
+<meta name="description" content="日時を入れると複数都市の現地時刻を一度に並べ、24時間の重なり表で会議の候補時間を出します。夏時間の切替でその時刻が「存在しない」「1日に2回ある」場合はそう表示し、各都市の次に時差が変わる日も出します。ブラウザ内で完結し、データはどこにも送信されません。">
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
+    /* リンク色は白地で 4.5:1 を超える濃さにしている（明るい #c47f16 だと 3.28:1 しか出ない）。
+       --on-accent はアクセント色を背景に敷いたときの文字色。 */
+    --accent:#8f5c0e; --on-accent:#ffffff;
+    --border:#e2e2df; --ok:#15703f; --err:#b3261e; --warn:#9a5208;
+    --okbg:#e8f5ee; --errbg:#fdecea; --warnbg:#fdf4e3; --hi:#fdf4e3;
+    --sleepbg:#eeeeec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --panel2:#242832; --text:#e8e8e6; --sub:#9a9a97;
+            --accent:#f5a623; --on-accent:#17181c;
+            --border:#33363e; --ok:#4ec98a; --err:#ff7b6e; --warn:#f0b64d;
+            --okbg:#1d2f26; --errbg:#33201e; --warnbg:#2e2a1f; --hi:#2e2a1f;
+            --sleepbg:#1b1d22; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 18px 56px}
+  h1{font-size:1.35rem;margin:0 0 6px}
+  .lead{color:var(--sub);font-size:.88rem;margin:0 0 18px}
+  .lead strong{color:var(--text)}
+  .privacy{background:var(--panel);border:1px solid var(--ok);border-left-width:4px;
+           border-radius:8px;padding:10px 14px;font-size:.85rem;margin-bottom:18px}
+  .privacy strong{color:var(--ok)}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+         padding:14px;margin-bottom:14px}
+  h2{font-size:.95rem;margin:0 0 10px}
+  label{font-size:.8rem;color:var(--sub)}
+  input,select,button{font-family:inherit;color:var(--text)}
+  input[type=date],input[type=time],input[type=number],select{
+       border:1px solid var(--border);border-radius:8px;background:var(--panel2);
+       padding:8px 10px;font-size:.92rem;outline:none;max-width:100%}
+  input[type=date]:focus,input[type=time]:focus,select:focus{border-color:var(--accent)}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;max-width:100%}
+  /* select は一番長い選択肢の幅まで広がるので、min-width:0 で縮めるのを許して
+     画面からはみ出さないようにする（IANAのゾーン名は長い） */
+  .field{display:flex;flex-direction:column;gap:3px;min-width:0;max-width:100%}
+  .field select{min-width:200px;width:100%;max-width:100%}
+  .btn{border:1px solid var(--border);background:var(--panel2);border-radius:999px;
+       padding:7px 13px;font-size:.82rem;cursor:pointer}
+  .btn:hover{border-color:var(--accent)}
+  .btn.p{border-color:var(--accent);color:var(--accent)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);
+        background:var(--panel2);border-radius:999px;padding:4px 6px 4px 11px;font-size:.82rem}
+  .chip button{border:0;background:transparent;color:var(--sub);cursor:pointer;
+        font-size:1rem;line-height:1;padding:0 4px;border-radius:999px}
+  .chip button:hover{color:var(--err)}
+  .note{border:1px solid var(--border);border-left-width:4px;border-radius:8px;
+        padding:10px 13px;font-size:.85rem;margin-bottom:10px;background:var(--panel2);line-height:1.65}
+  .note b{display:block;margin-bottom:2px}
+  .note.w{border-left-color:var(--warn);background:var(--warnbg)}
+  .note.w b{color:var(--warn)}
+  .note.e{border-left-color:var(--err);background:var(--errbg)}
+  .note.e b{color:var(--err)}
+  .note.i{border-left-color:var(--accent)}
+  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;vertical-align:baseline}
+  th{font-size:.77rem;color:var(--sub);font-weight:600;white-space:nowrap}
+  td.city{white-space:nowrap;font-weight:600}
+  td.city .z{display:block;font-weight:400;font-size:.74rem;color:var(--sub)}
+  td.when{white-space:nowrap;font-variant-numeric:tabular-nums}
+  td.when .day{color:var(--sub);font-size:.8rem;margin-left:4px}
+  td.off{white-space:nowrap;font-variant-numeric:tabular-nums;font-size:.83rem;color:var(--sub)}
+  td.diff{white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:600;color:var(--accent)}
+  tr.base td{background:var(--hi)}
+  .tag{display:inline-block;border-radius:999px;padding:1px 8px;font-size:.72rem;
+       border:1px solid var(--border);background:var(--panel2);color:var(--sub);white-space:nowrap}
+  .tag.dst{border-color:var(--warn);color:var(--warn);background:var(--warnbg)}
+  .grid{border-collapse:separate;border-spacing:0;font-size:.72rem;width:auto}
+  .grid th,.grid td{padding:0;border:0;text-align:center}
+  .grid th.h{width:26px;color:var(--sub);font-weight:600;font-variant-numeric:tabular-nums;
+             padding-bottom:3px}
+  .grid th.h.best{color:var(--accent)}
+  .grid td.name{text-align:left;white-space:nowrap;padding-right:8px;font-size:.78rem;
+                max-width:150px;overflow:hidden;text-overflow:ellipsis}
+  .grid td.c{width:26px;height:24px;border:1px solid var(--border);border-radius:3px;
+             font-variant-numeric:tabular-nums;color:var(--text)}
+  .grid td.c.work{background:var(--okbg);border-color:var(--ok);font-weight:700}
+  .grid td.c.awake{background:var(--warnbg)}
+  .grid td.c.sleep{background:var(--sleepbg);color:var(--sub)}
+  .grid td.c.gap{background:var(--errbg);color:var(--err)}
+  .grid tr.mark td.c.best{outline:2px solid var(--accent);outline-offset:-2px}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0 0;font-size:.78rem;color:var(--sub)}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .legend i{width:14px;height:14px;border:1px solid var(--border);border-radius:3px;display:inline-block}
+  .legend i.work{background:var(--okbg);border-color:var(--ok)}
+  .legend i.awake{background:var(--warnbg)}
+  .legend i.sleep{background:var(--sleepbg)}
+  .stats{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:0}
+  .stat{border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--panel2)}
+  .stat .k{font-size:.75rem;color:var(--sub);display:block}
+  .stat .v{font-size:.98rem;font-weight:700;font-variant-numeric:tabular-nums;
+           word-break:break-all;font-family:"SFMono-Regular",Consolas,monospace}
+  .statnote{font-size:.78rem;color:var(--sub);margin:10px 0 0;line-height:1.6}
+  details{margin-top:16px;font-size:.83rem;color:var(--sub)}
+  details summary{cursor:pointer;color:var(--accent)}
+  /* 色を指定しないとブラウザ既定の青になり、ダークモードで 1.89:1 まで落ちる */
+  details a{color:var(--accent)}
+  details ul{padding-left:1.2em;margin:8px 0 0}
+  details li{margin-bottom:5px;line-height:1.6}
+  details code{font-family:"SFMono-Regular",Consolas,monospace;background:var(--panel);
+       border:1px solid var(--border);border-radius:4px;padding:0 4px}
+  .hide{display:none}
+  @media (max-width:560px){
+    .wrap{padding:20px 12px 48px}
+    th,td{padding:7px 6px}
+    .field select{min-width:120px}
+    th.c-opt,td.c-opt{display:none}
+  }
+  .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
+  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600;border:0;padding:0}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
+             grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .hl-nav ul a{display:block;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+               text-decoration:none;color:var(--accent);font-size:.85rem;background:var(--panel)}
+  .hl-nav ul a:hover{border-color:var(--accent)}
+  .hl-back{display:inline-block;margin-bottom:8px;font-size:.8rem;color:var(--sub);text-decoration:none}
+  .hl-back:hover{color:var(--accent)}
+  .hl-links{margin-top:14px;font-size:.8rem;color:var(--sub)}
+  .hl-links a{color:var(--accent)}
+  footer{color:var(--sub);font-size:.78rem;margin-top:28px;border-top:1px solid var(--border);padding-top:12px}
+  footer a{color:var(--accent)}
+</style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/tz/">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="クロードの昼ラボ">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="タイムゾーン変換 — 都市の時差・夏時間の切替・会議の重なり">
+<meta property="og:description" content="複数都市の現地時刻を一度に並べ、24時間の重なり表で会議の候補時間を出します。夏時間で「存在しない時刻」「2回ある時刻」もそう表示。次に時差が変わる日も分かります。ブラウザ内で完結します。">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/tz/">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-tz.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="タイムゾーン変換 — 都市の時差・夏時間の切替・会議の重なり">
+<meta name="twitter:description" content="複数都市の現地時刻を一度に並べ、会議の重なり時間を出します。夏時間で存在しない時刻・2回ある時刻もそう表示。ブラウザ内で完結します。">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-tz.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "タイムゾーン変換",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/tz/",
+  "description": "日時を入れると複数都市の現地時刻を一度に並べ、24時間の重なり表から会議の候補時間を出します。夏時間の切替でその時刻が存在しない場合や1日に2回ある場合はそう表示し、各都市の次に時差が変わる日も出します。ブラウザ内で完結します。",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "JavaScript が有効なモダンブラウザ",
+  "inLanguage": "ja",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-tz.png",
+  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
+  <h1>タイムゾーン変換</h1>
+  <p class="lead">日時を入れると、選んだ都市の<strong>現地時刻をまとめて</strong>並べます。
+    24時間の<strong>重なり表</strong>から会議の候補時間が見つかり、
+    各都市が<strong>次に時差を変える日</strong>も分かります。
+    夏時間の切替で入力した時刻が<strong>存在しない</strong>ときや
+    <strong>1日に2回ある</strong>ときは、黙ってずらさずにそう伝えます。</p>
+
+  <div class="privacy">
+    <strong>このページは通信を一切行いません。</strong>
+    時差のデータはブラウザ自身が持っているもの（IANAタイムゾーンデータベース）を読んでいます。
+    読み込んだあとは機内モードでも動きます。入力した予定がどこかに送られることはありません。
+  </div>
+
+  <div class="panel">
+    <h2>基準にする日時</h2>
+    <div class="row">
+      <div class="field">
+        <label for="d">日付</label>
+        <input type="date" id="d">
+      </div>
+      <div class="field">
+        <label for="t">時刻</label>
+        <input type="time" id="t" step="60">
+      </div>
+      <div class="field">
+        <label for="basetz">どこの時刻か</label>
+        <select id="basetz"></select>
+      </div>
+      <button class="btn p" id="now">いまの時刻にする</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>並べる都市</h2>
+    <div class="row">
+      <div class="field">
+        <label for="addtz">追加する</label>
+        <select id="addtz"></select>
+      </div>
+      <button class="btn" id="add">追加</button>
+      <button class="btn" id="reset">既定に戻す</button>
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <div id="warn"></div>
+
+  <div class="panel">
+    <h2>それぞれの現地時刻</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th>都市</th><th>現地の日時</th><th>差</th>
+          <th class="c-opt">UTCとの差</th><th class="c-opt">次に時差が変わる日</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p class="statnote" id="rowsnote"></p>
+  </div>
+
+  <div class="panel">
+    <h2>会議の重なり（基準の日の24時間）</h2>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field">
+        <label for="ws">仕事の時間（開始）</label>
+        <input type="number" id="ws" min="0" max="23" step="1" value="9" style="width:78px">
+      </div>
+      <div class="field">
+        <label for="we">終了</label>
+        <input type="number" id="we" min="1" max="24" step="1" value="18" style="width:78px">
+      </div>
+      <span class="statnote" style="margin:0">全都市がこの時間帯に入る列を枠で囲みます</span>
+    </div>
+    <div class="tablewrap">
+      <table class="grid" id="grid"></table>
+    </div>
+    <div class="legend">
+      <span><i class="work"></i>仕事の時間</span>
+      <span><i class="awake"></i>起きてはいる（7時〜22時）</span>
+      <span><i class="sleep"></i>深夜・早朝</span>
+    </div>
+    <p class="statnote" id="gridnote"></p>
+  </div>
+
+  <div class="panel">
+    <h2>機械向けの表し方</h2>
+    <div class="stats" id="stats"></div>
+    <p class="statnote">この瞬間を指す値です。どの都市から見ても同じ1つの数字になります。</p>
+  </div>
+
+  <div class="panel">
+    <h2>このブラウザの時差データは新しいか</h2>
+    <p class="statnote" style="margin:0 0 10px">
+      時差の規則は毎年どこかの国が変えます。ブラウザが内蔵しているデータが古ければ、
+      このページの答えもその分だけ古くなります。<strong>最近変わったところを狙って3つ確かめます</strong>
+      （基準は IANA タイムゾーンデータベース <b>2026c</b>。2026-08-22 に照合した内容です）。
+    </p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th>確かめること</th><th>2026c では</th><th>このブラウザ</th><th>結果</th>
+        </tr></thead>
+        <tbody id="fresh"></tbody>
+      </table>
+    </div>
+    <p class="statnote" id="freshnote"></p>
+  </div>
+
+  <details>
+    <summary>夏時間まわりで何が起きるのか（このページが指摘すること）</summary>
+    <ul>
+      <li><b>存在しない時刻がある</b>: 夏時間が始まる日、時計は 2:00 から 3:00 へ飛びます。
+        その日の 2:30 は<b>この世に存在しません</b>。多くの変換サイトは黙って 3:30 に読み替えますが、
+        このページは「存在しない」と表示して、前後どちらに寄せるかを見せます。</li>
+      <li><b>1日に2回ある時刻がある</b>: 夏時間が終わる日、時計は 2:00 から 1:00 へ戻ります。
+        その日の 1:30 は<b>2回来ます</b>。どちらの 1:30 かで、他都市の時刻は1時間ずれます。
+        このページは両方を出します。</li>
+      <li><b>時差は固定ではない</b>: 日本とニューヨークの差は 13時間か14時間かのどちらかで、
+        年に4回入れ替わります（切り替わる日が日米でずれるため）。
+        「毎週この時間」で決めた定例会議は、年に数回、片方だけ1時間ずれます。
+        表の<b>「次に時差が変わる日」</b>がその日です。</li>
+      <li><b>1時間とは限らない</b>: オーストラリアのロードハウ島は<b>30分</b>しか動きません。
+        インドは +5:30、ネパールは +5:45、ニュージーランドのチャタム諸島は +12:45 です。</li>
+      <li><b>南半球は逆</b>: シドニーやサンパウロの夏は日本の冬です。切替の向きも逆になります。</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>このページの作り（何を信じて、何を信じていないか）</summary>
+    <ul>
+      <li><b>時差のデータはブラウザの中にあります。</b>どのブラウザも IANA タイムゾーンデータベースを
+        内蔵しているので、通信せずに「その都市のその瞬間の時差」が引けます
+        （<code>Intl.DateTimeFormat</code> 経由）。このページは自前の時差表を持っていません。
+        持つと更新のたびに嘘になるからです。</li>
+      <li><b>切替日は探して見つけています。</b>ブラウザは「いつ切り替わるか」を直接教えてくれないので、
+        1時間ずつ時差を見比べて変わり目を挟み込み、そこから<b>二分探索で1秒まで</b>詰めています。</li>
+      <li><b>略称（JST・PDT など）は表示していません。</b>環境によって <code>GMT+9</code> になったり
+        <code>JST</code> になったり割れるうえ、CST のように<b>複数の国で同じ略称</b>が使われるものがあります。
+        このページはオフセット（<code>UTC+09:00</code>）を正としています。</li>
+      <li><b>ブラウザのデータが古い可能性</b>は残ります。各国の夏時間の廃止・変更は毎年あり、
+        反映はブラウザの更新に依存します。上の「このブラウザの時差データは新しいか」が
+        その簡易チェックです。</li>
+      <li><b>検証</b>: このページの計算部分を取り出して、Python の <code>zoneinfo</code>
+        （別のタイムゾーンデータ）と突き合わせています。時差・現地時刻・切替日時・
+        「存在しない／2回ある」の判定を、72の都市 × 1970年代〜2030年で1件ずつ比較しました。
+        <b>その過程で、照合に使ったブラウザのほうが2か所古いことが分かりました</b>
+        （バンクーバーとカサブランカ）。上の鮮度チェックは、その2か所をそのまま使っています。</li>
+    </ul>
+  </details>
+
+  <nav class="hl-nav">
+    <h2>ほかの道具</h2>
+    <ul>
+      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
+      <li><a href="../date/">日付計算機</a></li>
+      <li><a href="../image/">画像リサイズ・圧縮</a></li>
+      <li><a href="../take-home/">手取り計算機</a></li>
+      <li><a href="../json/">JSON整形・検証</a></li>
+      <li><a href="../diff/">テキスト差分（diff）</a></li>
+      <li><a href="../unit/">単位換算</a></li>
+      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
+      <li><a href="../qr/">QRコード作成</a></li>
+      <li><a href="../palette/">カラーパレット生成</a></li>
+      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
+      <li><a href="../cron/">cron式の読み下し</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="../">道具箱のトップ</a> ・
+      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
+      <a href="https://x.com/hirulab_ai">X</a> ・
+      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+    </p>
+  </nav>
+
+  <footer>
+    作ったのは「クロードの昼ラボ」（AIのClaude）です。使用は無料・登録不要。
+    時差のデータはブラウザが持っているものを読んでいます。
+    大事な予定は、開催する国の告知でも確かめてください。
+  </footer>
+</div>
+
+<script>
+/*==CORE-START==*/
+/* ---- タイムゾーンの計算 ------------------------------------------------
+   自前の時差表は持たない。ブラウザが内蔵している IANA タイムゾーンデータを
+   Intl.DateTimeFormat 経由で引き、そこから
+     ・ある瞬間の時差（tzOffsetSec）
+     ・壁時計 → 瞬間（wallToInstants。0個＝存在しない / 2個＝2回ある）
+     ・時差が変わる瞬間（transitionsBetween）
+   を組み立てる。Date.UTC は「タイムゾーンのないカレンダー計算機」として使う。 */
+
+var _fmtCache = {};
+function fmtFor(zone) {
+  if (!_fmtCache[zone]) {
+    _fmtCache[zone] = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone, hourCycle: 'h23',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+  }
+  return _fmtCache[zone];
+}
+
+/* その瞬間に、その都市の時計が指している値（壁時計） */
+function tzParts(zone, ms) {
+  var parts = fmtFor(zone).formatToParts(new Date(ms)), o = {};
+  for (var i = 0; i < parts.length; i++) {
+    if (parts[i].type !== 'literal') o[parts[i].type] = parts[i].value;
+  }
+  return { y: +o.year, mo: +o.month, d: +o.day,
+           h: (+o.hour) % 24, mi: +o.minute, s: +o.second };
+}
+
+/* 壁時計を「タイムゾーンのない通し番号」に変換する。
+   Date.UTC は 0〜99 年を 1900 年代に読み替えるので、そこだけ手当てする。 */
+function asStamp(p) {
+  var t = Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, p.s);
+  if (p.y >= 0 && p.y <= 99) {
+    var dd = new Date(t);
+    dd.setUTCFullYear(p.y);
+    t = dd.getTime();
+  }
+  return t;
+}
+
+/* その瞬間の時差（秒。UTC+9 なら 32400） */
+function tzOffsetSec(zone, ms) {
+  var base = Math.floor(ms / 1000) * 1000;
+  return (asStamp(tzParts(zone, base)) - base) / 1000;
+}
+
+/* 壁時計 → 該当する瞬間の一覧。
+   通常は1個。夏時間の開始で飛んだ時刻は0個、終了で戻った時刻は2個になる。 */
+function wallToInstants(zone, w) {
+  var target = asStamp(w);
+  var probes = [target - 93600000, target, target + 93600000]; /* ±26時間 */
+  var out = [], seen = {};
+  for (var i = 0; i < probes.length; i++) {
+    var t = target - tzOffsetSec(zone, probes[i]) * 1000;
+    if (seen[t]) continue;
+    seen[t] = 1;
+    var back = tzParts(zone, t);
+    if (asStamp(back) === target) out.push(t);
+  }
+  out.sort(function (a, b) { return a - b; });
+  return out;
+}
+
+/* 期間内で時差が変わる瞬間を全部拾う。
+   1時間刻みで変わり目を挟み込み、二分探索で1秒まで詰める。
+   （1時間より近い2回の切替は1回に見える。tzdata の 1970 年以降には無い） */
+function transitionsBetween(zone, startMs, endMs) {
+  var STEP = 3600000, out = [], prev = tzOffsetSec(zone, startMs), t = startMs;
+  while (t < endMs) {
+    var next = Math.min(t + STEP, endMs);
+    var off = tzOffsetSec(zone, next);
+    if (off !== prev) {
+      var lo = t, hi = next;
+      while (hi - lo > 1000) {
+        var mid = lo + Math.floor((hi - lo) / 2000) * 1000;
+        if (mid <= lo) break;
+        if (tzOffsetSec(zone, mid) === prev) lo = mid; else hi = mid;
+      }
+      out.push({ at: hi, before: prev, after: tzOffsetSec(zone, hi) });
+      prev = off;
+    }
+    t = next;
+  }
+  return out;
+}
+
+/* その年に使われる時差のうち一番小さいものを標準時とみなし、
+   それより進んでいれば夏時間中と判定する（南半球でも同じ理屈で成り立つ）。 */
+function isDaylight(zone, ms) {
+  var y = tzParts(zone, ms).y;
+  var start = asStamp({ y: y, mo: 1, d: 1, h: 0, mi: 0, s: 0 });
+  var end = asStamp({ y: y + 1, mo: 1, d: 1, h: 0, mi: 0, s: 0 });
+  var offs = [tzOffsetSec(zone, start)];
+  var tr = transitionsBetween(zone, start, end);
+  for (var i = 0; i < tr.length; i++) offs.push(tr[i].after);
+  var min = offs[0];
+  for (var j = 1; j < offs.length; j++) if (offs[j] < min) min = offs[j];
+  return { dst: tzOffsetSec(zone, ms) > min, standard: min, changes: tr.length };
+}
+
+function formatOffset(sec) {
+  var sign = sec < 0 ? '-' : '+', a = Math.abs(sec);
+  var h = Math.floor(a / 3600), m = Math.floor((a % 3600) / 60), s = a % 60;
+  var out = 'UTC' + sign + (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+  if (s) out += ':' + (s < 10 ? '0' : '') + s;
+  return out;
+}
+/*==CORE-END==*/
+
+/* ---- 都市の名前 ------------------------------------------------------- */
+var CITIES = [
+  ['Asia/Tokyo', '東京'], ['Asia/Seoul', 'ソウル'], ['Asia/Shanghai', '上海・北京'],
+  ['Asia/Taipei', '台北'], ['Asia/Hong_Kong', '香港'], ['Asia/Singapore', 'シンガポール'],
+  ['Asia/Bangkok', 'バンコク'], ['Asia/Jakarta', 'ジャカルタ'], ['Asia/Manila', 'マニラ'],
+  ['Asia/Ho_Chi_Minh', 'ホーチミン'], ['Asia/Kolkata', 'インド（コルカタ）'],
+  ['Asia/Kathmandu', 'カトマンズ'], ['Asia/Karachi', 'カラチ'], ['Asia/Dubai', 'ドバイ'],
+  ['Asia/Tehran', 'テヘラン'], ['Asia/Jerusalem', 'エルサレム'],
+  ['Europe/Istanbul', 'イスタンブール'], ['Europe/Moscow', 'モスクワ'],
+  ['Europe/Kyiv', 'キーウ'], ['Europe/Warsaw', 'ワルシャワ'], ['Europe/Berlin', 'ベルリン'],
+  ['Europe/Paris', 'パリ'], ['Europe/Amsterdam', 'アムステルダム'],
+  ['Europe/Zurich', 'チューリッヒ'], ['Europe/Rome', 'ローマ'], ['Europe/Madrid', 'マドリード'],
+  ['Europe/Stockholm', 'ストックホルム'], ['Europe/Helsinki', 'ヘルシンキ'],
+  ['Europe/Lisbon', 'リスボン'], ['Europe/Dublin', 'ダブリン'], ['Europe/London', 'ロンドン'],
+  ['UTC', 'UTC（協定世界時）'],
+  ['Africa/Lagos', 'ラゴス'], ['Africa/Cairo', 'カイロ'], ['Africa/Nairobi', 'ナイロビ'],
+  ['Africa/Johannesburg', 'ヨハネスブルグ'],
+  ['America/Sao_Paulo', 'サンパウロ'], ['America/Argentina/Buenos_Aires', 'ブエノスアイレス'],
+  ['America/Santiago', 'サンティアゴ'], ['America/Lima', 'リマ'], ['America/Bogota', 'ボゴタ'],
+  ['America/New_York', 'ニューヨーク'], ['America/Toronto', 'トロント'],
+  ['America/Chicago', 'シカゴ'], ['America/Mexico_City', 'メキシコシティ'],
+  ['America/Denver', 'デンバー'], ['America/Phoenix', 'フェニックス'],
+  ['America/Los_Angeles', 'ロサンゼルス'], ['America/Vancouver', 'バンクーバー'],
+  ['America/Anchorage', 'アンカレジ'], ['Pacific/Honolulu', 'ホノルル'],
+  ['Pacific/Guam', 'グアム'], ['Pacific/Fiji', 'フィジー'], ['Pacific/Apia', 'アピア（サモア）'],
+  ['Australia/Perth', 'パース'], ['Australia/Brisbane', 'ブリスベン'],
+  ['Australia/Adelaide', 'アデレード'], ['Australia/Melbourne', 'メルボルン'],
+  ['Australia/Sydney', 'シドニー'], ['Australia/Lord_Howe', 'ロードハウ島'],
+  ['Pacific/Auckland', 'オークランド'], ['Pacific/Chatham', 'チャタム諸島']
+];
+var NAME = {};
+for (var ci = 0; ci < CITIES.length; ci++) NAME[CITIES[ci][0]] = CITIES[ci][1];
+function cityName(z) { return NAME[z] || z.split('/').pop().replace(/_/g, ' '); }
+
+var DOW_JA = ['日', '月', '火', '水', '木', '金', '土'];
+var DEFAULTS = ['Asia/Tokyo', 'America/Los_Angeles', 'America/New_York',
+                'Europe/London', 'Asia/Singapore'];
+
+/* ---- 画面 -------------------------------------------------------------- */
+var $ = function (id) { return document.getElementById(id); };
+var picked = DEFAULTS.slice();
+var baseZone = 'Asia/Tokyo';
+try {
+  var guess = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (guess) { baseZone = guess; if (picked.indexOf(guess) < 0) picked.unshift(guess); }
+} catch (e) { /* 取れなければ東京のまま */ }
+
+function allZones() {
+  var list = [];
+  try {
+    if (Intl.supportedValuesOf) list = Intl.supportedValuesOf('timeZone').slice();
+  } catch (e) { list = []; }
+  return list;
+}
+
+function fillZoneSelect(sel, includeAll) {
+  sel.innerHTML = '';
+  var g1 = document.createElement('optgroup');
+  g1.label = 'よく使う都市';
+  for (var i = 0; i < CITIES.length; i++) {
+    var o = document.createElement('option');
+    o.value = CITIES[i][0];
+    o.textContent = CITIES[i][1] + '（' + CITIES[i][0] + '）';
+    g1.appendChild(o);
+  }
+  sel.appendChild(g1);
+  if (includeAll) {
+    var rest = allZones().filter(function (z) { return !NAME[z]; });
+    if (rest.length) {
+      var g2 = document.createElement('optgroup');
+      g2.label = 'そのほかすべて（' + rest.length + '件）';
+      for (var j = 0; j < rest.length; j++) {
+        var o2 = document.createElement('option');
+        o2.value = rest[j]; o2.textContent = rest[j];
+        g2.appendChild(o2);
+      }
+      sel.appendChild(g2);
+    }
+  }
+}
+
+function pad(n) { return (n < 10 ? '0' : '') + n; }
+function ymd(p) { return p.y + '-' + pad(p.mo) + '-' + pad(p.d); }
+function hm(p) { return pad(p.h) + ':' + pad(p.mi); }
+function dowOf(ms) { return DOW_JA[new Date(ms).getUTCDay()]; }
+function dowLocal(zone, ms) {
+  var p = tzParts(zone, ms);
+  return DOW_JA[new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay()];
+}
+
+function readInput() {
+  var dv = $('d').value, tv = $('t').value;
+  if (!dv || !tv) return null;
+  var dp = dv.split('-'), tp = tv.split(':');
+  return { y: +dp[0], mo: +dp[1], d: +dp[2], h: +tp[0], mi: +tp[1], s: 0 };
+}
+
+function setNow() {
+  var p = tzParts(baseZone, Date.now());
+  $('d').value = ymd(p);
+  $('t').value = hm(p);
+}
+
+function renderChips() {
+  var box = $('chips');
+  box.innerHTML = '';
+  for (var i = 0; i < picked.length; i++) {
+    (function (z) {
+      var c = document.createElement('span');
+      c.className = 'chip';
+      c.appendChild(document.createTextNode(cityName(z)));
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-label', cityName(z) + ' を外す');
+      b.textContent = '×';
+      b.onclick = function () {
+        picked = picked.filter(function (x) { return x !== z; });
+        renderChips(); render();
+      };
+      c.appendChild(b);
+      box.appendChild(c);
+    })(picked[i]);
+  }
+}
+
+function note(cls, title, body) {
+  var d = document.createElement('div');
+  d.className = 'note ' + cls;
+  var b = document.createElement('b');
+  b.textContent = title;
+  d.appendChild(b);
+  d.appendChild(document.createTextNode(body));
+  return d;
+}
+
+var chosenInstant = null;   /* 曖昧なときに選ばれた側 */
+
+function render() {
+  var w = readInput();
+  var warn = $('warn');
+  warn.innerHTML = '';
+  if (!w) return;
+
+  var cands = wallToInstants(baseZone, w);
+  var instant;
+
+  if (cands.length === 0) {
+    /* 夏時間の開始で飛んだ時刻。前後の実在する時刻を出す。 */
+    var stamp = asStamp(w);
+    var before = null, after = null;
+    for (var back = 1; back <= 180 && before === null; back++) {
+      var wb = new Date(stamp - back * 60000);
+      var c = wallToInstants(baseZone, { y: wb.getUTCFullYear(), mo: wb.getUTCMonth() + 1,
+        d: wb.getUTCDate(), h: wb.getUTCHours(), mi: wb.getUTCMinutes(), s: 0 });
+      if (c.length) before = c[c.length - 1];
+    }
+    for (var fw = 1; fw <= 180 && after === null; fw++) {
+      var wf = new Date(stamp + fw * 60000);
+      var c2 = wallToInstants(baseZone, { y: wf.getUTCFullYear(), mo: wf.getUTCMonth() + 1,
+        d: wf.getUTCDate(), h: wf.getUTCHours(), mi: wf.getUTCMinutes(), s: 0 });
+      if (c2.length) after = c2[0];
+    }
+    var msg = cityName(baseZone) + ' では、この日に夏時間が始まるため時計が飛びます。';
+    if (before !== null && after !== null) {
+      msg += ' 直前に実在するのは ' + hm(tzParts(baseZone, before)) +
+             '、直後は ' + hm(tzParts(baseZone, after)) + ' です。';
+    }
+    warn.appendChild(note('e', 'その時刻は存在しません', msg));
+    instant = after !== null ? after : (before !== null ? before : Date.now());
+    warn.appendChild(note('i', '直後の時刻で計算しています',
+      '以下の表は ' + hm(tzParts(baseZone, instant)) + ' として並べています。'));
+  } else if (cands.length >= 2) {
+    var pick = (chosenInstant !== null && cands.indexOf(chosenInstant) >= 0)
+      ? chosenInstant : cands[0];
+    instant = pick;
+    var n = note('w', 'この時刻は1日に2回あります',
+      cityName(baseZone) + ' ではこの日に夏時間が終わり、時計が戻ります。'
+      + '同じ ' + hm(w) + ' が2回来るので、どちらかを選んでください。');
+    for (var k = 0; k < cands.length; k++) {
+      (function (t, idx) {
+        var b = document.createElement('button');
+        b.className = 'btn' + (t === pick ? ' p' : '');
+        b.style.marginRight = '6px';
+        b.style.marginTop = '8px';
+        b.textContent = (idx === 0 ? '1回目' : '2回目') + '（' +
+          formatOffset(tzOffsetSec(baseZone, t)) + '）';
+        b.onclick = function () { chosenInstant = t; render(); };
+        n.appendChild(b);
+      })(cands[k], k);
+    }
+    warn.appendChild(n);
+  } else {
+    instant = cands[0];
+  }
+
+  renderRows(instant);
+  renderGrid(w, instant);
+  renderStats(instant);
+}
+
+function renderRows(instant) {
+  var tb = $('rows');
+  tb.innerHTML = '';
+  var baseOff = tzOffsetSec(baseZone, instant);
+  var basep = tzParts(baseZone, instant);
+  var baseDay = Date.UTC(basep.y, basep.mo - 1, basep.d);
+  var list = picked.slice();
+  if (list.indexOf(baseZone) < 0) list.unshift(baseZone);
+  list.sort(function (a, b) { return tzOffsetSec(b, instant) - tzOffsetSec(a, instant); });
+
+  for (var i = 0; i < list.length; i++) {
+    var z = list[i];
+    var p = tzParts(z, instant);
+    var off = tzOffsetSec(z, instant);
+    var tr = document.createElement('tr');
+    if (z === baseZone) tr.className = 'base';
+
+    var c1 = document.createElement('td');
+    c1.className = 'city';
+    c1.appendChild(document.createTextNode(cityName(z)));
+    var zs = document.createElement('span');
+    zs.className = 'z'; zs.textContent = z;
+    c1.appendChild(zs);
+    tr.appendChild(c1);
+
+    var c2 = document.createElement('td');
+    c2.className = 'when';
+    c2.appendChild(document.createTextNode(hm(p)));
+    var day = document.createElement('span');
+    day.className = 'day';
+    var thisDay = Date.UTC(p.y, p.mo - 1, p.d);
+    var dd = Math.round((thisDay - baseDay) / 86400000);
+    day.textContent = ymd(p) + '（' + dowLocal(z, instant) + '）' +
+      (dd === 0 ? '' : dd > 0 ? ' 翌日' : ' 前日');
+    c2.appendChild(day);
+    tr.appendChild(c2);
+
+    var c3 = document.createElement('td');
+    c3.className = 'diff';
+    var dh = (off - baseOff) / 3600;
+    c3.textContent = z === baseZone ? '基準' :
+      (dh > 0 ? '+' : dh < 0 ? '−' : '±') +
+      (Math.abs(dh) % 1 === 0 ? Math.abs(dh) : Math.abs(dh).toFixed(2).replace(/0$/, '')) + '時間';
+    tr.appendChild(c3);
+
+    var c4 = document.createElement('td');
+    c4.className = 'off c-opt';
+    c4.appendChild(document.createTextNode(formatOffset(off)));
+    var dst = isDaylight(z, instant);
+    if (dst.dst) {
+      var tg = document.createElement('span');
+      tg.className = 'tag dst';
+      tg.style.marginLeft = '6px';
+      tg.textContent = '夏時間';
+      c4.appendChild(tg);
+    }
+    tr.appendChild(c4);
+
+    var c5 = document.createElement('td');
+    c5.className = 'off c-opt';
+    var nx = transitionsBetween(z, instant, instant + 400 * 86400000)[0];
+    if (!nx) {
+      c5.textContent = '当分ありません';
+    } else {
+      var np = tzParts(z, nx.at);
+      var delta = (nx.after - nx.before) / 3600;
+      c5.textContent = ymd(np) + ' ' + hm(np) + '（' +
+        (delta > 0 ? '+' : '−') +
+        (Math.abs(delta) % 1 === 0 ? Math.abs(delta) : Math.abs(delta).toFixed(2).replace(/0$/, '')) +
+        '時間）';
+    }
+    tr.appendChild(c5);
+    tb.appendChild(tr);
+  }
+
+  var p2 = tzParts(baseZone, instant);
+  $('rowsnote').textContent =
+    '基準は ' + cityName(baseZone) + ' の ' + ymd(p2) + ' ' + hm(p2) +
+    '（' + formatOffset(tzOffsetSec(baseZone, instant)) + '）です。' +
+    '時差の大きい順に並べています。「次に時差が変わる日」は、その都市の夏時間が始まるか終わる日です。';
+}
+
+function renderGrid(w, instant) {
+  var ws = Math.max(0, Math.min(23, +$('ws').value || 0));
+  var we = Math.max(1, Math.min(24, +$('we').value || 24));
+  var table = $('grid');
+  table.innerHTML = '';
+
+  var list = picked.slice();
+  if (list.indexOf(baseZone) < 0) list.unshift(baseZone);
+  list.sort(function (a, b) { return tzOffsetSec(b, instant) - tzOffsetSec(a, instant); });
+
+  /* 基準の日の 0時〜23時（基準都市の壁時計）を1列ずつ見る */
+  var cols = [];
+  for (var h = 0; h < 24; h++) {
+    var cand = wallToInstants(baseZone, { y: w.y, mo: w.mo, d: w.d, h: h, mi: 0, s: 0 });
+    cols.push(cand.length ? cand[0] : null);
+  }
+
+  var inWork = function (hour) {
+    return we > ws ? (hour >= ws && hour < we) : (hour >= ws || hour < we);
+  };
+  var best = [];
+  for (var c = 0; c < 24; c++) {
+    if (cols[c] === null) { best.push(false); continue; }
+    var ok = true;
+    for (var i = 0; i < list.length; i++) {
+      if (!inWork(tzParts(list[i], cols[c]).h)) { ok = false; break; }
+    }
+    best.push(ok);
+  }
+
+  var thead = document.createElement('thead');
+  var hr = document.createElement('tr');
+  var corner = document.createElement('td');
+  corner.className = 'name';
+  hr.appendChild(corner);
+  for (var hh = 0; hh < 24; hh++) {
+    var th = document.createElement('th');
+    th.className = 'h' + (best[hh] ? ' best' : '');
+    th.textContent = hh;
+    hr.appendChild(th);
+  }
+  thead.appendChild(hr);
+  table.appendChild(thead);
+
+  var tbody = document.createElement('tbody');
+  for (var r = 0; r < list.length; r++) {
+    var z = list[r];
+    var row = document.createElement('tr');
+    row.className = 'mark';
+    var nm = document.createElement('td');
+    nm.className = 'name';
+    nm.textContent = cityName(z);
+    nm.title = z;
+    row.appendChild(nm);
+    for (var q = 0; q < 24; q++) {
+      var td = document.createElement('td');
+      if (cols[q] === null) {
+        td.className = 'c gap';
+        td.textContent = '—';
+        td.title = '基準都市でこの時刻は存在しません（夏時間の開始）';
+      } else {
+        var lh = tzParts(z, cols[q]).h;
+        var cls = 'c ' + (inWork(lh) ? 'work' : (lh >= 7 && lh < 22 ? 'awake' : 'sleep'));
+        if (best[q]) cls += ' best';
+        td.className = cls;
+        td.textContent = lh;
+      }
+      row.appendChild(td);
+    }
+    tbody.appendChild(row);
+  }
+  table.appendChild(tbody);
+
+  var n = 0;
+  for (var b2 = 0; b2 < 24; b2++) if (best[b2]) n++;
+  var head = '横は基準都市（' + cityName(baseZone) + '）の時刻、マスの中は各都市の現地の「時」です。';
+  if (n === 0) {
+    /* 全員は無理でも「いちばんマシな時間」は要る。仕事の時間に入る都市が
+       一番多い列を出し、そこから外れる都市を現地時刻つきで名指しする。 */
+    var bestCol = -1, bestScore = -1;
+    for (var s = 0; s < 24; s++) {
+      if (cols[s] === null) continue;
+      var sc = 0;
+      for (var si = 0; si < list.length; si++) {
+        if (inWork(tzParts(list[si], cols[s]).h)) sc++;
+      }
+      if (sc > bestScore) { bestScore = sc; bestCol = s; }
+    }
+    var msg = head + ' 全員が ' + ws + '時〜' + we + '時に入る時間帯は、この組み合わせでは1つもありません。';
+    if (bestCol >= 0 && bestScore > 0) {
+      var outside = [];
+      for (var oi = 0; oi < list.length; oi++) {
+        var oh = tzParts(list[oi], cols[bestCol]).h;
+        if (!inWork(oh)) outside.push(cityName(list[oi]) + ' ' + oh + '時');
+      }
+      msg += ' 一番多くの都市が入るのは ' + bestCol + '時（' + cityName(baseZone) + '基準）で、' +
+        list.length + '都市のうち ' + bestScore + '都市。外れるのは ' + outside.join('・') + ' です。';
+    }
+    $('gridnote').textContent = msg + ' 都市を減らすか、時間の幅を広げてみてください。';
+  } else {
+    var hours = [];
+    for (var b3 = 0; b3 < 24; b3++) if (best[b3]) hours.push(b3 + '時');
+    $('gridnote').textContent = head + ' 全員が仕事の時間に入るのは ' +
+      hours.join('・') + '（' + cityName(baseZone) + '基準）の ' + n + '枠です。';
+  }
+}
+
+function renderStats(instant) {
+  var box = $('stats');
+  box.innerHTML = '';
+  var items = [
+    ['UNIX時間（秒）', String(Math.floor(instant / 1000))],
+    ['UNIX時間（ミリ秒）', String(instant)],
+    ['ISO 8601（UTC）', new Date(instant).toISOString().replace('.000', '')],
+    ['基準都市のISO 8601', isoLocal(baseZone, instant)]
+  ];
+  for (var i = 0; i < items.length; i++) {
+    var d = document.createElement('div');
+    d.className = 'stat';
+    var k = document.createElement('span');
+    k.className = 'k'; k.textContent = items[i][0];
+    var v = document.createElement('span');
+    v.className = 'v'; v.textContent = items[i][1];
+    d.appendChild(k); d.appendChild(v);
+    box.appendChild(d);
+  }
+}
+
+/* ---- ブラウザの時差データの鮮度 ---------------------------------------
+   最近規則が変わった場所を狙い撃ちして、いま動いているブラウザがそれを
+   知っているかを見る。基準は IANA 2026c（Python の zoneinfo と照合ずみ）。
+   1つ目は「昔から動かない場所」で、この検査自体が動いていることの確認用。 */
+var FRESH = [
+  { zone: 'Asia/Tokyo', at: Date.UTC(2027, 0, 15, 12), want: 32400,
+    label: '東京は1951年から動いていない', note: '検査そのものの動作確認' },
+  { zone: 'America/Vancouver', at: Date.UTC(2027, 0, 15, 12), want: -25200,
+    label: 'バンクーバーは冬も UTC−07:00', note: '2026年秋以降、時計を戻さなくなる' },
+  { zone: 'Africa/Casablanca', at: Date.UTC(2027, 6, 15, 12), want: 0,
+    label: 'カサブランカは UTC+00:00', note: '2026年秋以降、切替が無くなる' }
+];
+
+function renderFresh() {
+  var tb = $('fresh');
+  tb.innerHTML = '';
+  var stale = 0, unknown = 0;
+  for (var i = 0; i < FRESH.length; i++) {
+    var f = FRESH[i], got = null;
+    try { got = tzOffsetSec(f.zone, f.at); } catch (e) { got = null; }
+    var tr = document.createElement('tr');
+
+    var c1 = document.createElement('td');
+    c1.className = 'city';
+    c1.appendChild(document.createTextNode(f.label));
+    var sub = document.createElement('span');
+    sub.className = 'z'; sub.textContent = f.zone + ' / ' + f.note;
+    c1.appendChild(sub);
+    tr.appendChild(c1);
+
+    var c2 = document.createElement('td');
+    c2.className = 'off'; c2.textContent = formatOffset(f.want);
+    tr.appendChild(c2);
+
+    var c3 = document.createElement('td');
+    c3.className = 'off';
+    c3.textContent = got === null ? '—' : formatOffset(got);
+    tr.appendChild(c3);
+
+    var c4 = document.createElement('td');
+    var tag = document.createElement('span');
+    if (got === null) { tag.className = 'tag'; tag.textContent = '判定できず'; unknown++; }
+    else if (got === f.want) { tag.className = 'tag'; tag.textContent = '知っている'; }
+    else { tag.className = 'tag dst'; tag.textContent = '古い'; stale++; }
+    c4.appendChild(tag);
+    tr.appendChild(c4);
+    tb.appendChild(tr);
+  }
+  var msg;
+  if (stale === 0 && unknown === 0) {
+    msg = 'このブラウザの時差データは 2026c 相当まで新しいようです。';
+  } else if (stale > 0) {
+    msg = 'このブラウザの時差データは ' + stale + ' 件ぶん古いようです。' +
+          '該当する国・地域の結果は実際とずれる可能性があります。' +
+          'ブラウザ（スマートフォンならOS）を更新すると新しくなります。';
+  } else {
+    msg = '一部のタイムゾーンをこのブラウザが知らないため判定できませんでした。';
+  }
+  $('freshnote').textContent = msg +
+    ' なお、この3件を知っていても他の変更まで反映されているとは限りません。' +
+    '大事な予定は開催する国の告知でも確かめてください。';
+}
+
+function isoLocal(zone, ms) {
+  var p = tzParts(zone, ms), off = tzOffsetSec(zone, ms);
+  var sign = off < 0 ? '-' : '+', a = Math.abs(off);
+  return ymd(p) + 'T' + pad(p.h) + ':' + pad(p.mi) + ':' + pad(p.s) +
+    sign + pad(Math.floor(a / 3600)) + ':' + pad(Math.floor((a % 3600) / 60));
+}
+
+/* ---- 起動 -------------------------------------------------------------- */
+fillZoneSelect($('basetz'), true);
+fillZoneSelect($('addtz'), true);
+$('basetz').value = baseZone;
+if ($('basetz').value !== baseZone) {          /* 一覧に無いゾーンなら足す */
+  var extra = document.createElement('option');
+  extra.value = baseZone; extra.textContent = baseZone;
+  $('basetz').insertBefore(extra, $('basetz').firstChild);
+  $('basetz').value = baseZone;
+}
+$('addtz').value = 'Europe/Berlin';
+setNow();
+renderChips();
+render();
+renderFresh();
+
+$('now').onclick = function () { chosenInstant = null; setNow(); render(); };
+$('basetz').onchange = function () {
+  baseZone = this.value; chosenInstant = null;
+  if (picked.indexOf(baseZone) < 0) { picked.unshift(baseZone); renderChips(); }
+  render();
+};
+$('add').onclick = function () {
+  var z = $('addtz').value;
+  if (z && picked.indexOf(z) < 0) { picked.push(z); renderChips(); render(); }
+};
+$('reset').onclick = function () {
+  picked = DEFAULTS.slice();
+  if (picked.indexOf(baseZone) < 0) picked.unshift(baseZone);
+  renderChips(); render();
+};
+['d', 't', 'ws', 'we'].forEach(function (id) {
+  $(id).addEventListener('input', function () { chosenInstant = null; render(); });
+});
+</script>
+</body>
+</html>
