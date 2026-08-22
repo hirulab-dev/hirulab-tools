@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""CSVプレビュー・診断ツールを Python の csv モジュールと突き合わせて検証する。
+
+    python lab/scripts/test_csv.py --page <docs/csv/index.html のパス> [--cases 400]
+
+見るのは3つ:
+  1. **解析**: 同じ本文を Python の csv.reader と読み比べて、全セルが一致するか
+  2. **文字コードの判定**: UTF-8 / UTF-8 BOM / Shift_JIS(CP932) / EUC-JP / UTF-16 で
+     書き出したものを、判定器が当てられるか
+  3. **区切り文字の推定**: , タブ ; | のどれで書いたかを当てられるか
+
+方針(2026-08-22 の反省より): **参照側は別の探し方にする**。
+ブラウザ側と同じ手順を Python で書き直しても、同じ間違いを見逃すだけなので、
+セルの正解は「自分が書き出す前に持っていた元の行」そのものを使う。
+csv.writer で書いて csv.reader で読み戻せることは Python 側で別に確認する。
+"""
+import argparse
+import csv
+import io
+import json
+import random
+import sys
+
+from playwright.sync_api import sync_playwright
+
+# 各文字コードで確実に表せる文字だけを使う(cp932 と euc-jp の共通部分)
+JP = "あいうえおカキクケコ漢字日本語表計算経理担当山田佐藤東京都千代田区"
+ASCII = "abcXYZ0123456789 -_.@"
+TRICKY = ['"', ",", "\t", ";", "|", "\r\n", "\n", "  ", "　", "=SUM(A1)", "0123", "1-2",
+          "12345678901234567890"]
+
+
+def make_cell(rng, allow_jp=True, allow_tricky=True):
+    r = rng.random()
+    if allow_tricky and r < 0.18:
+        base = rng.choice(TRICKY)
+    elif r < 0.30:
+        base = ""
+    else:
+        pool = ASCII + (JP if allow_jp else "")
+        base = "".join(rng.choice(pool) for _ in range(rng.randint(1, 12)))
+    if allow_tricky and rng.random() < 0.15:
+        base = base + rng.choice(TRICKY)
+    return base
+
+
+def make_rows(rng, allow_jp=True):
+    ncols = rng.randint(1, 6)
+    nrows = rng.randint(1, 12)
+    rows = []
+    for _ in range(nrows):
+        rows.append([make_cell(rng, allow_jp) for _ in range(ncols)])
+    # 全部空の行はファイル上「空行」になり、CSVの規格でも扱いが割れるので避ける
+    rows = [r for r in rows if any(c != "" for c in r)]
+    if not rows:
+        rows = [["a", "b"]]
+    return rows
+
+
+def write_csv(rows, delim, quoting):
+    buf = io.StringIO()
+    w = csv.writer(buf, delimiter=delim, quoting=quoting, lineterminator="\r\n")
+    for r in rows:
+        w.writerow(r)
+    return buf.getvalue()
+
+
+def python_roundtrip(text, delim):
+    return [r for r in csv.reader(io.StringIO(text, newline=""), delimiter=delim)]
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--page", required=True, help="docs/csv/index.html のパス")
+    ap.add_argument("--cases", type=int, default=400)
+    ap.add_argument("--seed", type=int, default=20260822)
+    args = ap.parse_args()
+
+    rng = random.Random(args.seed)
+    encodings = [("utf-8", "utf-8"), ("utf-8-sig", "utf-8"), ("cp932", "shift_jis"),
+                 ("euc_jp", "euc-jp"), ("utf-16", "utf-16le")]
+    delims = [",", "\t", ";", "|"]
+
+    stats = {"cases": 0, "cells": 0, "parse_ng": 0, "enc_ng": 0, "enc_ascii": 0,
+             "delim_ng": 0, "delim_skip": 0}
+    failures = []
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_page()
+        page.goto("file:///" + args.page.replace("\\", "/"))
+        page.wait_for_timeout(400)
+
+        for i in range(args.cases):
+            py_enc, want_enc = encodings[i % len(encodings)]
+            delim = delims[(i // len(encodings)) % len(delims)]
+            quoting = csv.QUOTE_ALL if rng.random() < 0.25 else csv.QUOTE_MINIMAL
+            allow_jp = py_enc not in ("utf-8",) or rng.random() < 0.8
+            rows = make_rows(rng, allow_jp=allow_jp)
+            text = write_csv(rows, delim, quoting)
+            try:
+                data = text.encode(py_enc)
+            except UnicodeEncodeError:
+                continue
+            stats["cases"] += 1
+
+            # --- ブラウザ側に読ませる ---
+            got = page.evaluate(
+                """([bytes, delim]) => {
+                     const r = window.__csvTool.loadBytes(bytes);
+                     const p = window.__csvTool.parseCSV(r.text, delim);
+                     const s = window.__csvTool.sniffDelimiter(r.text);
+                     return { enc: r.enc, text: r.text, rows: p.rows,
+                              errors: p.errors, delim: s.best.d };
+                   }""",
+                [list(data), delim])
+
+            # 1. 文字コードの判定
+            ascii_only = all(b < 0x80 for b in data)
+            if ascii_only:
+                stats["enc_ascii"] += 1
+            elif got["enc"] != want_enc:
+                stats["enc_ng"] += 1
+                failures.append("enc: 期待 %s → %s (py=%s, %d bytes)"
+                                % (want_enc, got["enc"], py_enc, len(data)))
+
+            # 2. 解析(セル単位)
+            grows = got["rows"]
+            while grows and grows[-1] == [""]:
+                grows.pop()                      # 末尾の改行でできる空行
+            if grows != rows:
+                stats["parse_ng"] += 1
+                if len(failures) < 40:
+                    failures.append("parse: delim=%r py=%s\n  期待 %r\n  実際 %r"
+                                    % (delim, py_enc, rows[:3], grows[:3]))
+            else:
+                stats["cells"] += sum(len(r) for r in rows)
+
+            # 3. 区切り文字の推定
+            #    1列しかない・全行1列になるデータでは区切りを当てようがないので数えない
+            if len(rows[0]) >= 2 and all(len(r) == len(rows[0]) for r in rows):
+                if got["delim"] != delim:
+                    stats["delim_ng"] += 1
+                    if len(failures) < 60:
+                        failures.append("delim: 期待 %r → %r" % (delim, got["delim"]))
+            else:
+                stats["delim_skip"] += 1
+
+            # 参照側の裏取り: Python 自身で書いて読み戻せることを確認しておく
+            if python_roundtrip(text, delim) != rows:
+                failures.append("参照側が壊れている(csv.reader で戻らない): %r" % (rows[:2],))
+
+        browser.close()
+
+    print("試した件数: %d / 一致したセル: %d" % (stats["cases"], stats["cells"]))
+    print("解析の不一致: %d" % stats["parse_ng"])
+    print("文字コードの誤判定: %d (ASCIIのみで判定不要だったもの: %d)"
+          % (stats["enc_ng"], stats["enc_ascii"]))
+    print("区切りの誤推定: %d (判定できない形なので除外: %d)"
+          % (stats["delim_ng"], stats["delim_skip"]))
+    for f in failures[:30]:
+        print("  ★ " + f)
+    ng = stats["parse_ng"] + stats["enc_ng"] + stats["delim_ng"]
+    return 1 if ng else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

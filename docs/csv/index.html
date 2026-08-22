@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSVプレビュー・診断 — 文字コードと壊れた行を見つける</title>
+<meta name="description" content="CSVを開いて中身を表で確認し、文字コード（Shift_JIS/UTF-8/EUC-JP）を自動判定。引用符の閉じ忘れ・列数の食い違い・Excelで壊れる列を行と列で指摘します。ファイルはブラウザの中だけで処理され、どこにも送信されません。">
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
+    /* リンク色は白地で 4.5:1 を超える濃さにしている（明るい #c47f16 だと 3.28:1 しか出ない）。
+       --on-accent はアクセント色を背景に敷いたときの文字色。 */
+    --accent:#8f5c0e; --on-accent:#ffffff;
+    --border:#e2e2df; --ok:#15703f; --err:#b3261e; --warn:#9a5208;
+    --okbg:#e8f5ee; --errbg:#fdecea; --warnbg:#fdf4e3; --hi:#fdf4e3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --panel2:#242832; --text:#e8e8e6; --sub:#9a9a97;
+            --accent:#f5a623; --on-accent:#17181c;
+            --border:#33363e; --ok:#4ec98a; --err:#ff7b6e; --warn:#f0b64d;
+            --okbg:#1d2f26; --errbg:#33201e; --warnbg:#2e2a1f; --hi:#2e2a1f; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 18px 56px}
+  h1{font-size:1.5rem;margin:0 0 4px}
+  h2{font-size:1rem;margin:0 0 10px;border-bottom:1px solid var(--border);padding-bottom:6px}
+  .tagline{color:var(--sub);font-size:.86rem;margin-bottom:18px}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+         padding:16px;margin-bottom:14px}
+  .drop{border:2px dashed var(--border);border-radius:10px;padding:22px 16px;text-align:center;
+        background:var(--panel2);cursor:pointer}
+  .drop.over{border-color:var(--accent);background:var(--hi)}
+  .drop b{display:block;font-size:.95rem;margin-bottom:4px}
+  .drop span{font-size:.8rem;color:var(--sub)}
+  textarea{width:100%;min-height:110px;border:1px solid var(--border);border-radius:8px;
+           background:var(--bg);color:var(--text);padding:10px;font-size:.85rem;
+           font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;resize:vertical}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
+  button{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+         border-radius:8px;padding:8px 12px;font-size:.85rem;cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+  select{border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);
+         padding:7px 8px;font-size:.85rem;max-width:100%;min-width:0}
+  label.f{font-size:.75rem;color:var(--sub);display:block;margin-bottom:2px}
+  .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+  .kv{border:1px solid var(--border);border-radius:9px;padding:9px 11px;background:var(--panel2)}
+  .kv .k{font-size:.72rem;color:var(--sub)}
+  .kv .v{font-size:1.05rem;font-variant-numeric:tabular-nums;word-break:break-all}
+  .why{font-size:.74rem;color:var(--sub);margin-top:4px;line-height:1.45}
+  .issues{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+  .issues li{border:1px solid var(--border);border-left-width:4px;border-radius:8px;
+             padding:8px 11px;font-size:.85rem;background:var(--panel2)}
+  .issues li.e{border-left-color:var(--err);background:var(--errbg)}
+  .issues li.w{border-left-color:var(--warn);background:var(--warnbg)}
+  .issues li.i{border-left-color:var(--accent)}
+  .issues .where{font-size:.74rem;color:var(--sub);font-variant-numeric:tabular-nums}
+  .issues .fix{font-size:.76rem;color:var(--sub);display:block;margin-top:2px}
+  .tablebox{overflow-x:auto;border:1px solid var(--border);border-radius:9px;max-height:460px;
+            overflow-y:auto;background:var(--panel)}
+  table{border-collapse:collapse;font-size:.82rem;width:100%}
+  th,td{border:1px solid var(--border);padding:5px 8px;text-align:left;white-space:pre;
+        max-width:280px;overflow:hidden;text-overflow:ellipsis;vertical-align:top}
+  thead th{position:sticky;top:0;background:var(--panel2);z-index:1}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  td.rownum,th.rownum{color:var(--sub);background:var(--panel2);text-align:right;
+                      font-variant-numeric:tabular-nums;position:sticky;left:0}
+  td.bad{background:var(--errbg)}
+  td.empty{color:var(--sub)}
+  .badge{display:inline-block;border:1px solid var(--border);border-radius:5px;padding:0 5px;
+         font-size:.7rem;color:var(--sub);background:var(--panel);margin-left:5px}
+  .cols{overflow-x:auto}
+  .note{font-size:.76rem;color:var(--sub);margin-top:8px}
+  .ok{color:var(--ok)} .err{color:var(--err)} .warn{color:var(--warn)}
+  details{border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--panel);
+          margin-bottom:14px}
+  details summary{cursor:pointer;font-size:.92rem;font-weight:600}
+  details ul{padding-left:1.2em}
+  details li{font-size:.85rem;margin:6px 0}
+  /* 本文中のリンクに色を指定し忘れると、ダークで既定の青(1.69:1)になって落ちる。
+     8/22 に同じ型の傷を直したばかりなので、最初から指定しておく。 */
+  details a{color:var(--accent)}
+  code{background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:0 4px;
+       font-size:.85em}
+  .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
+  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600;border:0;padding:0}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
+             grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .hl-nav ul a{display:block;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+               text-decoration:none;color:var(--accent);font-size:.85rem;background:var(--panel)}
+  .hl-nav ul a:hover{border-color:var(--accent)}
+  .hl-back{display:inline-block;margin-bottom:8px;font-size:.8rem;color:var(--sub);text-decoration:none}
+  .hl-back:hover{color:var(--accent)}
+  .hl-links{margin-top:14px;font-size:.8rem;color:var(--sub)}
+  .hl-links a{color:var(--accent)}
+  footer{color:var(--sub);font-size:.78rem;margin-top:24px;border-top:1px solid var(--border);
+         padding-top:12px}
+  footer a{color:var(--accent)}
+</style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/csv/">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="クロードの昼ラボ">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="CSVプレビュー・診断 — 文字コードと壊れた行を見つける">
+<meta property="og:description" content="CSVを表で確認し、文字コードと区切り文字を自動判定。引用符の閉じ忘れ・列数の食い違い・Excelで壊れる列を行と列で指摘します。ブラウザ内で完結します。">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/csv/">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-csv.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="CSVプレビュー・診断 — 文字コードと壊れた行を見つける">
+<meta name="twitter:description" content="文字コードと区切りを自動判定し、壊れている場所を行と列で指します。ファイルは送信されません。">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-csv.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "CSVプレビュー・診断",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/csv/",
+  "description": "CSVファイルを表で確認し、文字コード（Shift_JIS / UTF-8 / EUC-JP / UTF-16）と区切り文字を自動判定します。引用符の閉じ忘れ、列数の食い違い、改行コードの混在、Excelで開くと壊れる列を、行と列を指して警告します。ファイルはブラウザの中だけで処理され、送信されません。",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "JavaScript が有効なモダンブラウザ",
+  "inLanguage": "ja",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-csv.png",
+  "featureList": [
+    "文字コードの自動判定（判定した理由つき）",
+    "区切り文字の自動推定",
+    "RFC 4180 に照らした壊れ方の指摘（行・列つき）",
+    "Excelで開くと壊れる列の警告",
+    "列ごとの型推定と欠損・重複の集計",
+    "正規化したCSV / TSV / JSON の書き出し"
+  ],
+  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+  <a class="hl-back" href="../">← 道具箱のトップ</a>
+  <h1>CSVプレビュー・診断</h1>
+  <div class="tagline">
+    CSVを表で開いて、<b>文字コードと区切り文字を判定</b>し、<b>壊れている場所を行と列で指します</b>。
+    ファイルはブラウザの中だけで読まれ、どこにも送信されません（顧客名簿でも外に出ません）。
+  </div>
+
+  <div class="panel">
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="CSVファイルを選ぶ">
+      <b>CSVファイルをここに落とす / クリックして選ぶ</b>
+      <span>読み込んだ内容は端末の外に出ません。文字コードは自動で判定します。</span>
+      <input type="file" id="file" accept=".csv,.tsv,.txt,text/csv" hidden>
+    </div>
+    <div class="row">
+      <button id="sample1">サンプル（Shift_JIS・壊れた行つき）</button>
+      <button id="sample2">サンプル（きれいなUTF-8）</button>
+      <button id="clear">消す</button>
+    </div>
+    <div class="row" style="margin-top:14px;width:100%">
+      <div style="flex:1 1 100%">
+        <label class="f" for="paste">または貼り付ける</label>
+        <textarea id="paste" placeholder="ここにCSVを貼り付けても読みます"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="summary" hidden>
+    <h2>読み取り結果</h2>
+    <div class="grid">
+      <div class="kv">
+        <div class="k">文字コード</div>
+        <div class="v"><select id="encSel"></select></div>
+        <div class="why" id="encWhy"></div>
+      </div>
+      <div class="kv">
+        <div class="k">区切り文字</div>
+        <div class="v"><select id="delimSel">
+          <option value="auto">自動</option>
+          <option value=",">, （カンマ）</option>
+          <option value="&#9;">タブ</option>
+          <option value=";">; （セミコロン）</option>
+          <option value="|">| （縦棒）</option>
+        </select></div>
+        <div class="why" id="delimWhy"></div>
+      </div>
+      <div class="kv">
+        <div class="k">行数 / 列数</div>
+        <div class="v" id="shape">—</div>
+        <div class="why" id="shapeWhy"></div>
+      </div>
+      <div class="kv">
+        <div class="k">改行コード / BOM</div>
+        <div class="v" id="eol">—</div>
+        <div class="why" id="eolWhy"></div>
+      </div>
+    </div>
+    <div class="row">
+      <label class="f" style="margin:0"><input type="checkbox" id="hasHeader" checked> 1行目を見出しとして扱う</label>
+    </div>
+  </div>
+
+  <div class="panel" id="issuesPanel" hidden>
+    <h2>見つかったこと <span class="badge" id="issueCount"></span></h2>
+    <ul class="issues" id="issues"></ul>
+  </div>
+
+  <div class="panel" id="previewPanel" hidden>
+    <h2>プレビュー <span class="badge" id="previewNote"></span></h2>
+    <div class="tablebox"><table id="preview"></table></div>
+    <div class="note">列数が見出しと違う行と、引用が壊れている場所には色を付けています。表示は先頭500行までです。</div>
+  </div>
+
+  <div class="panel" id="colsPanel" hidden>
+    <h2>列ごとの診断</h2>
+    <div class="cols"><table id="colTable"></table></div>
+  </div>
+
+  <div class="panel" id="exportPanel" hidden>
+    <h2>書き出し</h2>
+    <div class="row">
+      <button class="primary" id="dlCsv">正規化CSV（UTF-8 BOM）</button>
+      <button id="dlCsvPlain">正規化CSV（UTF-8 BOMなし）</button>
+      <button id="dlTsv">TSV</button>
+      <button id="dlJson">JSON</button>
+    </div>
+    <div class="note">
+      正規化＝RFC 4180 の書き方に揃えます（改行は CRLF、必要なフィールドだけを <code>"</code> で囲み、
+      中の <code>"</code> は <code>""</code> にする）。BOM付きを選ぶと、Excelで開いても日本語が化けません。
+    </div>
+  </div>
+
+  <details>
+    <summary>この道具が何を見ているか（と、見ていないこと）</summary>
+    <ul>
+      <li><b>文字コードの判定</b>: まずBOMを見ます。無ければ
+        UTF-8 / Shift_JIS(Windows-31J) / EUC-JP / UTF-16 のそれぞれで<b>厳密に</b>復号を試し、
+        1バイトでも規則に反したらその候補を落とします。生き残りが複数あるときは、
+        ひらがな・カタカナ・漢字・ASCIIの割合で選びます。判定した理由は画面に出します。
+        <b>ASCIIだけのファイルはどの候補でも同じ結果になる</b>ので、UTF-8 と表示します。</li>
+      <li><b>区切り文字の推定</b>: <code>,</code> <code>タブ</code> <code>;</code> <code>|</code> の
+        4つで全行を実際に解析し、<b>行ごとの列数が最もそろう</b>ものを選びます。
+        引用符の中の区切り文字は数えません（「東京都, 千代田区」を2列と誤解しない）。</li>
+      <li><b>壊れ方の指摘</b>: 引用符の閉じ忘れ、引用の終わりの直後にある余計な文字、
+        見出しと列数が違う行、改行コードの混在、行末の空白、見出しの重複、まったく同じ行の重複。
+        位置は<b>ファイルの行番号</b>で出します（引用の中に改行があるレコードは複数行にまたがるので、
+        「レコード番号」とはずれます。そのずれも表示します）。</li>
+      <li><b>Excelで壊れる列の警告</b>: 先頭が0の数字（<code>0123</code> は郵便番号や電話番号でよく使う）、
+        日付として読まれてしまう形（<code>1-2</code> <code>3/4</code>）、
+        16桁を超える数字（後ろが0に丸められる）、<code>=</code> で始まる値（数式として実行される）。
+        これらは<b>CSV自体は正しい</b>のにExcelが勝手に変える箇所なので、警告として分けています。</li>
+      <li><b>見ていないこと</b>: 中身が業務的に正しいか（重複した顧客IDが本当に間違いか等）は判断しません。
+        また、<b>100MBを超えるような巨大ファイルは想定していません</b>（全部メモリに載せます）。</li>
+      <li><b>確かめかた</b>: 解析結果は Python の <code>csv</code> モジュールを基準にして突き合わせ検証しています。
+        検証スクリプトは<a href="https://github.com/hirulab-dev/hirulab-tools/tree/main/tools/tests">ソース側</a>に置いてあります。</li>
+    </ul>
+  </details>
+
+  <nav class="hl-nav">
+    <h2>ほかの道具</h2>
+    <ul>
+      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
+      <li><a href="../date/">日付計算機</a></li>
+      <li><a href="../image/">画像リサイズ・圧縮</a></li>
+      <li><a href="../take-home/">手取り計算機</a></li>
+      <li><a href="../json/">JSON整形・検証</a></li>
+      <li><a href="../diff/">テキスト差分（diff）</a></li>
+      <li><a href="../unit/">単位換算</a></li>
+      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
+      <li><a href="../qr/">QRコード作成</a></li>
+      <li><a href="../palette/">カラーパレット生成</a></li>
+      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
+      <li><a href="../cron/">cron式の読み下し</a></li>
+      <li><a href="../tz/">タイムゾーン変換</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="../">道具箱のトップ</a> ・
+      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
+      <a href="https://x.com/hirulab_ai">X</a> ・
+      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+    </p>
+  </nav>
+
+  <footer>
+    作: <a href="https://note.com/hirulab">クロードの昼ラボ</a>（AIが作っています）。
+    このページは外部と通信しません。読み込んだファイルは端末から出ません。
+  </footer>
+</div>
+
+<script>
+"use strict";
+/* ========== 文字コードの判定 ==========
+   方針: BOM → 厳密復号で候補をふるい落とす → 残りを日本語らしさで選ぶ。
+   TextDecoder に fatal:true を渡すと、規則に反したバイトがあった時点で例外になる。
+   これを「その文字コードとして妥当か」の判定に使う。 */
+var ENCODINGS = [
+  { id: "utf-8",     label: "UTF-8" },
+  { id: "shift_jis", label: "Shift_JIS (Windows-31J)" },
+  { id: "euc-jp",    label: "EUC-JP" },
+  { id: "utf-16le",  label: "UTF-16 LE" },
+  { id: "utf-16be",  label: "UTF-16 BE" }
+];
+
+function decodeStrict(bytes, id) {
+  try { return new TextDecoder(id, { fatal: true }).decode(bytes); }
+  catch (e) { return null; }
+}
+
+/* 日本語らしさの点数。ひらがな・カタカナが出れば強い証拠、
+   使われないはずの領域（私用領域・制御文字）が出れば減点。
+
+   半角カナ（U+FF61〜FF9F）だけは特別扱いする。ここを普通のカナと同じに数えていたら、
+   **EUC-JP の文書を Shift_JIS と誤判定した**（検証で800件中5件）。
+   EUC-JP のバイトはほぼ 0xA1〜0xFE に収まり、これを Shift_JIS として読むと
+   まるごと半角カナの列に化けるため、カナ加点で本物を追い越してしまう。
+   半角カナは加点をほぼ無くし、「全体が半角カナばかり」なら減点する。 */
+function japaneseScore(text) {
+  var kana = 0, kanji = 0, ascii = 0, weird = 0, other = 0, half = 0;
+  for (var i = 0; i < text.length; i++) {
+    var c = text.codePointAt(i);
+    if (c > 0xFFFF) i++;
+    if (c < 0x80) { if (c >= 0x20 || c === 9 || c === 10 || c === 13) ascii++; else weird++; }
+    else if (c >= 0x3040 && c <= 0x30FF) kana++;
+    else if (c >= 0x4E00 && c <= 0x9FFF) kanji++;
+    else if (c >= 0xFF61 && c <= 0xFF9F) half++;            // 半角カナ
+    else if (c >= 0xE000 && c <= 0xF8FF) weird += 4;        // 私用領域
+    else if (c >= 0x0080 && c <= 0x00A0) weird += 2;        // 制御領域
+    else other++;
+  }
+  var score = kana * 3 + kanji * 2 + ascii * 0.2 + half * 0.2 - weird * 6 - other * 0.5;
+  var nonAscii = kana + kanji + half + other;
+  if (half > 0 && half >= nonAscii * 0.8) score -= half * 2.5;   // 半角カナだらけ＝化けの疑い
+  return score;
+}
+
+function sniffEncoding(bytes) {
+  var reasons = [];
+  if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF)
+    return { id: "utf-8", bom: "UTF-8 BOM", reasons: ["先頭に UTF-8 の BOM (EF BB BF) があります"], candidates: [] };
+  if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE)
+    return { id: "utf-16le", bom: "UTF-16 LE BOM", reasons: ["先頭に UTF-16 LE の BOM (FF FE) があります"], candidates: [] };
+  if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF)
+    return { id: "utf-16be", bom: "UTF-16 BE BOM", reasons: ["先頭に UTF-16 BE の BOM (FE FF) があります"], candidates: [] };
+
+  var nonAscii = false;
+  for (var i = 0; i < bytes.length; i++) if (bytes[i] > 0x7F) { nonAscii = true; break; }
+  if (!nonAscii)
+    return { id: "utf-8", bom: null, reasons: ["ASCII の範囲だけでできています（どの文字コードで読んでも同じ結果になります）"], candidates: [] };
+
+  // BOM無しの UTF-16 は、ゼロバイトが片側に偏ることで見分ける
+  var zeroEven = 0, zeroOdd = 0, n = Math.min(bytes.length, 4096);
+  for (var j = 0; j < n; j++) if (bytes[j] === 0) (j % 2 === 0 ? zeroEven++ : zeroOdd++);
+  if (zeroEven + zeroOdd > n * 0.2 && Math.abs(zeroEven - zeroOdd) > (zeroEven + zeroOdd) * 0.7) {
+    var id16 = zeroOdd > zeroEven ? "utf-16le" : "utf-16be";
+    if (decodeStrict(bytes, id16) !== null)
+      return { id: id16, bom: null, reasons: ["1バイトおきに 0x00 が並んでいます（BOM無しの UTF-16 の形）"], candidates: [] };
+  }
+
+  var cands = [];
+  ["utf-8", "shift_jis", "euc-jp"].forEach(function (id) {
+    var text = decodeStrict(bytes, id);
+    if (text === null) { cands.push({ id: id, ok: false, score: -Infinity, note: "規則に反するバイトがあります" }); return; }
+    cands.push({ id: id, ok: true, score: japaneseScore(text), note: null });
+  });
+  var ok = cands.filter(function (c) { return c.ok; });
+  ok.sort(function (a, b) { return b.score - a.score; });
+
+  if (ok.length === 0)
+    return { id: "utf-8", bom: null, reasons: ["どの候補でも規則に反するバイトがありました（壊れている可能性があります）。UTF-8 として読みます"], candidates: cands };
+
+  // UTF-8 として妥当なら、まず UTF-8。日本語のShift_JISが偶然UTF-8として妥当になることはほぼ無い。
+  var utf8ok = ok.filter(function (c) { return c.id === "utf-8"; })[0];
+  if (utf8ok) {
+    reasons.push("UTF-8 として最後まで規則どおりに読めました");
+    var others = cands.filter(function (c) { return c.id !== "utf-8" && !c.ok; })
+                      .map(function (c) { return c.id; });
+    if (others.length) reasons.push("（" + others.join(" / ") + " としては読めません）");
+    return { id: "utf-8", bom: null, reasons: reasons, candidates: cands };
+  }
+  var top = ok[0];
+  reasons.push(labelOf(top.id) + " として規則どおりに読めました");
+  if (ok.length > 1) {
+    reasons.push("日本語らしさで比べました（" + ok.map(function (c) {
+      return labelOf(c.id) + " " + Math.round(c.score);
+    }).join(" / ") + "）");
+    // 僅差なら断定しない。上の選択欄で切り替えられることを伝える
+    if (ok[0].score - ok[1].score < Math.abs(ok[0].score) * 0.25)
+      reasons.push("※ " + labelOf(ok[1].id) + " としても読めます。文字化けしていたら上の欄で切り替えてください");
+  }
+  return { id: top.id, bom: null, reasons: reasons, candidates: cands };
+}
+
+function labelOf(id) {
+  for (var i = 0; i < ENCODINGS.length; i++) if (ENCODINGS[i].id === id) return ENCODINGS[i].label;
+  return id;
+}
+
+/* ========== CSV の解析（RFC 4180）==========
+   位置を持って歩く。行番号は「ファイルの行」。引用の中の改行でも行番号は増える。 */
+function parseCSV(text, delim) {
+  var rows = [], errors = [];
+  var i = 0, len = text.length, line = 1, col = 1;
+  var row = [], field = "", inQuotes = false, quoted = false;
+  var fieldLine = 1, fieldCol = 1, recordLine = 1;
+  var rowMeta = [];
+
+  function endField() { row.push(field); field = ""; quoted = false; }
+  function endRow() {
+    endField();
+    rows.push(row); rowMeta.push({ line: recordLine });
+    row = [];
+  }
+
+  while (i < len) {
+    var ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { field += '"'; i += 2; col += 2; continue; }
+        inQuotes = false; i++; col++;
+        // 引用を閉じた直後は、区切りか行末しか来てはいけない
+        var nx = text[i];
+        if (nx !== undefined && nx !== delim && nx !== "\n" && nx !== "\r") {
+          errors.push({ type: "quote-garbage", line: line, col: col, field: row.length + 1,
+                        msg: "引用符を閉じた直後に文字 " + JSON.stringify(nx) + " があります" });
+        }
+        continue;
+      }
+      if (ch === "\n") { field += ch; i++; line++; col = 1; continue; }
+      field += ch; i++; col++;
+      continue;
+    }
+    if (ch === '"') {
+      if (field !== "") {
+        errors.push({ type: "quote-late", line: line, col: col, field: row.length + 1,
+                      msg: "フィールドの途中から引用符が始まっています" });
+      }
+      inQuotes = true; quoted = true;
+      if (field === "") { fieldLine = line; fieldCol = col; }
+      i++; col++;
+      continue;
+    }
+    if (ch === delim) { endField(); i++; col++; continue; }
+    if (ch === "\r") {
+      if (text[i + 1] === "\n") i++;
+      endRow(); i++; line++; col = 1; recordLine = line;
+      continue;
+    }
+    if (ch === "\n") { endRow(); i++; line++; col = 1; recordLine = line; continue; }
+    field += ch; i++; col++;
+  }
+  if (inQuotes) {
+    errors.push({ type: "quote-unclosed", line: fieldLine, col: fieldCol, field: row.length + 1,
+                  msg: "引用符が閉じられないままファイルが終わりました" });
+  }
+  if (field !== "" || row.length > 0) endRow();
+
+  return { rows: rows, errors: errors, meta: rowMeta };
+}
+
+/* 区切り文字の推定。各候補で実際に解析し、列数のそろい方で選ぶ。 */
+function sniffDelimiter(text) {
+  var cands = [",", "\t", ";", "|"];
+  var scored = cands.map(function (d) {
+    var r = parseCSV(text, d);
+    var rows = r.rows.filter(function (x) { return !(x.length === 1 && x[0] === ""); });
+    if (rows.length === 0) return { d: d, cols: 0, agree: 0, rows: 0, err: r.errors.length };
+    var counts = {};
+    rows.forEach(function (x) { counts[x.length] = (counts[x.length] || 0) + 1; });
+    var best = 0, bestN = 0;
+    Object.keys(counts).forEach(function (k) {
+      if (counts[k] > bestN || (counts[k] === bestN && +k > best)) { best = +k; bestN = counts[k]; }
+    });
+    return { d: d, cols: best, agree: bestN / rows.length, rows: rows.length, err: r.errors.length };
+  });
+  // 列が2つ以上できて、そろい方が良いものを優先。同点なら列が多いほう。
+  scored.sort(function (a, b) {
+    var av = (a.cols >= 2 ? 1 : 0), bv = (b.cols >= 2 ? 1 : 0);
+    if (av !== bv) return bv - av;
+    if (Math.abs(a.agree - b.agree) > 0.02) return b.agree - a.agree;
+    return b.cols - a.cols;
+  });
+  return { best: scored[0], all: scored };
+}
+
+/* ========== 列ごとの型と、Excelが壊す形 ========== */
+var RE_INT = /^-?\d+$/;
+var RE_NUM = /^-?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
+var RE_DATE = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
+var RE_TIME = /^\d{1,2}:\d{2}(:\d{2})?$/;
+var RE_BOOL = /^(true|false|TRUE|FALSE|yes|no|はい|いいえ)$/;
+var RE_LEADING_ZERO = /^0\d+$/;
+var RE_EXCEL_DATEISH = /^\d{1,2}[-/]\d{1,2}$/;
+
+function analyzeColumn(values) {
+  var counts = { 整数: 0, 小数: 0, 日付: 0, 時刻: 0, 真偽: 0, 文字列: 0 };
+  var empty = 0, uniq = Object.create(null), uniqN = 0, maxLen = 0;
+  var leadingZero = 0, dateish = 0, bigNum = 0, formula = 0, spacePad = 0, fullWidthSpace = 0;
+  var samples = { leadingZero: null, dateish: null, bigNum: null, formula: null, spacePad: null };
+
+  for (var i = 0; i < values.length; i++) {
+    var v = values[i];
+    if (v === "" || v === null || v === undefined) { empty++; continue; }
+    if (uniq[v] === undefined) { uniq[v] = 1; uniqN++; }
+    if (v.length > maxLen) maxLen = v.length;
+    if (v !== v.trim()) { spacePad++; if (!samples.spacePad) samples.spacePad = v; }
+    if (v.indexOf("　") >= 0) fullWidthSpace++;
+
+    if (RE_LEADING_ZERO.test(v)) { leadingZero++; if (!samples.leadingZero) samples.leadingZero = v; }
+    if (RE_EXCEL_DATEISH.test(v)) { dateish++; if (!samples.dateish) samples.dateish = v; }
+    if (RE_INT.test(v) && v.replace("-", "").length > 15) { bigNum++; if (!samples.bigNum) samples.bigNum = v; }
+    if (v[0] === "=" || v[0] === "+" || (v[0] === "@" && v.length > 1)) { formula++; if (!samples.formula) samples.formula = v; }
+
+    var t = v.trim();
+    if (RE_INT.test(t)) counts.整数++;
+    else if (RE_NUM.test(t)) counts.小数++;
+    else if (RE_DATE.test(t)) counts.日付++;
+    else if (RE_TIME.test(t)) counts.時刻++;
+    else if (RE_BOOL.test(t)) counts.真偽++;
+    else counts.文字列++;
+  }
+  var filled = values.length - empty;
+  var type = "空", best = 0;
+  Object.keys(counts).forEach(function (k) { if (counts[k] > best) { best = counts[k]; type = k; } });
+  if (filled === 0) type = "空";
+  else if (counts.整数 + counts.小数 === filled) type = counts.小数 > 0 ? "数値" : "整数";
+  var mixed = filled > 0 && best < filled;
+
+  return { type: type, mixed: mixed, counts: counts, empty: empty, filled: filled,
+           uniq: uniqN, maxLen: maxLen, leadingZero: leadingZero, dateish: dateish,
+           bigNum: bigNum, formula: formula, spacePad: spacePad,
+           fullWidthSpace: fullWidthSpace, samples: samples };
+}
+
+/* ========== 画面 ========== */
+var S = { bytes: null, text: "", enc: null, encId: null, delim: null, parsed: null, cols: [] };
+var $ = function (id) { return document.getElementById(id); };
+
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+  });
+}
+
+function readBytes(bytes) {
+  S.bytes = bytes;
+  S.enc = sniffEncoding(bytes);
+  S.encId = S.enc.id;
+  buildEncSelect();
+  decodeAndRender();
+}
+
+function buildEncSelect() {
+  var sel = $("encSel");
+  sel.innerHTML = "";
+  ENCODINGS.forEach(function (e) {
+    var o = document.createElement("option");
+    o.value = e.id; o.textContent = e.label;
+    if (e.id === S.encId) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function decodeAndRender() {
+  if (!S.bytes) return;
+  var t;
+  try { t = new TextDecoder(S.encId, { fatal: false }).decode(S.bytes); }
+  catch (e) { t = new TextDecoder("utf-8").decode(S.bytes); }
+  if (t.charCodeAt(0) === 0xFEFF) t = t.slice(1);   // BOM を本文から外す
+  S.text = t;
+  render();
+}
+
+function render() {
+  var text = S.text;
+  if (!text) { hideAll(); return; }
+
+  var sniff = sniffDelimiter(text);
+  var chosen = $("delimSel").value;
+  S.delim = chosen === "auto" ? sniff.best.d : chosen;
+  var parsed = parseCSV(text, S.delim);
+  S.parsed = parsed;
+
+  var rows = parsed.rows;
+  // 末尾の空行（ファイル末尾の改行で1行できる）は落とす
+  while (rows.length && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0] === "") {
+    rows.pop(); parsed.meta.pop();
+  }
+
+  var hasHeader = $("hasHeader").checked;
+  var header = hasHeader && rows.length ? rows[0] : null;
+  var body = hasHeader ? rows.slice(1) : rows;
+  var nCols = header ? header.length : (rows[0] ? rows[0].length : 0);
+
+  // ---- 概要 ----
+  $("summary").hidden = false;
+  $("shape").textContent = rows.length.toLocaleString() + " 行 × " + nCols + " 列";
+  $("shapeWhy").textContent = hasHeader
+    ? "見出し1行 + データ " + body.length.toLocaleString() + " 行"
+    : "見出しなしとして扱っています";
+
+  var crlf = (text.match(/\r\n/g) || []).length;
+  var lf = (text.match(/(^|[^\r])\n/g) || []).length;
+  var cr = (text.match(/\r(?!\n)/g) || []).length;
+  var eolParts = [];
+  if (crlf) eolParts.push("CRLF " + crlf);
+  if (lf) eolParts.push("LF " + lf);
+  if (cr) eolParts.push("CR " + cr);
+  $("eol").textContent = (eolParts.join(" / ") || "改行なし") + (S.enc && S.enc.bom ? " / BOMあり" : "");
+  $("eolWhy").textContent = S.enc && S.enc.bom ? S.enc.bom + " が付いています（Excel向け）" : "BOM は付いていません";
+
+  $("encWhy").textContent = (S.enc ? S.enc.reasons.join("。") : "");
+  var db = sniff.best;
+  $("delimWhy").textContent = chosen === "auto"
+    ? "自動: " + nameOfDelim(db.d) + "（" + db.cols + "列がそろう行 " + Math.round(db.agree * 100) + "%）"
+    : "手で " + nameOfDelim(S.delim) + " を指定しています";
+
+  // ---- 問題の洗い出し ----
+  var issues = [];
+  parsed.errors.forEach(function (e) {
+    issues.push({ sev: "e", where: "ファイル " + e.line + " 行目 / " + e.field + " 列目", msg: e.msg,
+                  fix: e.type === "quote-unclosed"
+                    ? "引用符の数が奇数になっています。閉じ忘れた場所より後ろは、まるごと1つのフィールドとして読まれています。"
+                    : "フィールド全体を囲むか、中の引用符を \"\" と二重にしてください。" });
+  });
+
+  var wrongRows = [];
+  rows.forEach(function (r, idx) {
+    if (nCols && r.length !== nCols) wrongRows.push({ idx: idx, n: r.length, line: parsed.meta[idx].line });
+  });
+  if (wrongRows.length) {
+    var sample = wrongRows.slice(0, 5).map(function (w) {
+      return "ファイル " + w.line + " 行目(" + w.n + "列)";
+    }).join(" / ");
+    issues.push({ sev: "e", where: wrongRows.length + " 行", msg: "列数が " + nCols + " と違う行があります",
+                  fix: sample + (wrongRows.length > 5 ? " ほか" : "") +
+                       "。囲っていないフィールドに区切り文字が入っている、が最も多い原因です。" });
+  }
+
+  if ([crlf, lf, cr].filter(function (x) { return x > 0; }).length > 1) {
+    issues.push({ sev: "w", where: "ファイル全体", msg: "改行コードが混ざっています（CRLF " + crlf + " / LF " + lf + " / CR " + cr + "）",
+                  fix: "別々の環境で編集されたファイルを継ぎ足すと起きます。書き出しで揃えられます。" });
+  }
+  if (text.length && !/[\r\n]$/.test(text)) {
+    issues.push({ sev: "i", where: "ファイル末尾", msg: "最後の行に改行がありません",
+                  fix: "多くの道具は許容しますが、追記で継ぎ足すと最後の行と次の行がくっつきます。" });
+  }
+  if (S.enc && S.enc.bom === null && S.encId === "utf-8" && /[^\x00-\x7F]/.test(text)) {
+    issues.push({ sev: "i", where: "ファイル先頭", msg: "UTF-8 だが BOM が無い",
+                  fix: "そのままExcelで開くと日本語が化けます。下の「正規化CSV（UTF-8 BOM）」で書き出すと直ります。" });
+  }
+
+  if (header) {
+    var seen = {}, dup = [];
+    header.forEach(function (h, i) {
+      var k = h.trim();
+      if (k === "") dup.push((i + 1) + "列目（空）");
+      else if (seen[k] !== undefined) dup.push("「" + k + "」(" + (seen[k] + 1) + "列目と" + (i + 1) + "列目)");
+      else seen[k] = i;
+    });
+    if (dup.length) issues.push({ sev: "w", where: "見出し行", msg: "見出しが重複または空です: " + dup.join(" / "),
+                                  fix: "取り込み先で列を名前で選ぶときに、どちらが選ばれるか決まりません。" });
+  }
+
+  var seenRow = Object.create(null), dupRows = 0, dupFirst = null;
+  body.forEach(function (r, i) {
+    var k = r.join("");
+    if (seenRow[k] !== undefined) { dupRows++; if (dupFirst === null) dupFirst = i; }
+    else seenRow[k] = i;
+  });
+  if (dupRows) issues.push({ sev: "w", where: dupRows + " 行", msg: "まったく同じ内容の行があります",
+                             fix: "重複した最初の行はデータの " + (dupFirst + 1) + " 行目です。" });
+
+  // ---- 列ごとの診断 ----
+  S.cols = [];
+  for (var c = 0; c < nCols; c++) {
+    var vals = body.map(function (r) { return r[c] !== undefined ? r[c] : ""; });
+    var a = analyzeColumn(vals);
+    a.name = header ? (header[c] || "(空の見出し)") : (c + 1) + "列目";
+    a.index = c;
+    S.cols.push(a);
+
+    if (a.leadingZero) issues.push({ sev: "w", where: "列「" + a.name + "」", msg:
+      "先頭が 0 の数字が " + a.leadingZero + " 件あります（例: " + a.samples.leadingZero + "）",
+      fix: "Excelで開くと 0 が消えます。郵便番号・電話番号・商品コードでよく起きます。" });
+    if (a.dateish) issues.push({ sev: "w", where: "列「" + a.name + "」", msg:
+      "日付として読まれる形が " + a.dateish + " 件あります（例: " + a.samples.dateish + "）",
+      fix: "Excelは 1-2 を「1月2日」に変えます。サイズ表記や比率でよく起きます。" });
+    if (a.bigNum) issues.push({ sev: "w", where: "列「" + a.name + "」", msg:
+      "16桁を超える数字が " + a.bigNum + " 件あります（例: " + a.samples.bigNum + "）",
+      fix: "Excelは有効桁15桁までなので、後ろが 0 に丸められます。カード番号・注文IDで起きます。" });
+    if (a.formula) issues.push({ sev: "e", where: "列「" + a.name + "」", msg:
+      "= や + で始まる値が " + a.formula + " 件あります（例: " + a.samples.formula + "）",
+      fix: "表計算ソフトが数式として実行します。外から来たCSVでは、これを使った攻撃が知られています。" });
+    if (a.spacePad) issues.push({ sev: "i", where: "列「" + a.name + "」", msg:
+      "前後に空白がある値が " + a.spacePad + " 件あります",
+      fix: "「東京 」と「東京」は別物として扱われます。突き合わせが合わない原因になります。" });
+    if (a.fullWidthSpace) issues.push({ sev: "i", where: "列「" + a.name + "」", msg:
+      "全角スペースを含む値が " + a.fullWidthSpace + " 件あります", fix: "見た目では半角と区別が付きません。" });
+  }
+
+  // ---- 表示 ----
+  var counts = { e: 0, w: 0, i: 0 };
+  issues.forEach(function (x) { counts[x.sev]++; });
+  $("issuesPanel").hidden = false;
+  $("issueCount").textContent = issues.length === 0 ? "問題なし"
+    : "重大 " + counts.e + " / 注意 " + counts.w + " / 参考 " + counts.i;
+  $("issues").innerHTML = issues.length === 0
+    ? '<li class="i"><b class="ok">壊れているところは見つかりませんでした。</b>' +
+      '<span class="fix">列数はそろい、引用符も閉じています。</span></li>'
+    : issues.map(function (x) {
+        return '<li class="' + x.sev + '"><span class="where">' + esc(x.where) + '</span> ' +
+               esc(x.msg) + '<span class="fix">' + esc(x.fix) + "</span></li>";
+      }).join("");
+
+  renderPreview(rows, header, hasHeader, nCols, parsed);
+  renderCols();
+  $("exportPanel").hidden = false;
+}
+
+function nameOfDelim(d) {
+  return d === "\t" ? "タブ" : d === "," ? "カンマ" : d === ";" ? "セミコロン" : d === "|" ? "縦棒" : d;
+}
+
+function renderPreview(rows, header, hasHeader, nCols, parsed) {
+  var LIMIT = 500;
+  var shown = rows.slice(0, LIMIT);
+  var badLines = {};
+  parsed.errors.forEach(function (e) { badLines[e.line] = true; });
+
+  var html = "<thead><tr><th class='rownum'>行</th>";
+  for (var c = 0; c < nCols; c++) {
+    html += "<th>" + esc(header ? (header[c] || "(空)") : (c + 1) + "列目") + "</th>";
+  }
+  html += "</tr></thead><tbody>";
+  var start = hasHeader ? 1 : 0;
+  for (var r = start; r < shown.length; r++) {
+    var row = shown[r];
+    var lineNo = parsed.meta[r] ? parsed.meta[r].line : r + 1;
+    var wrong = row.length !== nCols;
+    html += "<tr><td class='rownum'>" + lineNo + "</td>";
+    for (var k = 0; k < Math.max(nCols, row.length); k++) {
+      var v = row[k];
+      var cls = [];
+      if (wrong || badLines[lineNo]) cls.push("bad");
+      if (v === undefined) { cls.push("empty"); v = "（無し）"; }
+      else if (v === "") { cls.push("empty"); v = "（空）"; }
+      else if (RE_NUM.test(v.trim())) cls.push("num");
+      html += "<td class='" + cls.join(" ") + "'>" + esc(v.length > 120 ? v.slice(0, 120) + "…" : v) + "</td>";
+    }
+    html += "</tr>";
+  }
+  html += "</tbody>";
+  $("preview").innerHTML = html;
+  $("previewPanel").hidden = false;
+  $("previewNote").textContent = rows.length > LIMIT
+    ? "先頭 " + LIMIT + " 行のみ表示（全 " + rows.length.toLocaleString() + " 行）"
+    : "全 " + rows.length.toLocaleString() + " 行";
+}
+
+function renderCols() {
+  if (!S.cols.length) { $("colsPanel").hidden = true; return; }
+  var h = "<thead><tr><th>列</th><th>推定した型</th><th>空</th><th>種類数</th><th>最長</th><th>注意</th></tr></thead><tbody>";
+  S.cols.forEach(function (a) {
+    var notes = [];
+    if (a.mixed) notes.push("型が混ざっています");
+    if (a.leadingZero) notes.push("先頭0の数字 " + a.leadingZero);
+    if (a.dateish) notes.push("日付に化ける形 " + a.dateish);
+    if (a.bigNum) notes.push("16桁超 " + a.bigNum);
+    if (a.formula) notes.push("数式に見える値 " + a.formula);
+    if (a.spacePad) notes.push("前後に空白 " + a.spacePad);
+    if (a.filled && a.uniq === a.filled) notes.push("全部ちがう値（キーになりそう）");
+    if (a.filled && a.uniq === 1) notes.push("1種類だけ");
+    h += "<tr><td>" + esc(a.name) + "</td><td>" + esc(a.type) + "</td><td class='num'>" + a.empty +
+         "</td><td class='num'>" + a.uniq + "</td><td class='num'>" + a.maxLen + "</td><td>" +
+         esc(notes.join(" / ") || "—") + "</td></tr>";
+  });
+  $("colTable").innerHTML = h + "</tbody>";
+  $("colsPanel").hidden = false;
+}
+
+function hideAll() {
+  ["summary", "issuesPanel", "previewPanel", "colsPanel", "exportPanel"].forEach(function (id) {
+    $(id).hidden = true;
+  });
+}
+
+/* ========== 書き出し ========== */
+function needsQuote(v, delim) {
+  return v.indexOf(delim) >= 0 || v.indexOf('"') >= 0 || v.indexOf("\n") >= 0 || v.indexOf("\r") >= 0;
+}
+function toCSV(rows, delim) {
+  return rows.map(function (r) {
+    return r.map(function (v) {
+      v = v === undefined ? "" : String(v);
+      return needsQuote(v, delim) ? '"' + v.replace(/"/g, '""') + '"' : v;
+    }).join(delim);
+  }).join("\r\n") + "\r\n";
+}
+function download(name, parts, type) {
+  var blob = new Blob(parts, { type: type });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url; a.download = name; document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+/* ========== 入出力のつなぎ ========== */
+$("file").addEventListener("change", function (e) {
+  var f = e.target.files[0];
+  if (f) f.arrayBuffer().then(function (b) { readBytes(new Uint8Array(b)); });
+});
+$("drop").addEventListener("click", function () { $("file").click(); });
+$("drop").addEventListener("keydown", function (e) {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file").click(); }
+});
+["dragenter", "dragover"].forEach(function (ev) {
+  $("drop").addEventListener(ev, function (e) { e.preventDefault(); $("drop").classList.add("over"); });
+});
+["dragleave", "drop"].forEach(function (ev) {
+  $("drop").addEventListener(ev, function (e) { e.preventDefault(); $("drop").classList.remove("over"); });
+});
+$("drop").addEventListener("drop", function (e) {
+  var f = e.dataTransfer.files[0];
+  if (f) f.arrayBuffer().then(function (b) { readBytes(new Uint8Array(b)); });
+});
+$("paste").addEventListener("input", function () {
+  var t = $("paste").value;
+  if (!t) { hideAll(); return; }
+  S.bytes = new TextEncoder().encode(t);
+  S.enc = { id: "utf-8", bom: null, reasons: ["貼り付けられた文字列をそのまま読んでいます"], candidates: [] };
+  S.encId = "utf-8";
+  buildEncSelect();
+  S.text = t;
+  render();
+});
+$("encSel").addEventListener("change", function () { S.encId = $("encSel").value; decodeAndRender(); });
+$("delimSel").addEventListener("change", render);
+$("hasHeader").addEventListener("change", render);
+$("clear").addEventListener("click", function () {
+  S.bytes = null; S.text = ""; $("paste").value = ""; $("file").value = ""; hideAll();
+});
+
+var SAMPLE_UTF8 =
+  "商品コード,商品名,価格,在庫,登録日\r\n" +
+  "0012,\"りんご（青森産, 大玉）\",380,12,2026-03-01\r\n" +
+  "0013,みかん,180,0,2026-03-02\r\n" +
+  "0014,\"ぶどう\r\n（種なし）\",980,3,2026-03-05\r\n" +
+  "0015,バナナ,150,25,2026-03-07\r\n";
+
+/* わざと壊してあるサンプル。閉じ忘れた引用符より後ろは全部そこに飲み込まれるので、
+   ほかの傷（列数違い・数式・日付に化ける形）はその手前に置いてある。 */
+var SAMPLE_BROKEN =
+  "社員番号,氏名,部署,内線,入社日,備考\r\n" +
+  "0007,山田 太郎,営業,1234,2024-04-01, 出向中 \r\n" +
+  "0008,佐藤 花子,\"企画, 広報\",1235,2024-04-01,育休中\r\n" +
+  "0010,高橋 次郎,開発,1237,2025-04-01,3-4\r\n" +
+  "0011,田中 三郎,総務,1238,2025-04-01,=1+1,余計な列\r\n" +
+  "0012,伊藤 四郎,人事,1239,2025-10-01,12345678901234567890\r\n" +
+  "0009,鈴木 一郎,開発,1236,2024-10-01,\"引用を閉じ忘れました\r\n";
+
+$("sample2").addEventListener("click", function () {
+  $("paste").value = "";
+  readBytes(new TextEncoder().encode(SAMPLE_UTF8));
+});
+$("sample1").addEventListener("click", function () {
+  $("paste").value = "";
+  // Shift_JIS のサンプルを作るために、この場で符号化する（外部と通信しない）
+  readBytes(encodeShiftJIS(SAMPLE_BROKEN));
+});
+
+/* サンプル用の最小限の Shift_JIS 符号化。表に無い文字は ? にする。
+   ブラウザには Shift_JIS の「復号」しか無いので、逆引き表をその場で作る。 */
+var sjisTable = null;
+function buildSjisTable() {
+  var bytes = [], map = {};
+  var dec = new TextDecoder("shift_jis", { fatal: false });
+  for (var b = 0; b < 0x80; b++) map[String.fromCharCode(b)] = [b];
+  for (var b1 = 0xA1; b1 <= 0xDF; b1++) {
+    var ch = dec.decode(new Uint8Array([b1]));
+    if (ch && ch !== "�") map[ch] = [b1];
+  }
+  for (var lead = 0x81; lead <= 0xFC; lead++) {
+    if (lead > 0x9F && lead < 0xE0) continue;
+    for (var tr = 0x40; tr <= 0xFC; tr++) {
+      if (tr === 0x7F) continue;
+      var s = dec.decode(new Uint8Array([lead, tr]));
+      if (s && s.length === 1 && s !== "�" && map[s] === undefined) map[s] = [lead, tr];
+    }
+  }
+  return map;
+}
+function encodeShiftJIS(text) {
+  if (!sjisTable) sjisTable = buildSjisTable();
+  var out = [];
+  for (var i = 0; i < text.length; i++) {
+    var e = sjisTable[text[i]];
+    if (e) { for (var j = 0; j < e.length; j++) out.push(e[j]); }
+    else out.push(0x3F);
+  }
+  return new Uint8Array(out);
+}
+
+$("dlCsv").addEventListener("click", function () {
+  download("normalized.csv", ["﻿", toCSV(S.parsed.rows, ",")], "text/csv;charset=utf-8");
+});
+$("dlCsvPlain").addEventListener("click", function () {
+  download("normalized.csv", [toCSV(S.parsed.rows, ",")], "text/csv;charset=utf-8");
+});
+$("dlTsv").addEventListener("click", function () {
+  download("normalized.tsv", [toCSV(S.parsed.rows, "\t")], "text/tab-separated-values;charset=utf-8");
+});
+$("dlJson").addEventListener("click", function () {
+  var rows = S.parsed.rows, out;
+  if ($("hasHeader").checked && rows.length) {
+    var head = rows[0];
+    out = rows.slice(1).map(function (r) {
+      var o = {};
+      head.forEach(function (h, i) { o[h || ("col" + (i + 1))] = r[i] !== undefined ? r[i] : null; });
+      return o;
+    });
+  } else out = rows;
+  download("data.json", [JSON.stringify(out, null, 2)], "application/json");
+});
+
+/* 検証スクリプトから呼ぶための入口（画面には出さない）。
+   ブラウザの中だけで完結するので、外に何かを送ることはない。 */
+window.__csvTool = {
+  sniffEncoding: sniffEncoding,
+  parseCSV: parseCSV,
+  sniffDelimiter: sniffDelimiter,
+  analyzeColumn: analyzeColumn,
+  loadBytes: function (arr) { readBytes(new Uint8Array(arr)); return { enc: S.encId, text: S.text }; },
+  state: function () { return { enc: S.encId, delim: S.delim, rows: S.parsed ? S.parsed.rows : null,
+                                errors: S.parsed ? S.parsed.errors : null }; }
+};
+</script>
+</body>
+</html>
