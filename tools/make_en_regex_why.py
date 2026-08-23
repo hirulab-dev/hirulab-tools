@@ -526,6 +526,7 @@ HTML_PARTS = [
 
  ('''      <li><a href="../regex/">正規表現テスタ</a></li>
       <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
+      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
       <li><a href="../char-counter/">文字数カウンタ</a></li>
       <li><a href="../contrast/">コントラスト比チェッカー</a></li>
       <li><a href="../date/">日付計算機</a></li>
@@ -551,6 +552,7 @@ HTML_PARTS = [
     </p>
   </nav>''',
   '''      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+      <li><a href="./replace.html">Regex Replacement Preview</a></li>
       <li><a href="./regex-tester.html">Regex Tester</a></li>
       <li><a href="./char-counter.html">Character Counter</a></li>
       <li><a href="./palette.html">Color Palette</a></li>

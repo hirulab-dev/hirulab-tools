@@ -515,6 +515,7 @@ HTML_PARTS = [
       <li><a href="../tz/">タイムゾーン変換</a></li>
       <li><a href="../csv/">CSVプレビュー・診断</a></li>
       <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
+      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
       <li><a href="../en/railroad.html">English version</a></li>
     </ul>
     <p class="hl-links">
@@ -533,7 +534,7 @@ HTML_PARTS = [
   '''  <nav class="hl-nav">
     <h2>Other tools</h2>
     <ul>
-      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>\n      <li><a href="./replace.html">Regex Replacement Preview</a></li>
       <li><a href="./regex-tester.html">Regex Tester</a></li>
       <li><a href="./char-counter.html">Character Counter</a></li>
       <li><a href="./palette.html">Color Palette Generator</a></li>
