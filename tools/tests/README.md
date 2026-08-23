@@ -9,6 +9,7 @@
 | `test_csv.py` | [CSVプレビュー・診断](https://hirulab-dev.github.io/hirulab-tools/csv/) と Python の `csv`。ランダムに作った 2,300 ファイル・52,353 セル。文字コードと区切り文字の判定も同時に採点 |
 | `test_railroad.py` | [正規表現を鉄道図にする](https://hirulab-dev.github.io/hirulab-tools/railroad/) とブラウザの `RegExp` + Python の `re`。ランダム生成した式をのべ 12,148 本、図から作った例文字列を 16,968 件 |
 | `test_regex_why.py` | [なぜマッチしないか診断](https://hirulab-dev.github.io/hirulab-tools/regex-why/) とブラウザの `RegExp`。自前の照合器の結果（マッチするか・範囲・各グループ）を 7,697 件突き合わせ、さらに「止まった位置」の主張を 6,174 個検算し、**正解の分かる欠陥を仕込んで直し方を名指しできるか**を 83 件で確認 |
+| `test_replace.py` | [正規表現の置換プレビュー](https://hirulab-dev.github.io/hirulab-tools/replace/) と ブラウザの `String.prototype.replace`。置換後の文字列を 5,822 件突き合わせ、さらに **「この文字はこのトークンから来た」という主張を、`replace` に関数を渡して本物のエンジンが返す値で 15,191 個検算**。仕込んだ落とし穴 26 件の名指しも確認 |
 
 ## 使い方
 
@@ -19,6 +20,7 @@ python tools/tests/test_timezone.py docs/tz/index.html --n 250
 python tools/tests/test_csv.py --page docs/csv/index.html --cases 800
 python tools/tests/test_railroad.py --n 3000
 python tools/tests/test_regex_why.py --n 2500
+python tools/tests/test_replace.py --n 1200
 ```
 
 ## 出力の読み方
