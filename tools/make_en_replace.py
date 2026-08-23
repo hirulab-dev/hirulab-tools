@@ -225,6 +225,12 @@ OWN = {
     ' 件は対象外': ' are out of scope',
     'いま画面に出している入力もこの中に入っています。':
         'The input on screen right now is one of the cases.',
+    # ★ 約物は「日本語が残っているか」の網から漏れる（U+3001 U+3002 U+FF09 など）。
+    # ここを取りこぼして本番に出したので、下の判定も広げてある。
+    '、': '; ',
+    '1</code>、': '1</code>, ',
+    '。': '.',
+    '）。': ').',
     'コピーしました': 'copied',
     'コピーできませんでした': 'could not copy',
 }
@@ -260,7 +266,9 @@ def main():
     for a, b in sorted(TR.items(), key=lambda kv: -len(kv[0])):
         en = en.replace("'" + a + "'", "'" + b + "'")
 
-    left = re.findall('[぀-ヿ㐀-鿿]+', drop_comments(en))
+    # 仮名・漢字だけ見ていると、句読点や全角括弧（、。「」（））が素通りする。
+    # 実際に '）。' を残したまま本番に出した（2026-08-23）ので約物も見る。
+    left = re.findall('[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？]+', drop_comments(en))
     if left:
         sys.exit('日本語が %d 箇所残っています: %s' % (len(left), left[:10]))
 

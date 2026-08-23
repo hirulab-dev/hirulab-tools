@@ -811,8 +811,8 @@ var CHECK_CASES = [
   ['x*', 'g', '-', 'abc'],
   ['', 'g', '.', 'abc'],
   ['a*', 'g', '<$&>', 'baac'],
-  [',', '', '、', 'a,b,c'],
-  [',', 'g', '、', 'a,b,c'],
+  [',', '', '; ', 'a,b,c'],
+  [',', 'g', '; ', 'a,b,c'],
   ['apple', 'gi', 'ORANGE', 'Apple APPLE apple'],
   ['.', 'g', '<$&>', 'a\u{1f600}b'],
   ['.', 'gu', '<$&>', 'a\u{1f600}b'],
@@ -896,7 +896,7 @@ function findTraps(pat, flags, tmpl, subj, parsed, tokens, res) {
 
   var litBad = tokens.filter(function (k) { return k.t === 'lit' && k.why; });
   litBad.forEach(function (k) {
-    t.push(['e', 'literal-token', '<code>' + esc(k.raw) + '</code> is not treated specially', esc(k.why) + '。']);
+    t.push(['e', 'literal-token', '<code>' + esc(k.raw) + '</code> is not treated specially', esc(k.why) + '.']);
   });
 
   tokens.forEach(function (k) {
@@ -914,7 +914,7 @@ function findTraps(pat, flags, tmpl, subj, parsed, tokens, res) {
 
   if (/\$\{[^}]*\}/.test(tmpl))
     t.push(['w', 'brace-ref', '<code>' + D + '{...}</code> is not treated specially',
-      'It is emitted verbatim. For a number write <code>' + D + '1</code>、' +
+      'It is emitted verbatim. For a number write <code>' + D + '1</code>, ' +
       'for a name write <code>' + D + '&lt;name&gt;</code>.']);
 
   if (/\\g<|\(\?P=/.test(tmpl))
@@ -978,7 +978,7 @@ var PRESETS = [
    'misspelled name (silently empty)'],
   ['(\\d+) yen', 'g', '$2 yen', '300 yen and 1200 yen', 'a group number that does not exist'],
   ['(\\w+)@(\\w+)', 'g', '\\2 at \\1', 'a@example b@test', 'written the sed way'],
-  [',', '', '、', 'apple,orange,grape', 'forgot the g flag'],
+  [',', '', '; ', 'apple,orange,grape', 'forgot the g flag'],
   ['x*', 'g', '-', 'abc', 'zero-length matches'],
   ['\\b\\w{5,}\\b', 'g', '[$&]', 'short longer longest words here', 'wrap the whole match'],
   ['(\\d+)', 'g', '$$$1', 'prices are 300 and 1200', 'emit a dollar sign'],
@@ -1161,7 +1161,7 @@ function run() {
     el.className = 'selfcheck';
     el.innerHTML = '<b>✓ ' + sc.ok + ' cases agree</b>' +
       ' (the result assembled here is compared against <code>String.prototype.replace</code> in this browser' +
-      '' + (sc.skip ? '; a further ' + sc.skip + ' are out of scope' : '') + '）。' +
+      '' + (sc.skip ? '; a further ' + sc.skip + ' are out of scope' : '') + ').' +
       'The input on screen right now is one of the cases.';
   }
 }

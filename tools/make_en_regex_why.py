@@ -72,6 +72,8 @@ OWN = {
     '右ダブルクォート': 'right double quotation mark',
     '制御文字（': 'control character (',
     '」全角（': '" fullwidth (',
+    '」（': '" (',
+    '。</li>': '.</li>',
     '異体字セレクタ（': 'variation selector (',
 
     # 紛れている文字の説明
@@ -325,7 +327,9 @@ def main():
     for a, b in sorted(TR.items(), key=lambda kv: -len(kv[0])):
         en = en.replace("'" + a + "'", "'" + b + "'")
 
-    left = re.findall('[぀-ヿ㐀-鿿]+', drop_comments(en))
+    # 仮名・漢字だけ見ていると、句読点や全角括弧（、。「」（））が素通りする。
+    # 実際に約物を残したまま本番に出した（2026-08-23）ので約物も見る。
+    left = re.findall('[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？]+', drop_comments(en))
     if left:
         sys.exit('日本語が %d 箇所残っています: %s' % (len(left), left[:10]))
 

@@ -947,7 +947,7 @@ function visibleChar(ch) {
   if (ch.codePointAt(0) < 32) return 'control character (' + codeOf(ch) + ')';
   if (ch >= '\uff01' && ch <= '\uff5e') return '"' + ch + '" fullwidth (' + codeOf(ch) + ')';
   if (ch >= '\ufe00' && ch <= '\ufe0f') return 'variation selector (' + codeOf(ch) + ')';
-  return '"' + ch + '」（' + codeOf(ch) + ')';
+  return '"' + ch + '" (' + codeOf(ch) + ')';
 }
 
 function describeNode(node, flags) {
@@ -1370,7 +1370,7 @@ function run() {
       notes.push('<li class="w"><b>Stopped at character ' + (far.pos + 1) + '.</b>' +
         (far.start > 0 ? ' (started at character ' + (far.start + 1) + ', which is the attempt that got furthest)' : '') +
         '<br>What it wanted here: ' + uniq.map(function (w) { return '<b>' + w + '</b>'; }).join(' or ') +
-        '. What is actually there: ' + actual + '。</li>');
+        '. What is actually there: ' + actual + '.</li>');
       notes.push('<li class="i"><b>Steps tried: ' + mine.steps.toLocaleString() + '</b>' +
         ' (that is how many paths were tried before giving up)</li>');
     } else {
