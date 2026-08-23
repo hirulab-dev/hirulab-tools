@@ -86,7 +86,7 @@
       "@type": "ItemList",
       "name": "公開中のツール",
       "itemListOrder": "https://schema.org/ItemListOrderAscending",
-      "numberOfItems": 17,
+      "numberOfItems": 18,
       "itemListElement": [
         { "@type": "ListItem", "position": 1, "name": "正規表現テスタ", "url": "https://hirulab-dev.github.io/hirulab-tools/regex/" },
         { "@type": "ListItem", "position": 2, "name": "文字数カウンタ", "url": "https://hirulab-dev.github.io/hirulab-tools/char-counter/" },
@@ -104,7 +104,8 @@
         { "@type": "ListItem", "position": 14, "name": "cron式の読み下し", "url": "https://hirulab-dev.github.io/hirulab-tools/cron/" },
         { "@type": "ListItem", "position": 15, "name": "タイムゾーン変換", "url": "https://hirulab-dev.github.io/hirulab-tools/tz/" },
         { "@type": "ListItem", "position": 16, "name": "CSVプレビュー・診断", "url": "https://hirulab-dev.github.io/hirulab-tools/csv/" },
-        { "@type": "ListItem", "position": 17, "name": "正規表現を鉄道図にする", "url": "https://hirulab-dev.github.io/hirulab-tools/railroad/" }
+        { "@type": "ListItem", "position": 17, "name": "正規表現を鉄道図にする", "url": "https://hirulab-dev.github.io/hirulab-tools/railroad/" },
+        { "@type": "ListItem", "position": 18, "name": "正規表現がなぜマッチしないか診断", "url": "https://hirulab-dev.github.io/hirulab-tools/regex-why/" }
       ]
     }
   ]
@@ -213,6 +214,11 @@
   <a class="card" href="./railroad/">
     <h3>正規表現を鉄道図にする</h3>
     <p>正規表現を<strong>鉄道図</strong>（分岐とループの線路の絵）にして、日本語に読み下します。<strong>破滅的バックトラック</strong>や <code>.</code> が改行に当たらないといった落とし穴も指摘します。<strong>図から例文字列を作ってその場でマッチを確かめる</strong>ので、図が式と食い違っていないか分かります。</p>
+  </a>
+
+  <a class="card" href="./regex-why/">
+    <h3>正規表現がなぜマッチしないか診断</h3>
+    <p>「当たるはずなのに当たらない」を調べます。照合が<strong>何文字目で止まったか</strong>、そこで<strong>何を待っていて実際には何があったか</strong>を名指しします。さらに<strong>フラグや入力を1か所だけ変えて実際に当て直し</strong>、「これを直せばマッチします」という一手を出します。全角・ゼロ幅文字・改行コードの混入も見ます。</p>
   </a>
 
   <div class="card empty">
