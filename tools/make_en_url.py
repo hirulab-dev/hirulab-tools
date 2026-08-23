@@ -467,6 +467,7 @@ HTML_PARTS = [
       <li><a href="../cron/">cron式の読み下し</a></li>
       <li><a href="../tz/">タイムゾーン変換</a></li>
       <li><a href="../csv/">CSVプレビュー・診断</a></li>
+      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
       <li><a href="../en/url.html">English version</a></li>
     </ul>
     <p class="hl-links">
@@ -484,6 +485,7 @@ HTML_PARTS = [
       <li><a href="./palette.html">Color Palette</a></li>
       <li><a href="./timezone.html">Time Zone Converter</a></li>
       <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
+      <li><a href="./headers.html">HTTP Header Explainer</a></li>
       <li><a href="../url/">Japanese version</a></li>
     </ul>
     <p class="hl-links">

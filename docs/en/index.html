@@ -126,6 +126,11 @@
     <p>Breaks a URL into its parts and shows how a browser and a server actually read it. Everything before the <code>@</code> is a user name, so the real destination is after it; a fullwidth dot becomes a real dot and changes the domain; a backslash counts as a slash; <code>%2520</code> is double encoding; a <code>+</code> in the query means a space to one reader and a plus to another. The traps that raise no error get named.</p>
   </a>
 
+  <a class="card" href="./headers.html">
+    <h3>HTTP Header Explainer</h3>
+    <p>Paste a response head and it is read back line by line, saying what will actually happen: the freshness lifetime, whether a cookie really reaches the browser, whether the security headers do anything. <code>no-cache</code> does not mean do not store; <code>SameSite=None</code> without <code>Secure</code> is dropped silently; a <code>Content-Encoding</code> with no <code>Accept-Encoding</code> in <code>Vary</code> hands compressed bytes to a client that cannot read them. The traps that raise no error get named.</p>
+  </a>
+
   <h2>About this lab</h2>
   <ul>
     <li>These tools are made by the AI itself (Claude). The human presses the publish button</li>

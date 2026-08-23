@@ -516,6 +516,8 @@ HTML_PARTS = [
       <li><a href="../cron/">cron式の読み下し</a></li>
       <li><a href="../tz/">タイムゾーン変換</a></li>
       <li><a href="../csv/">CSVプレビュー・診断</a></li>
+      <li><a href="../url/">URLの分解・組み立て</a></li>
+      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
       <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
       <li><a href="../replace/">正規表現の置換プレビュー</a></li>
       <li><a href="../en/railroad.html">English version</a></li>
@@ -536,12 +538,15 @@ HTML_PARTS = [
   '''  <nav class="hl-nav">
     <h2>Other tools</h2>
     <ul>
-      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>\n      <li><a href="./replace.html">Regex Replacement Preview</a></li>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
+      <li><a href="./replace.html">Regex Replacement Preview</a></li>
       <li><a href="./regex-tester.html">Regex Tester</a></li>
       <li><a href="./char-counter.html">Character Counter</a></li>
       <li><a href="./palette.html">Color Palette Generator</a></li>
       <li><a href="./timezone.html">Time Zone Converter</a></li>
       <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
+      <li><a href="./url.html">URL Parser &amp; Builder</a></li>
+      <li><a href="./headers.html">HTTP Header Explainer</a></li>
     </ul>
     <p class="hl-links">
       <a href="./">All tools</a> &middot;

@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTTP Header Explainer — naming the mistakes that raise no error</title>
+<meta name="description" content="Paste an HTTP response head and this page reads it back line by line: how caching will actually behave, whether a cookie really reaches the browser, and whether the security headers are doing anything at all. no-cache does not mean do not store. SameSite=None without Secure is dropped silently. A Content-Encoding with no Accept-Encoding in Vary hands compressed bytes to a client that cannot read them. The traps that raise no error get named. Runs entirely in your browser; nothing is uploaded.">
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
+    /* リンク色は白地で 4.5:1 を超える濃さにしている（明るい #c47f16 だと 3.28:1 しか出ない）。
+       --on-accent はアクセント色を背景に敷いたときの文字色。 */
+    --accent:#8f5c0e; --on-accent:#ffffff;
+    --border:#e2e2df; --ok:#15703f; --err:#b3261e; --warn:#9a5208;
+    --okbg:#e8f5ee; --errbg:#fdecea; --warnbg:#fdf4e3; --hi:#fdf4e3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --panel2:#242832; --text:#e8e8e6; --sub:#9a9a97;
+            --accent:#f5a623; --on-accent:#17181c;
+            --border:#33363e; --ok:#4ec98a; --err:#ff7b6e; --warn:#f0b64d;
+            --okbg:#1d2f26; --errbg:#33201e; --warnbg:#2e2a1f; --hi:#2e2a1f; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 18px 56px}
+  h1{font-size:1.35rem;margin:0 0 6px}
+  .lead{color:var(--sub);font-size:.88rem;margin:0 0 18px}
+  .lead strong{color:var(--text)}
+  .lead code,.mono{font-family:"SFMono-Regular",Consolas,"Courier New",monospace}
+  .lead code{background:var(--panel);border:1px solid var(--border);border-radius:4px;
+       padding:0 4px;color:var(--accent)}
+  .privacy{background:var(--panel);border:1px solid var(--ok);border-left-width:4px;
+           border-radius:8px;padding:10px 14px;font-size:.85rem;margin-bottom:18px}
+  .privacy strong{color:var(--ok)}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+         padding:14px;margin-bottom:14px}
+  .panel.off{display:none}
+  h2{font-size:.95rem;margin:0 0 10px}
+  .hide{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  textarea#src{width:100%;min-height:150px;border:1px solid var(--border);border-radius:8px;
+       background:var(--panel2);color:var(--text);padding:11px 13px;font-size:.95rem;resize:vertical;
+       font-family:"SFMono-Regular",Consolas,"Courier New",monospace;outline:none;word-break:break-all}
+  textarea#src:focus{border-color:var(--accent)}
+  .siderow{display:flex;gap:14px;align-items:center;margin-top:10px;flex-wrap:wrap;font-size:.82rem;color:var(--sub)}
+  .siderow label{white-space:nowrap;cursor:pointer}
+
+  .presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .presets button{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+       border-radius:999px;padding:5px 11px;font-size:.78rem;cursor:pointer;font-family:inherit}
+  .presets button:hover{border-color:var(--accent)}
+
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  th,td{border-bottom:1px solid var(--border);padding:6px 8px;text-align:left;vertical-align:top}
+  th{color:var(--sub);font-weight:600;font-size:.78rem;white-space:nowrap}
+  td.k{white-space:nowrap;color:var(--sub);font-size:.8rem}
+  td.v{font-family:"SFMono-Regular",Consolas,"Courier New",monospace;word-break:break-all}
+  td.v.empty{color:var(--sub);font-family:inherit;font-size:.8rem}
+  td.note{font-size:.8rem;color:var(--sub)}
+  .tablewrap{overflow-x:auto;max-width:100%}
+  @media (max-width:560px){ th{white-space:normal} td.k{white-space:normal} }
+
+  .hcard{border:1px solid var(--border);border-radius:8px;background:var(--panel2);
+       padding:10px 12px;margin-bottom:10px}
+  .hcard:last-child{margin-bottom:0}
+  .hcard .hname{font-family:"SFMono-Regular",Consolas,monospace;font-size:.86rem;
+       color:var(--accent);font-weight:600;word-break:break-all}
+  .hcard .hval{font-family:"SFMono-Regular",Consolas,monospace;font-size:.82rem;
+       color:var(--sub);word-break:break-all;margin:2px 0 8px}
+  .hcard .hsum{font-size:.85rem;margin:0 0 8px}
+  .hcard table{font-size:.82rem}
+  .hcard table td.k{width:34%}
+
+  .cache{font-size:.86rem}
+  .cache .big{font-size:1rem;font-weight:600}
+  .cache .big.no{color:var(--err)}
+  .cache .big.yes{color:var(--ok)}
+  .cache ul{margin:8px 0 0;padding-left:1.2em;color:var(--sub);font-size:.82rem}
+  .cache li{margin-bottom:3px}
+
+  ul.notes{list-style:none;margin:0;padding:0}
+  ul.notes li{border-left:4px solid var(--warn);background:var(--warnbg);border-radius:6px;
+       padding:8px 11px;margin-bottom:7px;font-size:.85rem}
+  ul.notes li.sev-high{border-left-color:var(--err);background:var(--errbg)}
+  ul.notes li.sev-info{border-left-color:var(--sub);background:var(--panel2)}
+  ul.notes li b{display:block;margin-bottom:2px}
+  ul.notes li code{font-family:"SFMono-Regular",Consolas,monospace;word-break:break-all}
+  .none{color:var(--sub);font-size:.85rem;overflow-wrap:anywhere}
+
+  .err{background:var(--errbg);border:1px solid var(--err);border-radius:8px;
+       padding:10px 12px;font-size:.87rem;color:var(--err)}
+  .err ul{margin:6px 0 0;padding-left:1.2em}
+
+  .self{font-size:.84rem}
+  .self .row{display:flex;gap:8px;padding:3px 0;border-bottom:1px solid var(--border)}
+  .self .row:last-child{border-bottom:none}
+  .self .mark{width:1.2em;flex:0 0 auto}
+  .self .ok{color:var(--ok)}
+  .self .ng{color:var(--err)}
+  .selfhead{font-size:.85rem;margin-bottom:6px}
+  .selfhead b.ok{color:var(--ok)}
+  .selfhead b.ng{color:var(--err)}
+
+  details{font-size:.85rem;background:var(--panel);border:1px solid var(--border);
+        border-radius:10px;padding:10px 14px;margin-bottom:14px}
+  details summary{cursor:pointer;font-weight:600;font-size:.9rem}
+  details ul{margin:8px 0 0;padding-left:1.2em}
+  details li{margin-bottom:5px}
+  details code{font-family:"SFMono-Regular",Consolas,monospace;color:var(--accent)}
+  details a{color:var(--accent)}
+  a{color:var(--accent)}
+  .hl-back{display:inline-block;font-size:.82rem;color:var(--accent);
+        text-decoration:none;margin-bottom:10px}
+  .hl-back:hover{text-decoration:underline}
+  .hl-nav{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+        padding:14px;margin-top:26px}
+  .hl-nav h2{font-size:.9rem;margin:0 0 8px}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+  .hl-nav li a{display:inline-block;border:1px solid var(--border);border-radius:999px;
+        padding:5px 11px;font-size:.8rem;color:var(--text);text-decoration:none;background:var(--panel2)}
+  .hl-nav li a:hover{border-color:var(--accent)}
+  .hl-links{margin:10px 0 0;font-size:.82rem;color:var(--sub)}
+  footer{color:var(--sub);font-size:.78rem;line-height:1.7;margin-top:22px}
+</style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/headers.html">
+<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/headers/">
+<link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/headers.html">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Claude&#39;s Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="HTTP Header Explainer — naming the mistakes that raise no error">
+<meta property="og:description" content="Paste a response head and it is read back line by line: the freshness lifetime, whether a cookie really arrives, and whether the security headers do anything. no-cache does not mean do not store. SameSite=None without Secure is dropped silently. The traps that raise no error get named.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/headers.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-headers-en.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="HTTP Header Explainer — naming the mistakes that raise no error">
+<meta name="twitter:description" content="Paste a response head and it is read back line by line: freshness lifetime, whether cookies arrive, whether the security headers work. The traps that raise no error get named. Runs entirely in your browser.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-headers-en.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "HTTP Header Explainer",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/headers.html",
+  "description": "Paste an HTTP response head and this page reads it back line by line: how caching will actually behave, whether a cookie really reaches the browser, and whether the security headers are doing anything at all. no-cache does not mean do not store. SameSite=None without Secure is dropped silently. A Content-Encoding with no Accept-Encoding in Vary hands compressed bytes to a client that cannot read them. The traps that raise no error get named. Runs entirely in your browser; nothing is uploaded.",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-headers-en.png",
+  "author": { "@type": "Organization", "name": "Claude's Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude's Daytime Lab — tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="hl-back" href="./">← Claude&#39;s Daytime Lab tools</a>
+  <h1>HTTP Header Explainer</h1>
+  <p class="lead">Paste a response head and this page reads it back <strong>line by line, saying
+    what will actually happen</strong>. HTTP headers <strong>raise no error when you get them
+    wrong</strong>. A cookie with <code>SameSite=None</code> and no <code>Secure</code> is dropped
+    by the browser without a word. This page names those places.</p>
+
+  <div class="privacy">
+    <strong>This page makes no network requests.</strong>
+    All parsing happens in your browser; once loaded it works offline.
+    Nothing you paste — the session id in a <code>Set-Cookie</code>, an <code>Authorization</code>
+    header — is sent anywhere. <strong>URLs in the headers are never fetched either.</strong>
+  </div>
+
+  <div class="panel">
+    <label for="src" class="hide">HTTP headers</label>
+    <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+    <div class="siderow">
+      <label><input type="checkbox" id="shared" checked> read it as a shared cache (CDN, proxy)</label>
+    </div>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div class="panel off" id="errPanel"><div class="err" id="errMsg"></div></div>
+
+  <div class="panel off" id="startPanel">
+    <h2>The first line</h2>
+    <div class="tablewrap">
+      <table id="startTable"><tbody></tbody></table>
+    </div>
+  </div>
+
+  <div class="panel off" id="fieldsPanel">
+    <h2>The fields</h2>
+    <div class="tablewrap">
+      <table id="fieldsTable">
+        <thead><tr><th>header</th><th>value</th><th>notes</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="none" id="fieldsNote"></p>
+  </div>
+
+  <div class="panel off" id="readPanel">
+    <h2>Read back, one at a time</h2>
+    <div id="readBox"></div>
+    <p class="none" id="readNote"></p>
+  </div>
+
+  <div class="panel off" id="cachePanel">
+    <h2>What caching will do</h2>
+    <div class="cache" id="cacheBox"></div>
+  </div>
+
+  <div class="panel" id="notesPanel">
+    <h2>Things to watch out for</h2>
+    <ul class="notes" id="notesList"></ul>
+    <p class="none" id="notesNone">Nothing to flag right now.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Self-check</h2>
+    <div class="selfhead" id="selfHead"></div>
+    <div class="self" id="selfBox"></div>
+  </div>
+
+  <details>
+    <summary>What this page computes for itself</summary>
+    <ul>
+      <li><b>The parsing does not use the browser <code>Headers</code> object; it is written here.</b>
+        It follows RFC 9110 and 9112: which characters a name may contain, how whitespace around a
+        value is dropped, how repeats of one name are joined, and folding with leading whitespace.</li>
+      <li><b>The freshness lifetime is computed with the formula in RFC 9111.</b>
+        It looks at <code>s-maxage</code>, then <code>max-age</code>, then
+        <code>Expires</code> − <code>Date</code>, and if none of those are there it falls back to a
+        guess from <code>Last-Modified</code> (10% of the elapsed time).
+        <b>Age</b> comes from <code>Age</code> plus the time since <code>Date</code>.</li>
+      <li>Written by hand, it can drift. So <b>it is checked against this browser
+        <code>Headers</code> object every time the page loads</b>, and the result is printed in the
+        self-check panel: name normalisation, whitespace around values, how repeats join, and which
+        characters are refused.</li>
+      <li><b>What it does not do, said plainly.</b>
+        <code>Content-Security-Policy</code> is only listed directive by directive; this page does
+        not decide whether a given URL would pass the policy.
+        Structured fields (RFC 8941) are read only as far as their dictionary and list shapes.</li>
+      <li>The header values themselves are <b>never rewritten, not by one byte</b>. The reading is
+        shown in a separate column.</li>
+    </ul>
+  </details>
+
+  <nav class="hl-nav">
+    <h2>Other tools</h2>
+    <ul>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
+      <li><a href="./replace.html">Regex Replacement Preview</a></li>
+      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./palette.html">Color Palette Generator</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
+      <li><a href="./url.html">URL Parser &amp; Builder</a></li>
+      <li><a href="../headers/">Japanese version</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="./">Tools index</a> ·
+      <a href="https://note.com/hirulab">Experiment log (JP)</a> ·
+      <a href="https://x.com/hirulab_ai">X</a> ·
+      <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
+    </p>
+  </nav>
+
+  <footer>
+    Built by Claude&#39;s Daytime Lab (Claude, an AI). Free to use, no sign-up.
+    The reading follows RFC 9110, 9111 and 9112 (HTTP itself and caching) and RFC 6265 (cookies).
+    Browsers and CDNs add judgements of their own that no standard covers, and
+    <b>that gap is itself a source of accidents</b>. The notes say where.
+  </footer>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   RFC 9110 / 9112 をなぞったヘッダの分解。ブラウザの Headers は使わない
+   （使ったら「ブラウザと一致するか」を確かめる意味が無くなる）。
+   ------------------------------------------------------------------ */
+
+var APOS = String.fromCharCode(39);      /* 引用符は文字コードで書く（英語版の照合のため） */
+var TOKEN_EXTRA = "!#$%&*+-.^_`|~" + APOS;
+
+function isTokenChar(ch){
+  return (ch >= "0" && ch <= "9") || (ch >= "A" && ch <= "Z") || (ch >= "a" && ch <= "z")
+      || TOKEN_EXTRA.indexOf(ch) >= 0;
+}
+function isToken(s){
+  if (!s.length) return false;
+  for (var i = 0; i < s.length; i++) if (!isTokenChar(s.charAt(i))) return false;
+  return true;
+}
+/* 値に置けるのは VCHAR / SP / HTAB / obs-text(0x80-0xFF)。制御文字は置けない。 */
+function badValueCharAt(s){
+  for (var i = 0; i < s.length; i++){
+    var c = s.charCodeAt(i);
+    if (c === 9) continue;
+    if (c < 0x20 || c === 0x7f) return i;
+  }
+  return -1;
+}
+function trimOWS(s){
+  var a = 0, b = s.length;
+  while (a < b && (s.charAt(a) === " " || s.charAt(a) === "\t")) a++;
+  while (b > a && (s.charAt(b - 1) === " " || s.charAt(b - 1) === "\t")) b--;
+  return s.slice(a, b);
+}
+function hasNonASCII(s){
+  for (var i = 0; i < s.length; i++) if (s.charCodeAt(i) > 0x7e) return true;
+  return false;
+}
+
+/* 一度しか置けないヘッダ（複数来たら受け手によって扱いが割れる） */
+var SINGLETON = ["content-type", "content-length", "location", "date", "expires", "age",
+                 "last-modified", "etag", "retry-after", "content-encoding",
+                 "content-disposition", "content-range", "server", "x-frame-options"];
+
+function parseBlock(text){
+  var res = { start:null, fields:[], errors:[], bodyFrom:-1, order:[], map:{}, raws:{} };
+  var lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+  var i = 0;
+  while (i < lines.length && trimOWS(lines[i]) === "") i++;
+  if (i >= lines.length) return res;
+
+  var first = lines[i];
+  var mStatus = first.match(/^HTTP\/(\d(?:\.\d)?)[ \t]+(\d{3})(?:[ \t]+(.*))?$/);
+  var mReq = first.match(/^([A-Za-z]+)[ \t]+(\S+)[ \t]+HTTP\/(\d(?:\.\d)?)$/);
+  if (mStatus){
+    res.start = { kind:"status", version:mStatus[1], code:mStatus[2],
+                  reason:(mStatus[3] === undefined ? "" : mStatus[3]), raw:first };
+    i++;
+  } else if (mReq){
+    res.start = { kind:"request", method:mReq[1], target:mReq[2], version:mReq[3], raw:first };
+    i++;
+  }
+
+  for (; i < lines.length; i++){
+    var ln = lines[i];
+    if (ln === ""){ res.bodyFrom = i + 1; break; }
+    var lineNo = i + 1;
+
+    if (ln.charAt(0) === " " || ln.charAt(0) === "\t"){
+      if (res.fields.length === 0){
+        res.errors.push({ line:lineNo, msg:"This line starts with whitespace, but there is no header above it to continue." });
+        continue;
+      }
+      var prev = res.fields[res.fields.length - 1];
+      prev.value = prev.value + " " + trimOWS(ln);
+      prev.folded = true;
+      continue;
+    }
+    var idx = ln.indexOf(":");
+    if (idx < 0){
+      res.errors.push({ line:lineNo, msg:"There is no colon. A header has the form name: value." });
+      continue;
+    }
+    var rawName = ln.slice(0, idx), value = trimOWS(ln.slice(idx + 1));
+    var name = trimOWS(rawName);
+    /* 空白は「名前に置けない文字」より先に見る。トリムしてから token かどうかを見ると、
+       Content-Type : のような形を黙って通してしまう（実際そう書いていて、プリセットで見つけた）。 */
+    if (rawName !== name){
+      res.errors.push({ line:lineNo, msg:"There is whitespace between the name and the colon. The recipient is required to reject this.", code:"space-before-colon" });
+      continue;
+    }
+    if (!isToken(name)){
+      res.errors.push({ line:lineNo, msg:"The header name contains a character that is not allowed there: " + name });
+      continue;
+    }
+    var bad = badValueCharAt(value);
+    if (bad >= 0){
+      res.errors.push({ line:lineNo, msg:"The value contains a control character (at character " + (bad + 1) + ")." });
+      continue;
+    }
+    res.fields.push({ line:lineNo, rawName:name, name:name.toLowerCase(), value:value, folded:false });
+  }
+
+  for (var k = 0; k < res.fields.length; k++){
+    var f = res.fields[k];
+    if (!Object.prototype.hasOwnProperty.call(res.map, f.name)){
+      res.map[f.name] = []; res.order.push(f.name); res.raws[f.name] = [];
+    }
+    res.map[f.name].push(f.value);
+    res.raws[f.name].push(f.rawName);
+  }
+  return res;
+}
+
+/* 同じ名前が複数来たときの結合。Set-Cookie だけは結合してはいけない。 */
+function combined(P, name){
+  var a = P.map[name];
+  if (!a) return null;
+  if (name === "set-cookie") return a[0];
+  return a.join(", ");
+}
+function firstOf(P, name){ var a = P.map[name]; return a ? a[0] : null; }
+function has(P, name){ return Object.prototype.hasOwnProperty.call(P.map, name); }
+
+/* ---------- 細かい値の読み ---------- */
+
+/* 「a=b; c」のような ;区切りのパラメータ。引用符つきの値も戻す。 */
+function splitParams(s){
+  var out = [], cur = "", q = false;
+  for (var i = 0; i < s.length; i++){
+    var ch = s.charAt(i);
+    if (q){
+      if (ch === "\\" && i + 1 < s.length){ cur += ch + s.charAt(i + 1); i++; continue; }
+      if (ch === "\"") q = false;
+      cur += ch; continue;
+    }
+    if (ch === "\""){ q = true; cur += ch; continue; }
+    if (ch === ";"){ out.push(cur); cur = ""; continue; }
+    cur += ch;
+  }
+  out.push(cur);
+  var res = [];
+  for (var j = 0; j < out.length; j++){
+    var t = trimOWS(out[j]);
+    if (t === "") continue;
+    var e = t.indexOf("=");
+    if (e < 0) res.push({ k:t, v:null, raw:t });
+    else res.push({ k:trimOWS(t.slice(0, e)), v:trimOWS(t.slice(e + 1)), raw:t });
+  }
+  return res;
+}
+function unquote(v){
+  if (v === null || v.length < 2) return v;
+  if (v.charAt(0) !== "\"" || v.charAt(v.length - 1) !== "\"") return v;
+  return v.slice(1, -1).replace(/\\(.)/g, "$1");
+}
+/* 「a, b, c」の ,区切り。引用符の中のカンマは割らない。 */
+function splitList(s){
+  var out = [], cur = "", q = false;
+  for (var i = 0; i < s.length; i++){
+    var ch = s.charAt(i);
+    if (q){
+      if (ch === "\\" && i + 1 < s.length){ cur += ch + s.charAt(i + 1); i++; continue; }
+      if (ch === "\"") q = false;
+      cur += ch; continue;
+    }
+    if (ch === "\""){ q = true; cur += ch; continue; }
+    if (ch === ","){ out.push(cur); cur = ""; continue; }
+    cur += ch;
+  }
+  out.push(cur);
+  var res = [];
+  for (var j = 0; j < out.length; j++){ var t = trimOWS(out[j]); if (t !== "") res.push(t); }
+  return res;
+}
+
+/* HTTP-date（RFC 9110 5.6.7）。3つの形を読む。戻り値はミリ秒か null。 */
+var MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function monthNum(s){ for (var i = 0; i < MON.length; i++) if (MON[i] === s) return i; return -1; }
+/* 桁数が合っていても、存在しない日付は拒む。Date.UTC は 8月32日を黙って9月1日にするので、
+   組み立て直して同じ年月日に戻るかを見る（Python と突き合わせて見つけた穴）。 */
+function mkUTC(y, mo, d, hh, mm, ss){
+  if (mo < 0 || d < 1 || d > 31 || hh > 23 || mm > 59 || ss > 59) return null;
+  var ms = Date.UTC(y, mo, d, hh, mm, ss);
+  var dt = new Date(ms);
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo || dt.getUTCDate() !== d) return null;
+  return ms;
+}
+function parseHttpDate(s){
+  s = trimOWS(s);
+  var m = s.match(/^[A-Za-z]{3}, (\d{2}) ([A-Za-z]{3}) (\d{4}) (\d{2}):(\d{2}):(\d{2}) GMT$/);
+  if (m) return mkUTC(+m[3], monthNum(m[2]), +m[1], +m[4], +m[5], +m[6]);
+  m = s.match(/^[A-Za-z]+, (\d{2})-([A-Za-z]{3})-(\d{2}) (\d{2}):(\d{2}):(\d{2}) GMT$/);
+  if (m){
+    var yy = +m[3];
+    /* 2桁の年は「50年以上先に見えるなら前世紀」と読む決まり（RFC 9110 5.6.7） */
+    var full = 2000 + yy;
+    if (full - new Date().getUTCFullYear() > 50) full -= 100;
+    return mkUTC(full, monthNum(m[2]), +m[1], +m[4], +m[5], +m[6]);
+  }
+  m = s.match(/^[A-Za-z]{3} ([A-Za-z]{3}) ([ \d]\d) (\d{2}):(\d{2}):(\d{2}) (\d{4})$/);
+  if (m) return mkUTC(+m[6], monthNum(m[1]), +trimOWS(m[2]), +m[3], +m[4], +m[5]);
+  return null;
+}
+function fmtSeconds(n){
+  if (n < 0) return "0s";
+  if (n < 60) return n + "s";
+  if (n < 3600) return Math.floor(n / 60) + "m" + (n % 60 ? (n % 60) + "s" : "");
+  if (n < 86400) return Math.floor(n / 3600) + "h" + (Math.floor(n / 60) % 60 ? (Math.floor(n / 60) % 60) + "m" : "");
+  return Math.floor(n / 86400) + "d" + (Math.floor(n / 3600) % 24 ? (Math.floor(n / 3600) % 24) + "h" : "");
+}
+function fmtBytes(n){
+  if (n < 1024) return n + " bytes";
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KiB";
+  return (n / 1024 / 1024).toFixed(2) + " MiB";
+}
+
+/* ---------- ヘッダごとの読み下し ---------- */
+
+var CC_TEXT = {
+  "max-age":            "treat as fresh for this many seconds; after that, check with the origin server",
+  "s-maxage":           "a lifetime that only shared caches (CDNs, proxies) honour; it wins over max-age",
+  "no-cache":           "may be stored, but must be revalidated with the origin server before every use (this is not the same as not storing)",
+  "no-store":           "must not be stored, on disk or in memory",
+  "private":            "belongs to one user; a shared cache must not store it",
+  "public":             "may be stored even if it would normally not be cacheable",
+  "must-revalidate":    "once stale, the old copy must not be served even if the origin cannot be reached",
+  "proxy-revalidate":   "the same as must-revalidate, but only for shared caches",
+  "no-transform":       "the payload must not be recompressed or converted on the way",
+  "immutable":          "while fresh, it is not revalidated even on a reload",
+  "must-understand":    "do not store unless the caching rules for this status code are understood",
+  "stale-while-revalidate": "for this many seconds after it goes stale, the old copy may be served while refreshing in the background",
+  "stale-if-error":     "if the origin fails, the old copy may be served for this many seconds after it goes stale",
+  "only-if-cached":     "return only what is already stored; do not go and fetch it",
+  "max-stale":          "a stale copy is acceptable, up to this many seconds past its lifetime",
+  "min-fresh":          "the copy must stay fresh for at least this many seconds"
+};
+var SAMESITE_TEXT = {
+  "strict": "never sent when arriving from another site",
+  "lax":    "sent from another site only when following a link as a top-level navigation",
+  "none":   "sent even on loads from another site (Secure is mandatory)"
+};
+var CSP_TEXT = {
+  "default-src":"the default when no more specific directive is given", "script-src":"where scripts may come from",
+  "style-src":"where stylesheets may come from", "img-src":"where images may come from",
+  "connect-src":"where fetch, XHR and WebSocket may connect", "font-src":"where fonts may come from",
+  "media-src":"where audio and video may come from", "object-src":"where plugin content may come from",
+  "frame-src":"where framed pages may come from", "worker-src":"where workers may come from",
+  "frame-ancestors":"who may put this page in a frame", "base-uri":"what the base element may be set to",
+  "form-action":"where forms may be submitted", "sandbox":"restrictions placed on the loaded content",
+  "upgrade-insecure-requests":"rewrite http fetches to https automatically",
+  "report-uri":"where to report violations (the older spelling)", "report-to":"where to report violations",
+  "require-trusted-types-for":"require a type for dangerous assignments", "trusted-types":"the names of the allowed types"
+};
+var REFERRER_TEXT = {
+  "no-referrer":"never send it",
+  "no-referrer-when-downgrade":"send it except when going from https to http",
+  "origin":"send the origin only (not the path)",
+  "origin-when-cross-origin":"send the origin only to other origins",
+  "same-origin":"send it only to the same origin",
+  "strict-origin":"send the origin only, and nothing when going from https to http",
+  "strict-origin-when-cross-origin":"everything to the same origin, the origin only to others, nothing on a downgrade (this is the default)",
+  "unsafe-url":"send the whole URL to anyone"
+};
+var STATUS_TEXT = {
+  "200":"success", "201":"created", "204":"success, with no body", "206":"only part of it was returned",
+  "301":"moved permanently", "302":"temporarily somewhere else", "303":"look at another place, with GET",
+  "304":"not modified; use the stored copy", "307":"a temporary move, keeping the method",
+  "308":"a permanent move, keeping the method",
+  "400":"the request is malformed", "401":"authentication is required", "403":"not allowed", "404":"not found",
+  "405":"that method is not available here", "409":"it conflicts with the current state", "410":"gone for good",
+  "413":"the body is too large", "415":"that format cannot be accepted", "418":"cannot brew tea",
+  "422":"readable, but the content cannot be processed", "429":"too many requests",
+  "500":"the server failed", "502":"a bad answer came back from upstream", "503":"cannot handle it right now", "504":"upstream timed out"
+};
+
+function rowsCacheControl(v){
+  var rows = [], items = splitList(v);
+  for (var i = 0; i < items.length; i++){
+    var it = items[i], e = it.indexOf("="), k, val = null;
+    if (e < 0) k = it.toLowerCase(); else { k = trimOWS(it.slice(0, e)).toLowerCase(); val = unquote(trimOWS(it.slice(e + 1))); }
+    var t = Object.prototype.hasOwnProperty.call(CC_TEXT, k) ? CC_TEXT[k] : "this page does not know that directive; recipients normally ignore it";
+    if (val !== null && /^\d+$/.test(val)) t = t + " (" + fmtSeconds(+val) + ")";
+    rows.push({ k:it, v:t });
+  }
+  return rows;
+}
+function rowsSetCookie(v){
+  var rows = [], parts = splitParams(v);
+  if (!parts.length) return rows;
+  var head = parts[0];
+  rows.push({ k:"name", v:(head.v === null ? "(there is no =; a cookie with only a name is not accepted)" : head.k) });
+  rows.push({ k:"value", v:(head.v === null ? head.k : (head.v === "" ? "(empty)" : head.v)) });
+  var seen = {};
+  for (var i = 1; i < parts.length; i++){
+    var p = parts[i], k = p.k.toLowerCase();
+    seen[k] = p.v === null ? "" : p.v;
+    var t;
+    if (k === "expires"){
+      var ms = parseHttpDate(p.v === null ? "" : p.v);
+      t = ms === null ? "this is not a readable date; an unreadable Expires counts as already expired"
+                      : "stored until this moment (" + new Date(ms).toISOString() + ")";
+    }
+    else if (k === "max-age") t = /^-?\d+$/.test(p.v || "") ? (+p.v <= 0 ? "zero or less, so this cookie is deleted immediately" : "stored for " + fmtSeconds(+p.v) + " after it is received") : "this is not a readable number";
+    else if (k === "domain") t = "sent to this domain and to every subdomain under it";
+    else if (k === "path") t = "sent only under this path";
+    else if (k === "secure") t = "sent only over https";
+    else if (k === "httponly") t = "not readable from JavaScript (it does not appear in document.cookie)";
+    else if (k === "samesite") t = Object.prototype.hasOwnProperty.call(SAMESITE_TEXT, (p.v || "").toLowerCase())
+                                     ? SAMESITE_TEXT[(p.v || "").toLowerCase()] : "this page does not know that value; browsers fall back to the default";
+    else if (k === "partitioned") t = "kept as a separate cookie for each embedding site";
+    else if (k === "priority") t = "which cookies to drop first when there are too many (a Chromium extension, not a standard)";
+    else t = "this page does not know that attribute; browsers normally ignore it";
+    rows.push({ k:p.raw, v:t });
+  }
+  return rows;
+}
+function rowsContentType(v){
+  var rows = [], parts = splitParams(v);
+  if (!parts.length) return rows;
+  var mt = parts[0].raw.toLowerCase();
+  rows.push({ k:"type", v:mt });
+  var slash = mt.indexOf("/");
+  if (slash < 0) rows.push({ k:"shape", v:"there is no slash, so this is not a readable media type" });
+  for (var i = 1; i < parts.length; i++){
+    var p = parts[i], k = p.k.toLowerCase();
+    var t;
+    if (k === "charset") t = "the body is read as " + unquote(p.v || "") + "";
+    else if (k === "boundary") t = "the body is split on this boundary";
+    else t = "an extra parameter for this media type";
+    rows.push({ k:p.raw, v:t });
+  }
+  return rows;
+}
+function rowsCSP(v){
+  var rows = [], parts = v.split(";");
+  for (var i = 0; i < parts.length; i++){
+    var t = trimOWS(parts[i]);
+    if (t === "") continue;
+    var sp = t.indexOf(" "), name = (sp < 0 ? t : t.slice(0, sp)).toLowerCase();
+    var val = sp < 0 ? "" : trimOWS(t.slice(sp + 1));
+    var desc = Object.prototype.hasOwnProperty.call(CSP_TEXT, name) ? CSP_TEXT[name] : "this page does not know that directive";
+    rows.push({ k:t, v:desc + (val === "" ? "" : " → " + val) });
+  }
+  return rows;
+}
+function rowsHSTS(v){
+  var rows = [], parts = splitParams(v);
+  for (var i = 0; i < parts.length; i++){
+    var p = parts[i], k = p.k.toLowerCase(), t;
+    if (k === "max-age") t = /^\d+$/.test(p.v || "") ? (+p.v === 0 ? "zero, so this setting is switched off" : "for this many seconds, http requests are rewritten to https (" + fmtSeconds(+p.v) + ")") : "this is not a readable number";
+    else if (k === "includesubdomains") t = "the same applies to every subdomain";
+    else if (k === "preload") t = "asks to be included in the list shipped with browsers (whether it gets in depends on a separate submission and its conditions)";
+    else t = "this page does not know that setting";
+    rows.push({ k:p.raw, v:t });
+  }
+  return rows;
+}
+function rowsSimpleList(v, dict, unknownText){
+  var rows = [], items = splitList(v);
+  for (var i = 0; i < items.length; i++){
+    var k = items[i].toLowerCase();
+    rows.push({ k:items[i], v:Object.prototype.hasOwnProperty.call(dict, k) ? dict[k] : unknownText });
+  }
+  return rows;
+}
+function rowsDate(v){
+  var ms = parseHttpDate(v);
+  if (ms === null) return [{ k:v, v:"this is not a readable HTTP date; an unreadable date counts as long ago" }];
+  var d = new Date(ms), now = Date.now();
+  var diff = Math.round((now - ms) / 1000);
+  return [
+    { k:"UTC", v:d.toISOString() },
+    { k:"in this machine time", v:d.toLocaleString() },
+    { k:"distance from now", v:(diff >= 0 ? fmtSeconds(diff) + " ago" : fmtSeconds(-diff) + " from now") }
+  ];
+}
+
+/* 読み下しを持っているヘッダの一覧。ここに無いものは値をそのまま出す。 */
+function explain(name, value, P){
+  if (name === "cache-control") return { rows:rowsCacheControl(value), sum:"Caching directives. On the left what was written, on the right what it means." };
+  if (name === "set-cookie") return { rows:rowsSetCookie(value), sum:"One cookie. The browser sends it back only under these conditions." };
+  if (name === "content-type") return { rows:rowsContentType(value), sum:"The type of the body. The browser decides how to present it from this." };
+  if (name === "content-security-policy" || name === "content-security-policy-report-only")
+    return { rows:rowsCSP(value), sum:"The list of sources that may be loaded." };
+  if (name === "strict-transport-security") return { rows:rowsHSTS(value), sum:"Forces https. It only takes effect on an https response." };
+  if (name === "referrer-policy") return { rows:rowsSimpleList(value, REFERRER_TEXT, "this page does not know that value"), sum:"How much of where you came from is passed on to the next page." };
+  if (name === "date" || name === "expires" || name === "last-modified")
+    return { rows:rowsDate(value), sum:"An HTTP date." };
+  if (name === "content-length"){
+    var n = /^\d+$/.test(value) ? +value : null;
+    return { rows:[{ k:value, v:n === null ? "this is not a readable number" : "the body is " + fmtBytes(n) + "" }], sum:"The length of the body." };
+  }
+  if (name === "age"){
+    return { rows:[{ k:value, v:/^\d+$/.test(value) ? "this response left the origin server " + fmtSeconds(+value) + " ago (the time it sat in caches along the way)" : "this is not a readable number" }],
+             sum:"How long it sat in caches along the way." };
+  }
+  if (name === "vary"){
+    var items = splitList(value), rows = [];
+    for (var i = 0; i < items.length; i++){
+      rows.push({ k:items[i], v:items[i] === "*" ? "this means the response cannot be reused from a cache at all"
+                                                 : "a different value of this header is stored as a different response" });
+    }
+    return { rows:rows, sum:"The conditions under which a stored response may be reused." };
+  }
+  if (name === "retry-after"){
+    var t;
+    if (/^\d+$/.test(value)) t = fmtSeconds(+value) + " — wait this long, then try again";
+    else { var ms = parseHttpDate(value); t = ms === null ? "this is neither a number of seconds nor a date; recipients ignore it" : new Date(ms).toISOString() + " — try again at or after this moment"; }
+    return { rows:[{ k:value, v:t }], sum:"When it is all right to try again." };
+  }
+  if (name === "etag"){
+    var weak = value.slice(0, 2) === "W/";
+    return { rows:[{ k:value, v:weak ? "a weak validator; the same tag may be used when the content is equivalent enough" : "a strong validator; one byte of difference means a different tag" }],
+             sum:"A tag standing for this version of the content." };
+  }
+  if (name === "x-frame-options"){
+    var u = value.toUpperCase(), t2;
+    if (u === "DENY") t2 = "no page at all may put this in a frame";
+    else if (u === "SAMEORIGIN") t2 = "only pages on the same origin may put this in a frame";
+    else if (u.indexOf("ALLOW-FROM") === 0) t2 = "no browser implements this spelling any more (it was removed)";
+    else t2 = "this page does not know that value; browsers either ignore it or treat it as DENY";
+    return { rows:[{ k:value, v:t2 }], sum:"Whether this page may be put in a frame." };
+  }
+  if (name === "x-content-type-options"){
+    return { rows:[{ k:value, v:value.toLowerCase() === "nosniff" ? "do not guess the type from the bytes; trust Content-Type" : "no value other than nosniff means anything" }],
+             sum:"Turns off type sniffing." };
+  }
+  if (name === "access-control-allow-origin"){
+    return { rows:[{ k:value, v:value === "*" ? "readable from any origin (but this cannot be used with credentialed requests)"
+                                              : "readable from this origin only; every other one is refused" }],
+             sum:"Whether JavaScript on another origin may read the body." };
+  }
+  if (name === "content-disposition"){
+    var parts2 = splitParams(value), rows2 = [];
+    rows2.push({ k:parts2.length ? parts2[0].raw : value, v:(parts2.length && parts2[0].raw.toLowerCase() === "attachment") ? "save it instead of displaying it" : "it may be displayed as is" });
+    for (var j = 1; j < parts2.length; j++){
+      var p2 = parts2[j], k2 = p2.k.toLowerCase(), t3;
+      if (k2 === "filename") t3 = "the name to save it under: " + unquote(p2.v || "");
+      else if (k2 === "filename*") t3 = "the name with a charset (RFC 5987); non-ASCII names belong here";
+      else t3 = "this page does not know that setting";
+      rows2.push({ k:p2.raw, v:t3 });
+    }
+    return { rows:rows2, sum:"Whether the body is displayed or saved." };
+  }
+  return null;
+}
+
+/* ---------- 落とし穴の検出（data-code で機械照合できるようにしてある） ---------- */
+
+function pitfalls(P, shared){
+  var out = [];
+  function add(code, sev, title, body){ out.push({ code:code, sev:sev, title:title, body:body }); }
+  var cc = has(P, "cache-control") ? combined(P, "cache-control") : "";
+  var ccl = cc.toLowerCase();
+  function ccHas(d){
+    var items = splitList(ccl);
+    for (var i = 0; i < items.length; i++){
+      var e = items[i].indexOf("=");
+      if ((e < 0 ? items[i] : trimOWS(items[i].slice(0, e))) === d) return true;
+    }
+    return false;
+  }
+  function ccVal(d){
+    var items = splitList(ccl);
+    for (var i = 0; i < items.length; i++){
+      var e = items[i].indexOf("=");
+      if (e >= 0 && trimOWS(items[i].slice(0, e)) === d) return unquote(trimOWS(items[i].slice(e + 1)));
+    }
+    return null;
+  }
+
+  /* --- 分解のところ --- */
+  for (var i = 0; i < P.errors.length; i++){
+    if (P.errors[i].code === "space-before-colon"){
+      add("space-before-colon", "high", "There is whitespace between the name and the colon",
+          "RFC 9112 requires the recipient to reject this. It is the entry point of an old trick that splits one response into two and injects a fake one. Remove the whitespace.");
+      break;
+    }
+  }
+  for (var f = 0; f < P.fields.length; f++){
+    if (P.fields[f].folded){
+      add("obs-fold", "high", "The value is folded onto the next line with leading whitespace",
+          "Continuing a value on the next line with leading whitespace (obs-fold) is deprecated, and many servers and proxies reject it. Keep it on one line.");
+      break;
+    }
+  }
+  var dupNames = [];
+  for (var s = 0; s < SINGLETON.length; s++){
+    if (P.map[SINGLETON[s]] && P.map[SINGLETON[s]].length > 1) dupNames.push(SINGLETON[s]);
+  }
+  if (dupNames.length){
+    add("dup-singleton", "high", "Headers that may appear only once are duplicated: " + dupNames.join(", "),
+        "Recipients differ on whether they take the first, take the last, or join them with a comma and break. Keep exactly one.");
+  }
+  if (P.map["set-cookie"] && P.map["set-cookie"].length > 1){
+    add("set-cookie-multi", "info", "There are " + P.map["set-cookie"].length + " Set-Cookie headers",
+        "Set-Cookie is the one header that must never be joined with a comma, because the value of Expires contains a comma itself, so joining cannot be undone. Keep them on separate lines.");
+  }
+  for (var u = 0; u < P.fields.length; u++){
+    if (hasNonASCII(P.fields[u].value)){
+      add("nonascii-value", "high", "A header value contains characters outside ASCII",
+          "HTTP headers are meant to stay inside ASCII. Written directly, recipients differ on whether to read the bytes as UTF-8 or as Latin-1. For a file name use filename* in Content-Disposition; otherwise encode the value.");
+      break;
+    }
+  }
+
+  /* --- 要求のとき --- */
+  if (P.start && P.start.kind === "request"){
+    if (!has(P, "host") && P.start.version !== "1.0"){
+      add("req-host-missing", "high", "This is an HTTP/1.1 request with no Host",
+          "In 1.1 the Host header is mandatory, and a server is required to answer 400 without it. It goes missing most often in hand-built requests.");
+    }
+    if (P.map["host"] && P.map["host"].length > 1){
+      add("req-host-multi", "high", "There is more than one Host",
+          "Implementations differ on which one to take. When the front and the back take different ones, a request can be routed as if it were meant for another site.");
+    }
+  }
+
+  /* --- キャッシュ --- */
+  if (ccHas("no-cache")){
+    add("cc-no-cache", "info", "no-cache does not mean do not store",
+        "It is stored. It means the cache asks the origin whether it has changed before each use. When you want nothing stored, the directive is no-store.");
+  }
+  if (ccHas("no-store") && (ccHas("max-age") || has(P, "expires"))){
+    add("cc-nostore-conflict", "info", "no-store sits next to a lifetime",
+        "no-store wins; max-age and Expires are never read. Decide which one you meant.");
+  }
+  if (ccHas("max-age") && has(P, "expires")){
+    add("cc-maxage-vs-expires", "info", "Both max-age and Expires are present",
+        "max-age wins and Expires is ignored. Expires only remains for old recipients that do not understand max-age.");
+  }
+  if (has(P, "expires") && parseHttpDate(firstOf(P, "expires")) === null && !ccHas("max-age")){
+    add("expires-invalid", "high", "Expires is not a readable date",
+        "An unreadable Expires counts as a date long in the past, so the response is already stale. Code that writes 0 or -1 meaning do not cache is common, and it appears to work only by accident. Use no-store.");
+  }
+  if (has(P, "set-cookie") && !ccHas("private") && !ccHas("no-store") && (ccHas("max-age") || ccHas("s-maxage") || ccHas("public") || has(P, "expires"))){
+    add("cookie-shared-cache", "high", "There is a Set-Cookie but neither private nor no-store",
+        "If a CDN or a proxy stores this response, one person cookie is handed to another. Personalised responses need Cache-Control: private or no-store.");
+  }
+  if (has(P, "vary")){
+    var vlist = splitList(combined(P, "vary"));
+    var vlow = combined(P, "vary").toLowerCase();
+    if (vlist.indexOf("*") >= 0){
+      add("vary-star", "info", "Vary: * stops caching entirely",
+          "It means there is no condition under which the stored response may be reused. That is fine if it is deliberate, but if you meant no-store, writing no-store says so more clearly.");
+    }
+    if (vlow.indexOf("user-agent") >= 0){
+      add("vary-ua", "high", "Vary: User-Agent makes the cache useless in practice",
+          "The User-Agent value differs on almost every device, so a stored response is virtually never reused. To vary by device, look at Client Hints or at separate URLs.");
+    }
+    if (has(P, "access-control-allow-origin") && firstOf(P, "access-control-allow-origin") !== "*" && vlow.indexOf("origin") < 0){
+      add("cors-vary-origin", "high", "A per-origin value is returned but Vary: Origin is missing",
+          "A cache in the middle hands the permission granted to one origin to another one. If Access-Control-Allow-Origin varies, Vary: Origin is mandatory.");
+    }
+  }
+  if (has(P, "content-encoding") && (!has(P, "vary") || combined(P, "vary").toLowerCase().indexOf("accept-encoding") < 0)){
+    add("vary-missing-ae", "high", "There is a Content-Encoding but Accept-Encoding is not in Vary",
+        "A compressed response can be handed to a client that cannot decompress it. The content looks broken, and no error is raised.");
+  }
+  if (has(P, "age") && ccVal("max-age") !== null && /^\d+$/.test(firstOf(P, "age")) && /^\d+$/.test(ccVal("max-age"))
+      && +firstOf(P, "age") > +ccVal("max-age")){
+    add("age-over-maxage", "info", "Age is larger than max-age",
+        "This response is already stale on arrival. Unless that is deliberate, through stale-while-revalidate or the like, a cache in the middle is serving something old.");
+  }
+  if (!has(P, "cache-control") && !has(P, "expires") && P.start && P.start.kind === "status" && P.start.code === "200"){
+    add("no-cache-directive", "info", "There is no caching directive at all",
+        "In that case a cache is allowed to guess a lifetime from Last-Modified; 10% of the elapsed time is the widely used guess. Saying nothing does not mean nothing is stored.");
+  }
+  if (ccHas("immutable")){
+    add("cc-immutable", "info", "immutable skips revalidation even on a reload",
+        "Put it only on URLs whose content can never change, such as files with a hash in the name. Replace the content while it is set, and the old copy keeps being served until the lifetime runs out.");
+  }
+
+  /* --- Cookie --- */
+  var cookies = P.map["set-cookie"] || [];
+  var flagged = {};
+  /* 同じ指摘を Cookie の数だけ並べない。最初の1件だけ出す。 */
+  function once(code, sev, title, body){ if (!flagged[code]){ flagged[code] = 1; add(code, sev, title, body); } }
+  for (var c = 0; c < cookies.length; c++){
+    var parts = splitParams(cookies[c]), attrs = {}, head = parts[0];
+    for (var a = 1; a < parts.length; a++) attrs[parts[a].k.toLowerCase()] = parts[a].v === null ? "" : parts[a].v;
+    var nm = head ? head.k : "";
+    var ss = Object.prototype.hasOwnProperty.call(attrs, "samesite") ? attrs["samesite"].toLowerCase() : null;
+
+    if (ss === "none" && !Object.prototype.hasOwnProperty.call(attrs, "secure")){
+      once("cookie-none-insecure", "high", "SameSite=None with no Secure (" + nm + ")",
+           "The browser drops this cookie silently. There is no error and no warning, so the only symptom is that the login mysteriously does not stick.");
+    }
+    if (ss === null){
+      once("cookie-samesite-missing", "info", "SameSite is not set (" + nm + ")",
+           "Browsers differ on the default. Chromium treats it as Lax; not all of them do. Writing it out is safer.");
+    }
+    if (ss !== null && !Object.prototype.hasOwnProperty.call(SAMESITE_TEXT, ss)){
+      once("cookie-samesite-bad", "high", "The SameSite value is not readable (" + nm + ")",
+           "Anything that is not Strict, Lax or None is ignored and falls back to the default. A typo stops working silently right here.");
+    }
+    if (!Object.prototype.hasOwnProperty.call(attrs, "secure")){
+      once("cookie-no-secure", "info", "There is no Secure (" + nm + ")",
+           "It is sent over http as well. Even on an https-only site, one first request over http is enough to leak it.");
+    }
+    if (!Object.prototype.hasOwnProperty.call(attrs, "httponly") && /sess|token|auth|login|jwt|sid/i.test(nm)){
+      once("cookie-no-httponly", "info", "There is no HttpOnly (" + nm + ")",
+           "The name suggests a session cookie. Without HttpOnly it is readable from JavaScript, so one injected script is enough to carry it away.");
+    }
+    if (Object.prototype.hasOwnProperty.call(attrs, "domain")){
+      once("cookie-domain", "info", "A Domain widens it to every subdomain (" + nm + ")",
+           "Domain=example.com means it is sent to a.example.com and b.example.com alike. A leading dot makes no difference; RFC 6265 ignores it. To keep it narrow, leave Domain out.");
+    }
+    if (Object.prototype.hasOwnProperty.call(attrs, "max-age") && Object.prototype.hasOwnProperty.call(attrs, "expires")){
+      once("cookie-maxage-expires", "info", "Both Max-Age and Expires are present (" + nm + ")",
+           "Max-Age wins. Expires only remains for recipients that do not understand Max-Age.");
+    }
+    if (head && head.v !== null && /[ ,;]/.test(head.v) && head.v.charAt(0) !== "\""){
+      once("cookie-bad-value", "high", "The cookie value contains a space, a comma or a semicolon (" + nm + ")",
+           "Everything after a semicolon is read as an attribute, and the value is cut off there. Encode the value before putting it in.");
+    }
+    var blen = 0;
+    for (var bb = 0; bb < cookies[c].length; bb++){ var cp = cookies[c].charCodeAt(bb); blen += cp < 0x80 ? 1 : (cp < 0x800 ? 2 : 3); }
+    if (blen > 4096){
+      once("cookie-too-big", "high", "The cookie is larger than 4096 bytes (" + nm + ", " + blen + " bytes)",
+           "Browsers do not store a cookie above that size, and nothing tells you it was dropped.");
+    }
+  }
+
+  /* --- 中身の種類 --- */
+  if (!has(P, "content-type") && P.start && P.start.kind === "status" && P.start.code !== "204" && P.start.code !== "304"){
+    add("ct-missing", "high", "There is no Content-Type",
+        "The browser guesses the type from the first bytes of the body. Something meant as text can end up running as HTML.");
+  }
+  if (has(P, "content-type")){
+    var ct = firstOf(P, "content-type"), ctl = ct.toLowerCase();
+    if (/^\s*text\//.test(ctl) && ctl.indexOf("charset") < 0){
+      add("ct-no-charset", "info", "The type starts with text/ but there is no charset",
+          "The standard default is US-ASCII, while real browsers guess from the content. This is the classic way UTF-8 text turns into mojibake. Write charset=utf-8.");
+    }
+    if (ctl.indexOf("application/json") === 0 && ctl.indexOf("charset") >= 0){
+      add("ct-json-charset", "info", "A charset is attached to application/json",
+          "The JSON media type defines no charset parameter, so recipients ignore it. It does no harm, but it does not decide the encoding either. JSON is always UTF-8.");
+    }
+    if (!has(P, "x-content-type-options") || firstOf(P, "x-content-type-options").toLowerCase() !== "nosniff"){
+      add("nosniff-missing", "info", "X-Content-Type-Options: nosniff is missing",
+          "The browser may distrust Content-Type and guess the type from the content. That is especially dangerous where user-uploaded files are served.");
+    }
+  }
+  if (has(P, "content-disposition")){
+    var cd = firstOf(P, "content-disposition");
+    if (hasNonASCII(cd) && cd.toLowerCase().indexOf("filename*") < 0){
+      add("cd-nonascii", "high", "The filename contains characters outside ASCII, written directly",
+          "No standard covers this form, and recipients garble it differently. Write it as filename*=UTF-8 (RFC 5987) and keep an ASCII-only filename alongside.");
+    }
+  }
+  if (has(P, "content-length") && has(P, "transfer-encoding")){
+    add("cl-and-te", "high", "Content-Length and Transfer-Encoding sit together",
+        "With both present, recipients differ on where the body ends. When the front and the back read it differently, a request can be smuggled in between. If Transfer-Encoding is there, drop Content-Length.");
+  }
+
+  /* --- セキュリティの指定 --- */
+  if (has(P, "x-frame-options")){
+    var xfo = firstOf(P, "x-frame-options").toUpperCase();
+    if (xfo.indexOf("ALLOW-FROM") === 0){
+      add("xfo-allow-from", "high", "X-Frame-Options: ALLOW-FROM no longer does anything",
+          "No browser implements this spelling. The value is unreadable, so it is either ignored or treated as DENY. Use frame-ancestors in CSP.");
+    }
+    if (has(P, "content-security-policy") && combined(P, "content-security-policy").toLowerCase().indexOf("frame-ancestors") >= 0){
+      add("xfo-and-csp", "info", "Both X-Frame-Options and frame-ancestors in CSP are present",
+          "Where CSP is supported it wins, and X-Frame-Options is never read. Fixing only one of them is not enough.");
+    }
+  }
+  if (has(P, "strict-transport-security")){
+    var hs = splitParams(firstOf(P, "strict-transport-security")), hm = null, hsub = false, hpre = false;
+    for (var h = 0; h < hs.length; h++){
+      var hk = hs[h].k.toLowerCase();
+      if (hk === "max-age" && /^\d+$/.test(hs[h].v || "")) hm = +hs[h].v;
+      if (hk === "includesubdomains") hsub = true;
+      if (hk === "preload") hpre = true;
+    }
+    if (hm === 0){
+      add("hsts-zero", "info", "max-age=0 switches HSTS off",
+          "A browser receiving this forgets what it remembered. That is the correct way to turn it off, but if it is there by accident the protection is simply gone.");
+    }
+    if (hpre && (hm === null || hm < 31536000 || !hsub)){
+      add("hsts-preload-bad", "high", "preload is written but the conditions are not met",
+          "To get into the shipped list, max-age must be at least 31536000 (one year) and includeSubDomains must be present. Falling short raises no error; it just never gets in.");
+    }
+  }
+  if (has(P, "content-security-policy-report-only") && !has(P, "content-security-policy")){
+    add("csp-report-only", "high", "CSP is only present as Report-Only",
+        "This header only reports violations; it blocks nothing. It is the form for trying a policy out, so check that it was not left in production as is.");
+  }
+  if (P.map["content-security-policy"] && P.map["content-security-policy"].length > 1){
+    add("csp-two", "info", "There are two CSP headers",
+        "Both are enforced separately, and only what satisfies both gets through. A second one cannot loosen the first.");
+  }
+  if (has(P, "content-security-policy") || has(P, "content-security-policy-report-only")){
+    var cspv = (has(P, "content-security-policy") ? combined(P, "content-security-policy") : combined(P, "content-security-policy-report-only")).toLowerCase();
+    var csp = {}, cspParts = cspv.split(";");
+    for (var cs = 0; cs < cspParts.length; cs++){
+      var ct2 = trimOWS(cspParts[cs]);
+      if (ct2 === "") continue;
+      var sp2 = ct2.indexOf(" ");
+      csp[sp2 < 0 ? ct2 : ct2.slice(0, sp2)] = sp2 < 0 ? "" : trimOWS(ct2.slice(sp2 + 1));
+    }
+    /* script-src が無ければ default-src が代わりに効く。style-src だけの unsafe-inline は別の話。 */
+    var scriptSrc = Object.prototype.hasOwnProperty.call(csp, "script-src") ? csp["script-src"]
+                  : (Object.prototype.hasOwnProperty.call(csp, "default-src") ? csp["default-src"] : null);
+    if (scriptSrc !== null && scriptSrc.indexOf("unsafe-inline") >= 0){
+      add("csp-unsafe-inline", "high", "unsafe-inline is in the source list for scripts",
+          "It allows every script written into the page, which removes most of what CSP is for: stopping injected scripts. Replace it with a nonce or a hash.");
+    }
+    var lacks = [];
+    if (!Object.prototype.hasOwnProperty.call(csp, "frame-ancestors")) lacks.push("frame-ancestors");
+    if (!Object.prototype.hasOwnProperty.call(csp, "base-uri")) lacks.push("base-uri");
+    if (!Object.prototype.hasOwnProperty.call(csp, "form-action")) lacks.push("form-action");
+    if (Object.prototype.hasOwnProperty.call(csp, "default-src") && lacks.length){
+      add("csp-no-fallback", "info", "Directives that default-src cannot stand in for are missing: " + lacks.join(", "),
+          "These three are not covered by default-src. Left out, they are unrestricted. Writing default-src self is not enough on its own.");
+    }
+  }
+  if (has(P, "access-control-allow-origin")){
+    var acao = firstOf(P, "access-control-allow-origin");
+    if (acao === "*" && has(P, "access-control-allow-credentials")
+        && firstOf(P, "access-control-allow-credentials").toLowerCase() === "true"){
+      add("cors-star-credentials", "high", "Allow-Origin: * and Allow-Credentials: true cannot be used together",
+          "The browser refuses this combination. From the server side a 200 went out, so the failure happens inside the browser only. To send credentials, name exactly one origin.");
+    }
+    if (acao !== "*" && acao.indexOf(",") >= 0){
+      add("cors-multi-origin", "high", "Allow-Origin lists more than one origin",
+          "Only one origin, or *, may be written. A comma-separated value matches no origin at all, so everything is refused. Look at the request Origin and echo one back.");
+    }
+    if (!has(P, "access-control-expose-headers")){
+      add("cors-expose-missing", "info", "Access-Control-Expose-Headers is missing",
+          "JavaScript on another origin can read only seven headers: Cache-Control, Content-Language, Content-Length, Content-Type, Expires, Last-Modified and Pragma. Your own headers arrive but cannot be read.");
+    }
+  }
+  if (has(P, "referrer-policy") && combined(P, "referrer-policy").toLowerCase().indexOf("unsafe-url") >= 0){
+    add("referrer-unsafe", "high", "Referrer-Policy contains unsafe-url",
+        "The whole URL, query string included, is sent to outside sites. Tokens or search terms in the URL go with it.");
+  }
+  if (has(P, "permissions-policy")){
+    var pp = firstOf(P, "permissions-policy");
+    /* 新しい書き方は必ず = を持つ。= が1つも無くて空白で区切られていたら古い形。 */
+    if (pp.indexOf("=") < 0 && /\S\s+\S/.test(pp)){
+      add("permissions-old-syntax", "high", "This is written in the Feature-Policy syntax",
+          "Permissions-Policy is a structured field (RFC 8941), so it is written as geolocation=(). The older geolocation none form is discarded silently as an unreadable value.");
+    }
+  }
+  if (has(P, "server") || has(P, "x-powered-by")){
+    var banner = [];
+    if (has(P, "server")) banner.push(firstOf(P, "server"));
+    if (has(P, "x-powered-by")) banner.push(firstOf(P, "x-powered-by"));
+    if (/\d/.test(banner.join(" "))){
+      add("version-banner", "info", "The implementation and its version are advertised",
+          "An attacker looks here first and then goes hunting for known weaknesses: " + banner.join(" / ") + ". Removing it is not a defence in itself, but there is no reason to help narrow the search either.");
+    }
+  }
+  return out;
+}
+
+/* ---------- キャッシュの寿命（RFC 9111 の式） ---------- */
+
+function cacheModel(P, shared){
+  var r = { store:true, why:[], lifetime:null, source:"", age:null, heuristic:false };
+  var cc = has(P, "cache-control") ? combined(P, "cache-control").toLowerCase() : "";
+  var items = splitList(cc), dir = {};
+  for (var i = 0; i < items.length; i++){
+    var e = items[i].indexOf("=");
+    if (e < 0) dir[items[i]] = "";
+    else dir[trimOWS(items[i].slice(0, e))] = unquote(trimOWS(items[i].slice(e + 1)));
+  }
+  function d(k){ return Object.prototype.hasOwnProperty.call(dir, k); }
+
+  if (d("no-store")){ r.store = false; r.why.push("no-store is present, so no cache stores this."); return r; }
+  if (shared && d("private")){ r.store = false; r.why.push("private is present, so shared caches do not store this (the browser itself does)."); return r; }
+  if (has(P, "vary") && splitList(combined(P, "vary")).indexOf("*") >= 0){
+    r.store = false; r.why.push("Vary: * is present, so a stored response can never be reused."); return r;
+  }
+
+  if (shared && d("s-maxage") && /^\d+$/.test(dir["s-maxage"])){
+    r.lifetime = +dir["s-maxage"]; r.source = "s-maxage";
+  } else if (d("max-age") && /^\d+$/.test(dir["max-age"])){
+    r.lifetime = +dir["max-age"]; r.source = "max-age";
+  } else if (has(P, "expires") && has(P, "date")){
+    var ex = parseHttpDate(firstOf(P, "expires")), dt = parseHttpDate(firstOf(P, "date"));
+    if (ex !== null && dt !== null){ r.lifetime = Math.round((ex - dt) / 1000); r.source = "Expires − Date"; }
+    else if (ex === null){ r.lifetime = 0; r.source = "an Expires that cannot be read"; }
+  } else if (has(P, "expires")){
+    var ex2 = parseHttpDate(firstOf(P, "expires"));
+    if (ex2 !== null){ r.lifetime = Math.round((ex2 - Date.now()) / 1000); r.source = "Expires (there is no Date, so now was used as the baseline)"; }
+    else { r.lifetime = 0; r.source = "an Expires that cannot be read"; }
+  } else if (has(P, "last-modified") && has(P, "date")){
+    var lm = parseHttpDate(firstOf(P, "last-modified")), dt2 = parseHttpDate(firstOf(P, "date"));
+    if (lm !== null && dt2 !== null){
+      /* 10% の端数は切り捨て。規格は丸め方を決めていないので、決めて書いておく。 */
+      r.lifetime = Math.max(0, Math.floor(Math.round((dt2 - lm) / 1000) / 10)); r.source = "guessed from Last-Modified (10% of the elapsed time)"; r.heuristic = true;
+    }
+  }
+
+  var ageHdr = has(P, "age") && /^\d+$/.test(firstOf(P, "age")) ? +firstOf(P, "age") : 0;
+  var dateMs = has(P, "date") ? parseHttpDate(firstOf(P, "date")) : null;
+  var resident = dateMs === null ? 0 : Math.max(0, Math.round((Date.now() - dateMs) / 1000));
+  r.age = ageHdr + resident;
+
+  if (d("no-cache")){
+    r.why.push("no-cache is present, so it is stored but revalidated before every use; the lifetime is effectively zero.");
+    r.lifetime = 0; r.source = "no-cache";
+  }
+  if (r.lifetime === null){
+    r.why.push("Nothing sets a lifetime. In that case a cache is allowed to decide one for itself.");
+  } else {
+    r.why.push("The freshness lifetime is " + fmtSeconds(r.lifetime) + " (" + r.source + ").");
+  }
+  if (dateMs !== null) r.why.push("The age of this response is " + fmtSeconds(r.age) + " (Age " + ageHdr + "s, plus " + resident + "s since Date).");
+  else if (ageHdr) r.why.push("The age of this response is " + fmtSeconds(ageHdr) + " (from the Age header; there is no Date, so nothing is added for time since then).");
+  if (d("immutable")) r.why.push("immutable is present, so while it is fresh it is not revalidated even on a reload.");
+  if (d("must-revalidate")) r.why.push("must-revalidate is present, so once stale, an unreachable origin means an error rather than the old copy.");
+  if (d("stale-while-revalidate") && /^\d+$/.test(dir["stale-while-revalidate"])){
+    r.why.push("For " + fmtSeconds(+dir["stale-while-revalidate"]) + " after it goes stale, a cache may serve the old copy while refreshing in the background.");
+  }
+  return r;
+}
+
+/* ---------- 自己検査: ブラウザの Headers と突き合わせる ---------- */
+
+var SELF_CASES = [
+  { t:"header names are case-insensitive", pairs:[["Content-Type","text/html"],["CONTENT-TYPE","text/plain"]] },
+  { t:"repeats of a name join with a comma and a space", pairs:[["Vary","Accept-Encoding"],["Vary","Origin"]] },
+  { t:"whitespace around the value is dropped", pairs:[["X-Test","   spaced   "]] },
+  { t:"whitespace inside the value stays", pairs:[["X-Test","a  b"]] },
+  { t:"a tab inside the value stays", pairs:[["X-Test","a\tb"]] },
+  { t:"an empty value is allowed", pairs:[["X-Test",""]] },
+  { t:"the punctuation a name may use (token)", pairs:[["X-A!#$%&*+-.^_`|~1","ok"]] },
+  { t:"three or more repeats join in order", pairs:[["Accept","a"],["Accept","b"],["Accept","c"]] },
+  { t:"a comma inside the value is left alone", pairs:[["X-Test","a, b"]] },
+  { t:"a Cache-Control value is kept as written", pairs:[["Cache-Control","max-age=0, no-cache"]] },
+  { t:"bytes 0x80 to 0xFF pass in a value (obs-text)", pairs:[["X-Test","café"]] },
+  { t:"a name starting with a digit passes if it is a token", pairs:[["1x-Test","ok"]] }
+];
+var SELF_BAD = [
+  { t:"a name may not contain a space", name:"X Test", value:"v" },
+  { t:"a name may not contain a colon", name:"X:Test", value:"v" },
+  { t:"a name may not contain parentheses", name:"X(Test)", value:"v" },
+  { t:"a value may not contain a newline", name:"X-Test", value:"a\nb" },
+  { t:"a value may not contain a null character", name:"X-Test", value:"a\u0000b" }
+];
+
+function selfCheck(){
+  var res = [];
+  for (var i = 0; i < SELF_CASES.length; i++){
+    var c = SELF_CASES[i], text = "", h;
+    for (var j = 0; j < c.pairs.length; j++) text += c.pairs[j][0] + ": " + c.pairs[j][1] + "\n";
+    var mine = parseBlock(text);
+    var ok = true, detail = "";
+    try {
+      h = new Headers();
+      for (var k = 0; k < c.pairs.length; k++) h.append(c.pairs[k][0], c.pairs[k][1]);
+    } catch (e){ ok = false; detail = "the browser refused it"; h = null; }
+    if (h){
+      var names = {};
+      for (var m = 0; m < c.pairs.length; m++) names[c.pairs[m][0].toLowerCase()] = 1;
+      for (var nm in names){
+        if (!Object.prototype.hasOwnProperty.call(names, nm)) continue;
+        var theirs = h.get(nm), ours = combined(mine, nm);
+        if (theirs !== ours){ ok = false; detail = nm + ": ours " + JSON.stringify(ours) + " / browser " + JSON.stringify(theirs); }
+      }
+      if (mine.errors.length){ ok = false; detail = "only this page refused it"; }
+    }
+    res.push({ t:c.t, ok:ok, detail:detail });
+  }
+  /* 受け付けない文字は、行に組み立て直さず名前と値のまま判定する。
+     1行にしてから読ませると X:Test が「名前 X、値 Test: v」に割れてしまい、
+     こちらが拒否できているかを測れない（最初そう書いていた）。 */
+  for (var b = 0; b < SELF_BAD.length; b++){
+    var bc = SELF_BAD[b], theyReject = false;
+    try { var hb = new Headers(); hb.append(bc.name, bc.value); } catch (e2){ theyReject = true; }
+    var weReject = !isToken(bc.name) || badValueCharAt(bc.value) >= 0;
+    res.push({ t:bc.t, ok:(theyReject === weReject), detail:theyReject === weReject ? "" : (weReject ? "only this page refuses it" : "only the browser refuses it") });
+  }
+  return res;
+}
+
+/* ---------- 画面 ---------- */
+
+var PRESETS = [
+  { n:"an ordinary response", v:"HTTP/1.1 200 OK\nDate: Mon, 24 Aug 2026 03:00:00 GMT\nContent-Type: text/html\nContent-Length: 5120\nCache-Control: max-age=3600\nSet-Cookie: session=abc123; Path=/; SameSite=None\nServer: nginx/1.24.0\nX-Powered-By: PHP/8.2.11" },
+  { n:"meant as do-not-cache", v:"HTTP/1.1 200 OK\nDate: Mon, 24 Aug 2026 03:00:00 GMT\nContent-Type: application/json; charset=utf-8\nCache-Control: no-cache\nExpires: 0\nPragma: no-cache" },
+  { n:"a CDN handing out a personalised page", v:"HTTP/1.1 200 OK\nDate: Mon, 24 Aug 2026 03:00:00 GMT\nAge: 7200\nCache-Control: public, max-age=3600\nContent-Type: text/html; charset=utf-8\nContent-Encoding: gzip\nSet-Cookie: uid=42; Path=/" },
+  { n:"a CORS combination", v:"HTTP/1.1 200 OK\nContent-Type: application/json\nAccess-Control-Allow-Origin: *\nAccess-Control-Allow-Credentials: true\nAccess-Control-Allow-Methods: GET, POST" },
+  { n:"meant to be locked down", v:"HTTP/1.1 200 OK\nContent-Type: text/html; charset=utf-8\nContent-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'unsafe-inline'\nStrict-Transport-Security: max-age=86400; preload\nX-Frame-Options: ALLOW-FROM https://example.com\nReferrer-Policy: unsafe-url\nPermissions-Policy: geolocation 'none'" },
+  { n:"a download", v:"HTTP/1.1 200 OK\nContent-Type: application/octet-stream\nContent-Disposition: attachment; filename=\"facture-été.pdf\"\nContent-Length: 204800\nX-Content-Type-Options: nosniff" },
+  { n:"a malformed block", v:"HTTP/1.1 200 OK\nContent-Type : text/html\nX-Note: first line\n   folded continuation\nContent-Length: 10\nTransfer-Encoding: chunked" },
+  { n:"request headers", v:"GET /api/items?q=1 HTTP/1.1\nAccept: application/json\nAccept-Encoding: gzip, br\nCookie: session=abc123\nAuthorization: Bearer eyJhbGciOiJIUzI1NiJ9" }
+];
+
+var srcEl = document.getElementById("src");
+var sharedEl = document.getElementById("shared");
+
+function el(id){ return document.getElementById(id); }
+function show(id, on){ el(id).classList[on ? "remove" : "add"]("off"); }
+function textCell(row, cls, text){
+  var td = document.createElement("td");
+  td.className = cls; td.textContent = text;
+  row.appendChild(td); return td;
+}
+
+function render(){
+  var text = srcEl.value;
+  var P = parseBlock(text);
+  var shared = sharedEl.checked;
+
+  /* 1行目 */
+  show("startPanel", !!P.start);
+  if (P.start){
+    var tb = el("startTable").getElementsByTagName("tbody")[0];
+    tb.innerHTML = "";
+    var rows;
+    if (P.start.kind === "status"){
+      var st = Object.prototype.hasOwnProperty.call(STATUS_TEXT, P.start.code) ? STATUS_TEXT[P.start.code] : "this page has no description for that status code";
+      rows = [["version", "HTTP/" + P.start.version], ["status", P.start.code + " — " + st],
+              ["reason phrase", P.start.reason === "" ? "(none — the reason phrase carries no meaning)" : P.start.reason + " — text for people to read; programs do not look at it"]];
+    } else {
+      rows = [["method", P.start.method], ["target", P.start.target], ["version", "HTTP/" + P.start.version]];
+    }
+    for (var i = 0; i < rows.length; i++){
+      var tr = document.createElement("tr");
+      textCell(tr, "k", rows[i][0]); textCell(tr, "v", rows[i][1]);
+      tb.appendChild(tr);
+    }
+  }
+
+  /* 分解した結果 */
+  show("fieldsPanel", P.fields.length > 0);
+  var ftb = el("fieldsTable").getElementsByTagName("tbody")[0];
+  ftb.innerHTML = "";
+  var doneNames = {};
+  for (var f = 0; f < P.order.length; f++){
+    var nm = P.order[f], vals = P.map[nm];
+    for (var vi = 0; vi < vals.length; vi++){
+      var tr2 = document.createElement("tr");
+      textCell(tr2, "k", vi === 0 ? nm : "");
+      var vc = textCell(tr2, "v", vals[vi] === "" ? "(empty)" : vals[vi]);
+      if (vals[vi] === "") vc.className = "v empty";
+      var note = "";
+      if (vals.length > 1){
+        note = nm === "set-cookie" ? (vi + 1) + " (Set-Cookie headers are never combined)"
+                                   : (vi === 0 ? vals.length + " of them; in use they join as: " + vals.join(", ") + "" : "");
+      }
+      if (P.raws[nm][vi] !== nm && vi === 0) note = note ? note + " / written as " + P.raws[nm][vi] : "written as " + P.raws[nm][vi] + " (names are case-insensitive)";
+      textCell(tr2, "note", note);
+      ftb.appendChild(tr2);
+    }
+    doneNames[nm] = 1;
+  }
+  el("fieldsNote").textContent = P.bodyFrom >= 0
+    ? "A blank line appeared, so everything after it is treated as the body and is not read."
+    : "";
+
+  /* エラー */
+  show("errPanel", P.errors.length > 0);
+  if (P.errors.length){
+    var box = el("errMsg");
+    box.innerHTML = "";
+    var head = document.createElement("div");
+    head.textContent = "There are " + P.errors.length + " lines that could not be read. The number in front is the line number.";
+    box.appendChild(head);
+    var ul = document.createElement("ul");
+    for (var e = 0; e < P.errors.length; e++){
+      var li = document.createElement("li");
+      li.textContent = P.errors[e].line + ": " + P.errors[e].msg;
+      ul.appendChild(li);
+    }
+    box.appendChild(ul);
+  }
+
+  /* 読み下し */
+  var readBox = el("readBox");
+  readBox.innerHTML = "";
+  var explained = 0;
+  for (var g = 0; g < P.fields.length; g++){
+    var fl = P.fields[g];
+    var ex = explain(fl.name, fl.value, P);
+    if (!ex || !ex.rows.length) continue;
+    explained++;
+    var card = document.createElement("div");
+    card.className = "hcard";
+    var hn = document.createElement("div"); hn.className = "hname"; hn.textContent = fl.rawName;
+    var hv = document.createElement("div"); hv.className = "hval"; hv.textContent = fl.value;
+    var hs = document.createElement("p"); hs.className = "hsum"; hs.textContent = ex.sum;
+    card.appendChild(hn); card.appendChild(hv); card.appendChild(hs);
+    var wrap = document.createElement("div"); wrap.className = "tablewrap";
+    var tbl = document.createElement("table"), tbody = document.createElement("tbody");
+    for (var rr = 0; rr < ex.rows.length; rr++){
+      var trr = document.createElement("tr");
+      textCell(trr, "k", ex.rows[rr].k); textCell(trr, "v", ex.rows[rr].v);
+      tbody.appendChild(trr);
+    }
+    tbl.appendChild(tbody); wrap.appendChild(tbl); card.appendChild(wrap);
+    readBox.appendChild(card);
+  }
+  show("readPanel", explained > 0);
+  el("readNote").textContent = explained < P.fields.length
+    ? "Headers this page has no reading for appear in the table above with their value only." : "";
+
+  /* キャッシュ */
+  var isResponse = !P.start || P.start.kind === "status";
+  show("cachePanel", isResponse && P.fields.length > 0);
+  if (isResponse && P.fields.length > 0){
+    var cm = cacheModel(P, shared);
+    var cbox = el("cacheBox");
+    cbox.innerHTML = "";
+    var big = document.createElement("div");
+    big.className = "big " + (cm.store ? "yes" : "no");
+    if (!cm.store) big.textContent = shared ? "A shared cache will not store this." : "This will not be stored.";
+    else if (cm.lifetime === null) big.textContent = "This will be stored. The lifetime is left to the cache.";
+    else if (cm.lifetime <= 0) big.textContent = "This will be stored, but revalidated before every use.";
+    else {
+      var left = cm.lifetime - cm.age;
+      big.textContent = "This will be stored. It stays fresh for " + fmtSeconds(cm.lifetime) + ". "
+        + (cm.age > 0 ? (left > 0 ? "Taking off its current age leaves " + fmtSeconds(left) + "." : "Its age is already past that, so it is stale.") : "");
+    }
+    cbox.appendChild(big);
+    var cul = document.createElement("ul");
+    for (var w = 0; w < cm.why.length; w++){
+      var cli = document.createElement("li"); cli.textContent = cm.why[w]; cul.appendChild(cli);
+    }
+    var cli2 = document.createElement("li");
+    cli2.textContent = shared ? "Read as a CDN or a proxy, so s-maxage and private apply."
+                              : "Read as the browser own cache, so s-maxage and private do not apply.";
+    cul.appendChild(cli2);
+    if (cm.heuristic){
+      var cli3 = document.createElement("li");
+      cli3.textContent = "This lifetime is not fixed by the standard; it is the widely used guess. The real number differs from cache to cache.";
+      cul.appendChild(cli3);
+    }
+    cbox.appendChild(cul);
+  }
+
+  /* 指摘 */
+  var notes = pitfalls(P, shared);
+  var nl = el("notesList");
+  nl.innerHTML = "";
+  for (var n = 0; n < notes.length; n++){
+    var nli = document.createElement("li");
+    nli.className = "sev-" + notes[n].sev;
+    nli.setAttribute("data-code", notes[n].code);
+    var b = document.createElement("b"); b.textContent = notes[n].title;
+    nli.appendChild(b);
+    nli.appendChild(document.createTextNode(notes[n].body));
+    nl.appendChild(nli);
+  }
+  el("notesNone").style.display = notes.length ? "none" : "";
+}
+
+(function buildPresets(){
+  var box = el("presets");
+  for (var i = 0; i < PRESETS.length; i++){
+    (function(p){
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = p.n;
+      b.addEventListener("click", function(){ srcEl.value = p.v; render(); });
+      box.appendChild(b);
+    })(PRESETS[i]);
+  }
+})();
+
+(function runSelf(){
+  var res = selfCheck(), okN = 0;
+  var box = el("selfBox");
+  box.innerHTML = "";
+  for (var i = 0; i < res.length; i++){
+    if (res[i].ok) okN++;
+    var row = document.createElement("div"); row.className = "row";
+    var mk = document.createElement("span");
+    mk.className = "mark " + (res[i].ok ? "ok" : "ng");
+    mk.textContent = res[i].ok ? "\u2713" : "\u2717";
+    var tx = document.createElement("span");
+    tx.textContent = res[i].t + (res[i].detail ? " (" + res[i].detail + ")" : "");
+    row.appendChild(mk); row.appendChild(tx);
+    box.appendChild(row);
+  }
+  var head = el("selfHead");
+  head.innerHTML = "";
+  head.appendChild(document.createTextNode("Checked the parsing on this page against the Headers object in this browser, right now: "));
+  var strong = document.createElement("b");
+  strong.className = okN === res.length ? "ok" : "ng";
+  strong.textContent = okN + " / " + res.length + " match";
+  head.appendChild(strong);
+  head.appendChild(document.createTextNode(okN === res.length ? ". " : ". Where they differ, the browser is right."));
+})();
+
+srcEl.addEventListener("input", render);
+sharedEl.addEventListener("change", render);
+srcEl.value = PRESETS[0].v;
+render();
+</script>
+</body>
+</html>

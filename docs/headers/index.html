@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTTPヘッダの読み下し — エラーにならない設定ミスを名指しする</title>
+<meta name="description" content="HTTPの応答ヘッダを貼ると、1行ずつ日本語に読み下して、キャッシュがどう効くか・Cookieが本当に届くか・セキュリティの指定が実際に効いているかを見せる道具です。no-cache は「保存しない」ではない、SameSite=None なのに Secure が無いとブラウザに黙って捨てられる、Content-Encoding があるのに Vary に Accept-Encoding が無い、といった「エラーにならないので気づけない」ところを名指しします。ブラウザ内で完結し、データはどこにも送信されません。">
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
+    /* リンク色は白地で 4.5:1 を超える濃さにしている（明るい #c47f16 だと 3.28:1 しか出ない）。
+       --on-accent はアクセント色を背景に敷いたときの文字色。 */
+    --accent:#8f5c0e; --on-accent:#ffffff;
+    --border:#e2e2df; --ok:#15703f; --err:#b3261e; --warn:#9a5208;
+    --okbg:#e8f5ee; --errbg:#fdecea; --warnbg:#fdf4e3; --hi:#fdf4e3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --panel2:#242832; --text:#e8e8e6; --sub:#9a9a97;
+            --accent:#f5a623; --on-accent:#17181c;
+            --border:#33363e; --ok:#4ec98a; --err:#ff7b6e; --warn:#f0b64d;
+            --okbg:#1d2f26; --errbg:#33201e; --warnbg:#2e2a1f; --hi:#2e2a1f; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 18px 56px}
+  h1{font-size:1.35rem;margin:0 0 6px}
+  .lead{color:var(--sub);font-size:.88rem;margin:0 0 18px}
+  .lead strong{color:var(--text)}
+  .lead code,.mono{font-family:"SFMono-Regular",Consolas,"Courier New",monospace}
+  .lead code{background:var(--panel);border:1px solid var(--border);border-radius:4px;
+       padding:0 4px;color:var(--accent)}
+  .privacy{background:var(--panel);border:1px solid var(--ok);border-left-width:4px;
+           border-radius:8px;padding:10px 14px;font-size:.85rem;margin-bottom:18px}
+  .privacy strong{color:var(--ok)}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+         padding:14px;margin-bottom:14px}
+  .panel.off{display:none}
+  h2{font-size:.95rem;margin:0 0 10px}
+  .hide{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  textarea#src{width:100%;min-height:150px;border:1px solid var(--border);border-radius:8px;
+       background:var(--panel2);color:var(--text);padding:11px 13px;font-size:.95rem;resize:vertical;
+       font-family:"SFMono-Regular",Consolas,"Courier New",monospace;outline:none;word-break:break-all}
+  textarea#src:focus{border-color:var(--accent)}
+  .siderow{display:flex;gap:14px;align-items:center;margin-top:10px;flex-wrap:wrap;font-size:.82rem;color:var(--sub)}
+  .siderow label{white-space:nowrap;cursor:pointer}
+
+  .presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .presets button{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+       border-radius:999px;padding:5px 11px;font-size:.78rem;cursor:pointer;font-family:inherit}
+  .presets button:hover{border-color:var(--accent)}
+
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  th,td{border-bottom:1px solid var(--border);padding:6px 8px;text-align:left;vertical-align:top}
+  th{color:var(--sub);font-weight:600;font-size:.78rem;white-space:nowrap}
+  td.k{white-space:nowrap;color:var(--sub);font-size:.8rem}
+  td.v{font-family:"SFMono-Regular",Consolas,"Courier New",monospace;word-break:break-all}
+  td.v.empty{color:var(--sub);font-family:inherit;font-size:.8rem}
+  td.note{font-size:.8rem;color:var(--sub)}
+  .tablewrap{overflow-x:auto;max-width:100%}
+  @media (max-width:560px){ th{white-space:normal} td.k{white-space:normal} }
+
+  .hcard{border:1px solid var(--border);border-radius:8px;background:var(--panel2);
+       padding:10px 12px;margin-bottom:10px}
+  .hcard:last-child{margin-bottom:0}
+  .hcard .hname{font-family:"SFMono-Regular",Consolas,monospace;font-size:.86rem;
+       color:var(--accent);font-weight:600;word-break:break-all}
+  .hcard .hval{font-family:"SFMono-Regular",Consolas,monospace;font-size:.82rem;
+       color:var(--sub);word-break:break-all;margin:2px 0 8px}
+  .hcard .hsum{font-size:.85rem;margin:0 0 8px}
+  .hcard table{font-size:.82rem}
+  .hcard table td.k{width:34%}
+
+  .cache{font-size:.86rem}
+  .cache .big{font-size:1rem;font-weight:600}
+  .cache .big.no{color:var(--err)}
+  .cache .big.yes{color:var(--ok)}
+  .cache ul{margin:8px 0 0;padding-left:1.2em;color:var(--sub);font-size:.82rem}
+  .cache li{margin-bottom:3px}
+
+  ul.notes{list-style:none;margin:0;padding:0}
+  ul.notes li{border-left:4px solid var(--warn);background:var(--warnbg);border-radius:6px;
+       padding:8px 11px;margin-bottom:7px;font-size:.85rem}
+  ul.notes li.sev-high{border-left-color:var(--err);background:var(--errbg)}
+  ul.notes li.sev-info{border-left-color:var(--sub);background:var(--panel2)}
+  ul.notes li b{display:block;margin-bottom:2px}
+  ul.notes li code{font-family:"SFMono-Regular",Consolas,monospace;word-break:break-all}
+  .none{color:var(--sub);font-size:.85rem;overflow-wrap:anywhere}
+
+  .err{background:var(--errbg);border:1px solid var(--err);border-radius:8px;
+       padding:10px 12px;font-size:.87rem;color:var(--err)}
+  .err ul{margin:6px 0 0;padding-left:1.2em}
+
+  .self{font-size:.84rem}
+  .self .row{display:flex;gap:8px;padding:3px 0;border-bottom:1px solid var(--border)}
+  .self .row:last-child{border-bottom:none}
+  .self .mark{width:1.2em;flex:0 0 auto}
+  .self .ok{color:var(--ok)}
+  .self .ng{color:var(--err)}
+  .selfhead{font-size:.85rem;margin-bottom:6px}
+  .selfhead b.ok{color:var(--ok)}
+  .selfhead b.ng{color:var(--err)}
+
+  details{font-size:.85rem;background:var(--panel);border:1px solid var(--border);
+        border-radius:10px;padding:10px 14px;margin-bottom:14px}
+  details summary{cursor:pointer;font-weight:600;font-size:.9rem}
+  details ul{margin:8px 0 0;padding-left:1.2em}
+  details li{margin-bottom:5px}
+  details code{font-family:"SFMono-Regular",Consolas,monospace;color:var(--accent)}
+  details a{color:var(--accent)}
+  a{color:var(--accent)}
+  .hl-back{display:inline-block;font-size:.82rem;color:var(--accent);
+        text-decoration:none;margin-bottom:10px}
+  .hl-back:hover{text-decoration:underline}
+  .hl-nav{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+        padding:14px;margin-top:26px}
+  .hl-nav h2{font-size:.9rem;margin:0 0 8px}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+  .hl-nav li a{display:inline-block;border:1px solid var(--border);border-radius:999px;
+        padding:5px 11px;font-size:.8rem;color:var(--text);text-decoration:none;background:var(--panel2)}
+  .hl-nav li a:hover{border-color:var(--accent)}
+  .hl-links{margin:10px 0 0;font-size:.82rem;color:var(--sub)}
+  footer{color:var(--sub);font-size:.78rem;line-height:1.7;margin-top:22px}
+</style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/headers/">
+<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/headers/">
+<link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/headers.html">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="クロードの昼ラボ">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="HTTPヘッダの読み下し — エラーにならない設定ミスを名指しする">
+<meta property="og:description" content="応答ヘッダを貼ると1行ずつ日本語に読み下し、キャッシュの寿命・Cookieが本当に届くか・セキュリティの指定が効いているかを見せます。no-cache は保存しないという意味ではない、SameSite=None に Secure が無いと黙って捨てられる。エラーにならない落とし穴を名指しします。">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/headers/">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-headers.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="HTTPヘッダの読み下し — エラーにならない設定ミスを名指しする">
+<meta name="twitter:description" content="応答ヘッダを貼ると1行ずつ読み下し、キャッシュの寿命・Cookieの届き方・セキュリティ指定の効き目を見せます。エラーにならない落とし穴を名指しします。ブラウザ内で完結します。">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-headers.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "HTTPヘッダの読み下し",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/headers/",
+  "description": "HTTPの応答ヘッダを貼ると、1行ずつ日本語に読み下して、キャッシュがどう効くか・Cookieが本当に届くか・セキュリティの指定が実際に効いているかを見せる道具です。no-cache は保存しないという意味ではない、SameSite=None なのに Secure が無いとブラウザに黙って捨てられる、Content-Encoding があるのに Vary に Accept-Encoding が無い、といったエラーにならない落とし穴を名指しします。ブラウザ内で完結します。",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "JavaScript が有効なモダンブラウザ",
+  "inLanguage": "ja",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-headers.png",
+  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
+  <h1>HTTPヘッダの読み下し</h1>
+  <p class="lead">応答ヘッダを貼ると、<strong>1行ずつ日本語に読み下して、実際に何が起きるか</strong>を見せる道具です。
+    HTTPヘッダは<strong>書き間違えてもエラーが出ません</strong>。
+    <code>SameSite=None</code> に <code>Secure</code> を付け忘れたCookieは、
+    警告もなくブラウザに捨てられます。この道具は、そういうところを名指しします。</p>
+
+  <div class="privacy">
+    <strong>このページは通信を一切行いません。</strong>
+    解析はすべてブラウザの中でやっています。読み込んだあとは機内モードでも動きます。
+    貼り付けたヘッダ（<code>Set-Cookie</code> のセッションIDや <code>Authorization</code> を含みます）が
+    どこかに送られることはありません。<strong>書かれているURLを開きにいくこともありません。</strong>
+  </div>
+
+  <div class="panel">
+    <label for="src" class="hide">HTTPヘッダ</label>
+    <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+    <div class="siderow">
+      <label><input type="checkbox" id="shared" checked> 共有キャッシュ（CDN・プロキシ）として読む</label>
+    </div>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div class="panel off" id="errPanel"><div class="err" id="errMsg"></div></div>
+
+  <div class="panel off" id="startPanel">
+    <h2>1行目</h2>
+    <div class="tablewrap">
+      <table id="startTable"><tbody></tbody></table>
+    </div>
+  </div>
+
+  <div class="panel off" id="fieldsPanel">
+    <h2>分解した結果</h2>
+    <div class="tablewrap">
+      <table id="fieldsTable">
+        <thead><tr><th>ヘッダ名</th><th>値</th><th>備考</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="none" id="fieldsNote"></p>
+  </div>
+
+  <div class="panel off" id="readPanel">
+    <h2>1つずつ読み下す</h2>
+    <div id="readBox"></div>
+    <p class="none" id="readNote"></p>
+  </div>
+
+  <div class="panel off" id="cachePanel">
+    <h2>キャッシュはどうなるか</h2>
+    <div class="cache" id="cacheBox"></div>
+  </div>
+
+  <div class="panel" id="notesPanel">
+    <h2>気をつけるところ</h2>
+    <ul class="notes" id="notesList"></ul>
+    <p class="none" id="notesNone">いまのところ指摘はありません。</p>
+  </div>
+
+  <div class="panel">
+    <h2>自己検査</h2>
+    <div class="selfhead" id="selfHead"></div>
+    <div class="self" id="selfBox"></div>
+  </div>
+
+  <details>
+    <summary>この道具は何を自分で計算しているのか</summary>
+    <ul>
+      <li><b>ヘッダの分解はブラウザの <code>Headers</code> を使わず、自分で書いています。</b>
+        RFC 9110 / 9112 の決まり（名前に置ける文字、値の前後の空白の落とし方、
+        同じ名前が複数回来たときの結合、行頭空白での折り返し）をなぞった実装です。</li>
+      <li><b>キャッシュの寿命は RFC 9111 の式で計算しています。</b>
+        <code>s-maxage</code> → <code>max-age</code> → <code>Expires</code> − <code>Date</code> の順に見て、
+        どれも無ければ <code>Last-Modified</code> からの推測（経過時間の10%）を使います。
+        <b>齢</b>は <code>Age</code> と <code>Date</code> から出します。</li>
+      <li>自前である以上ずれる可能性があります。だから<b>毎回その場でブラウザの
+        <code>Headers</code> と突き合わせ、結果を自己検査の欄に出しています</b>。
+        名前の正規化・値の前後の空白・結合のしかた・受け付けない文字の4点を見ています。</li>
+      <li><b>できていないところも書いておきます。</b>
+        <code>Content-Security-Policy</code> は指令ごとの値を並べて読むだけで、
+        個々のURLがそのポリシーで通るかどうかまでは判定しません。
+        構造化フィールド（RFC 8941）も、辞書とリストの形だけを見ています。</li>
+      <li>ヘッダの値そのものは<b>1バイトも書き換えません</b>。読み下しは別の欄に出します。</li>
+    </ul>
+  </details>
+
+  <nav class="hl-nav">
+    <h2>ほかの道具</h2>
+    <ul>
+      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
+      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
+      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
+      <li><a href="../url/">URLの分解・組み立て</a></li>
+      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
+      <li><a href="../date/">日付計算機</a></li>
+      <li><a href="../image/">画像リサイズ・圧縮</a></li>
+      <li><a href="../take-home/">手取り計算機</a></li>
+      <li><a href="../json/">JSON整形・検証</a></li>
+      <li><a href="../diff/">テキスト差分（diff）</a></li>
+      <li><a href="../unit/">単位換算</a></li>
+      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
+      <li><a href="../qr/">QRコード作成</a></li>
+      <li><a href="../palette/">カラーパレット生成</a></li>
+      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
+      <li><a href="../cron/">cron式の読み下し</a></li>
+      <li><a href="../tz/">タイムゾーン変換</a></li>
+      <li><a href="../csv/">CSVプレビュー・診断</a></li>
+      <li><a href="../en/headers.html">English version</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="../">道具箱のトップ</a> ・
+      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
+      <a href="https://x.com/hirulab_ai">X</a> ・
+      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+    </p>
+  </nav>
+
+  <footer>
+    作ったのは「クロードの昼ラボ」（AIのClaude）です。使用は無料・登録不要。
+    読み方は RFC 9110・9111・9112（HTTPの本体とキャッシュ）と RFC 6265（Cookie）に合わせています。
+    ブラウザやCDNは規格に無い独自の判断を足すことがあり、
+    <b>その食い違い自体が事故のもと</b>です。指摘欄ではそこも書いています。
+  </footer>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   RFC 9110 / 9112 をなぞったヘッダの分解。ブラウザの Headers は使わない
+   （使ったら「ブラウザと一致するか」を確かめる意味が無くなる）。
+   ------------------------------------------------------------------ */
+
+var APOS = String.fromCharCode(39);      /* 引用符は文字コードで書く（英語版の照合のため） */
+var TOKEN_EXTRA = "!#$%&*+-.^_`|~" + APOS;
+
+function isTokenChar(ch){
+  return (ch >= "0" && ch <= "9") || (ch >= "A" && ch <= "Z") || (ch >= "a" && ch <= "z")
+      || TOKEN_EXTRA.indexOf(ch) >= 0;
+}
+function isToken(s){
+  if (!s.length) return false;
+  for (var i = 0; i < s.length; i++) if (!isTokenChar(s.charAt(i))) return false;
+  return true;
+}
+/* 値に置けるのは VCHAR / SP / HTAB / obs-text(0x80-0xFF)。制御文字は置けない。 */
+function badValueCharAt(s){
+  for (var i = 0; i < s.length; i++){
+    var c = s.charCodeAt(i);
+    if (c === 9) continue;
+    if (c < 0x20 || c === 0x7f) return i;
+  }
+  return -1;
+}
+function trimOWS(s){
+  var a = 0, b = s.length;
+  while (a < b && (s.charAt(a) === " " || s.charAt(a) === "\t")) a++;
+  while (b > a && (s.charAt(b - 1) === " " || s.charAt(b - 1) === "\t")) b--;
+  return s.slice(a, b);
+}
+function hasNonASCII(s){
+  for (var i = 0; i < s.length; i++) if (s.charCodeAt(i) > 0x7e) return true;
+  return false;
+}
+
+/* 一度しか置けないヘッダ（複数来たら受け手によって扱いが割れる） */
+var SINGLETON = ["content-type", "content-length", "location", "date", "expires", "age",
+                 "last-modified", "etag", "retry-after", "content-encoding",
+                 "content-disposition", "content-range", "server", "x-frame-options"];
+
+function parseBlock(text){
+  var res = { start:null, fields:[], errors:[], bodyFrom:-1, order:[], map:{}, raws:{} };
+  var lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+  var i = 0;
+  while (i < lines.length && trimOWS(lines[i]) === "") i++;
+  if (i >= lines.length) return res;
+
+  var first = lines[i];
+  var mStatus = first.match(/^HTTP\/(\d(?:\.\d)?)[ \t]+(\d{3})(?:[ \t]+(.*))?$/);
+  var mReq = first.match(/^([A-Za-z]+)[ \t]+(\S+)[ \t]+HTTP\/(\d(?:\.\d)?)$/);
+  if (mStatus){
+    res.start = { kind:"status", version:mStatus[1], code:mStatus[2],
+                  reason:(mStatus[3] === undefined ? "" : mStatus[3]), raw:first };
+    i++;
+  } else if (mReq){
+    res.start = { kind:"request", method:mReq[1], target:mReq[2], version:mReq[3], raw:first };
+    i++;
+  }
+
+  for (; i < lines.length; i++){
+    var ln = lines[i];
+    if (ln === ""){ res.bodyFrom = i + 1; break; }
+    var lineNo = i + 1;
+
+    if (ln.charAt(0) === " " || ln.charAt(0) === "\t"){
+      if (res.fields.length === 0){
+        res.errors.push({ line:lineNo, msg:"行頭が空白で始まっていますが、続きにできるヘッダがありません。" });
+        continue;
+      }
+      var prev = res.fields[res.fields.length - 1];
+      prev.value = prev.value + " " + trimOWS(ln);
+      prev.folded = true;
+      continue;
+    }
+    var idx = ln.indexOf(":");
+    if (idx < 0){
+      res.errors.push({ line:lineNo, msg:"コロンがありません。ヘッダは「名前: 値」の形です。" });
+      continue;
+    }
+    var rawName = ln.slice(0, idx), value = trimOWS(ln.slice(idx + 1));
+    var name = trimOWS(rawName);
+    /* 空白は「名前に置けない文字」より先に見る。トリムしてから token かどうかを見ると、
+       Content-Type : のような形を黙って通してしまう（実際そう書いていて、プリセットで見つけた）。 */
+    if (rawName !== name){
+      res.errors.push({ line:lineNo, msg:"名前とコロンの間に空白があります。この形は受け取った側が必ず拒否する決まりです。", code:"space-before-colon" });
+      continue;
+    }
+    if (!isToken(name)){
+      res.errors.push({ line:lineNo, msg:"ヘッダ名に置けない文字が入っています: " + name });
+      continue;
+    }
+    var bad = badValueCharAt(value);
+    if (bad >= 0){
+      res.errors.push({ line:lineNo, msg:"値に制御文字が入っています（" + (bad + 1) + "文字目）。" });
+      continue;
+    }
+    res.fields.push({ line:lineNo, rawName:name, name:name.toLowerCase(), value:value, folded:false });
+  }
+
+  for (var k = 0; k < res.fields.length; k++){
+    var f = res.fields[k];
+    if (!Object.prototype.hasOwnProperty.call(res.map, f.name)){
+      res.map[f.name] = []; res.order.push(f.name); res.raws[f.name] = [];
+    }
+    res.map[f.name].push(f.value);
+    res.raws[f.name].push(f.rawName);
+  }
+  return res;
+}
+
+/* 同じ名前が複数来たときの結合。Set-Cookie だけは結合してはいけない。 */
+function combined(P, name){
+  var a = P.map[name];
+  if (!a) return null;
+  if (name === "set-cookie") return a[0];
+  return a.join(", ");
+}
+function firstOf(P, name){ var a = P.map[name]; return a ? a[0] : null; }
+function has(P, name){ return Object.prototype.hasOwnProperty.call(P.map, name); }
+
+/* ---------- 細かい値の読み ---------- */
+
+/* 「a=b; c」のような ;区切りのパラメータ。引用符つきの値も戻す。 */
+function splitParams(s){
+  var out = [], cur = "", q = false;
+  for (var i = 0; i < s.length; i++){
+    var ch = s.charAt(i);
+    if (q){
+      if (ch === "\\" && i + 1 < s.length){ cur += ch + s.charAt(i + 1); i++; continue; }
+      if (ch === "\"") q = false;
+      cur += ch; continue;
+    }
+    if (ch === "\""){ q = true; cur += ch; continue; }
+    if (ch === ";"){ out.push(cur); cur = ""; continue; }
+    cur += ch;
+  }
+  out.push(cur);
+  var res = [];
+  for (var j = 0; j < out.length; j++){
+    var t = trimOWS(out[j]);
+    if (t === "") continue;
+    var e = t.indexOf("=");
+    if (e < 0) res.push({ k:t, v:null, raw:t });
+    else res.push({ k:trimOWS(t.slice(0, e)), v:trimOWS(t.slice(e + 1)), raw:t });
+  }
+  return res;
+}
+function unquote(v){
+  if (v === null || v.length < 2) return v;
+  if (v.charAt(0) !== "\"" || v.charAt(v.length - 1) !== "\"") return v;
+  return v.slice(1, -1).replace(/\\(.)/g, "$1");
+}
+/* 「a, b, c」の ,区切り。引用符の中のカンマは割らない。 */
+function splitList(s){
+  var out = [], cur = "", q = false;
+  for (var i = 0; i < s.length; i++){
+    var ch = s.charAt(i);
+    if (q){
+      if (ch === "\\" && i + 1 < s.length){ cur += ch + s.charAt(i + 1); i++; continue; }
+      if (ch === "\"") q = false;
+      cur += ch; continue;
+    }
+    if (ch === "\""){ q = true; cur += ch; continue; }
+    if (ch === ","){ out.push(cur); cur = ""; continue; }
+    cur += ch;
+  }
+  out.push(cur);
+  var res = [];
+  for (var j = 0; j < out.length; j++){ var t = trimOWS(out[j]); if (t !== "") res.push(t); }
+  return res;
+}
+
+/* HTTP-date（RFC 9110 5.6.7）。3つの形を読む。戻り値はミリ秒か null。 */
+var MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function monthNum(s){ for (var i = 0; i < MON.length; i++) if (MON[i] === s) return i; return -1; }
+/* 桁数が合っていても、存在しない日付は拒む。Date.UTC は 8月32日を黙って9月1日にするので、
+   組み立て直して同じ年月日に戻るかを見る（Python と突き合わせて見つけた穴）。 */
+function mkUTC(y, mo, d, hh, mm, ss){
+  if (mo < 0 || d < 1 || d > 31 || hh > 23 || mm > 59 || ss > 59) return null;
+  var ms = Date.UTC(y, mo, d, hh, mm, ss);
+  var dt = new Date(ms);
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo || dt.getUTCDate() !== d) return null;
+  return ms;
+}
+function parseHttpDate(s){
+  s = trimOWS(s);
+  var m = s.match(/^[A-Za-z]{3}, (\d{2}) ([A-Za-z]{3}) (\d{4}) (\d{2}):(\d{2}):(\d{2}) GMT$/);
+  if (m) return mkUTC(+m[3], monthNum(m[2]), +m[1], +m[4], +m[5], +m[6]);
+  m = s.match(/^[A-Za-z]+, (\d{2})-([A-Za-z]{3})-(\d{2}) (\d{2}):(\d{2}):(\d{2}) GMT$/);
+  if (m){
+    var yy = +m[3];
+    /* 2桁の年は「50年以上先に見えるなら前世紀」と読む決まり（RFC 9110 5.6.7） */
+    var full = 2000 + yy;
+    if (full - new Date().getUTCFullYear() > 50) full -= 100;
+    return mkUTC(full, monthNum(m[2]), +m[1], +m[4], +m[5], +m[6]);
+  }
+  m = s.match(/^[A-Za-z]{3} ([A-Za-z]{3}) ([ \d]\d) (\d{2}):(\d{2}):(\d{2}) (\d{4})$/);
+  if (m) return mkUTC(+m[6], monthNum(m[1]), +trimOWS(m[2]), +m[3], +m[4], +m[5]);
+  return null;
+}
+function fmtSeconds(n){
+  if (n < 0) return "0秒";
+  if (n < 60) return n + "秒";
+  if (n < 3600) return Math.floor(n / 60) + "分" + (n % 60 ? (n % 60) + "秒" : "");
+  if (n < 86400) return Math.floor(n / 3600) + "時間" + (Math.floor(n / 60) % 60 ? (Math.floor(n / 60) % 60) + "分" : "");
+  return Math.floor(n / 86400) + "日" + (Math.floor(n / 3600) % 24 ? (Math.floor(n / 3600) % 24) + "時間" : "");
+}
+function fmtBytes(n){
+  if (n < 1024) return n + " バイト";
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KiB";
+  return (n / 1024 / 1024).toFixed(2) + " MiB";
+}
+
+/* ---------- ヘッダごとの読み下し ---------- */
+
+var CC_TEXT = {
+  "max-age":            "この秒数のあいだは新鮮とみなす。過ぎたら元のサーバに確認する",
+  "s-maxage":           "共有キャッシュ（CDN・プロキシ）だけに効く寿命。max-age より優先される",
+  "no-cache":           "保存はしてよいが、使う前に毎回元のサーバに確認する（保存しない、ではない）",
+  "no-store":           "保存してはいけない。ディスクにもメモリにも残さない",
+  "private":            "その利用者だけのもの。共有キャッシュは保存してはいけない",
+  "public":             "ふつうなら保存されない応答でも保存してよい",
+  "must-revalidate":    "期限が切れたら、元のサーバに繋がらなくても古いものを出してはいけない",
+  "proxy-revalidate":   "must-revalidate と同じことを共有キャッシュにだけ課す",
+  "no-transform":       "中身を圧縮したり画像を変換したりして渡してはいけない",
+  "immutable":          "期限内は、再読み込みされても確認しにいかない",
+  "must-understand":    "この状態コードの保存の決まりを理解できないなら保存しない",
+  "stale-while-revalidate": "期限切れ後この秒数までは、裏で更新しながら古いものを出してよい",
+  "stale-if-error":     "元のサーバが失敗したら、期限切れ後この秒数までは古いものを出してよい",
+  "only-if-cached":     "保存済みのものだけを返す。無ければ取りにいかない",
+  "max-stale":          "この秒数までなら期限切れのものを受け取る",
+  "min-fresh":          "少なくともこの秒数は新鮮であるものが欲しい"
+};
+var SAMESITE_TEXT = {
+  "strict": "別サイトからの遷移では一切送られない",
+  "lax":    "別サイトからでも、リンクをたどる形の移動なら送られる",
+  "none":   "別サイトからの読み込みでも送られる（Secure が必須）"
+};
+var CSP_TEXT = {
+  "default-src":"下の個別指定が無いときの既定", "script-src":"スクリプトの取得元",
+  "style-src":"スタイルシートの取得元", "img-src":"画像の取得元",
+  "connect-src":"fetch・XHR・WebSocket の接続先", "font-src":"フォントの取得元",
+  "media-src":"音声・動画の取得元", "object-src":"プラグインの取得元",
+  "frame-src":"枠に読み込むページの取得元", "worker-src":"ワーカーの取得元",
+  "frame-ancestors":"このページを枠に入れてよい側", "base-uri":"base 要素で置ける値",
+  "form-action":"フォームの送信先", "sandbox":"読み込んだ中身に課す制限",
+  "upgrade-insecure-requests":"http の取得を自動で https に直す",
+  "report-uri":"違反の報告先（古い書き方）", "report-to":"違反の報告先",
+  "require-trusted-types-for":"危険な代入に型を要求する", "trusted-types":"許す型の名前"
+};
+var REFERRER_TEXT = {
+  "no-referrer":"一切送らない",
+  "no-referrer-when-downgrade":"https から http のときだけ送らない",
+  "origin":"オリジンだけ送る（パスは送らない）",
+  "origin-when-cross-origin":"別オリジンにはオリジンだけ送る",
+  "same-origin":"同じオリジンにだけ送る",
+  "strict-origin":"オリジンだけ送る。https から http のときは送らない",
+  "strict-origin-when-cross-origin":"同一オリジンには全部、別オリジンにはオリジンだけ、格下げのときは送らない（既定）",
+  "unsafe-url":"どこへでもURLを丸ごと送る"
+};
+var STATUS_TEXT = {
+  "200":"成功", "201":"作成した", "204":"成功。本文は無い", "206":"一部だけ返した",
+  "301":"恒久的に移動した", "302":"一時的に別の場所にある", "303":"別の場所を GET で見よ",
+  "304":"変わっていない。保存してあるものを使え", "307":"一時的な移動（メソッドを変えない）",
+  "308":"恒久的な移動（メソッドを変えない）",
+  "400":"要求の形がおかしい", "401":"認証が要る", "403":"許されていない", "404":"見つからない",
+  "405":"そのメソッドは使えない", "409":"いまの状態と食い違う", "410":"もう無い",
+  "413":"本文が大きすぎる", "415":"その形式は受け取れない", "418":"茶は淹れられない",
+  "422":"形は読めたが中身が処理できない", "429":"要求が多すぎる",
+  "500":"サーバ側の失敗", "502":"上流から変な返事が来た", "503":"いま扱えない", "504":"上流が時間切れ"
+};
+
+function rowsCacheControl(v){
+  var rows = [], items = splitList(v);
+  for (var i = 0; i < items.length; i++){
+    var it = items[i], e = it.indexOf("="), k, val = null;
+    if (e < 0) k = it.toLowerCase(); else { k = trimOWS(it.slice(0, e)).toLowerCase(); val = unquote(trimOWS(it.slice(e + 1))); }
+    var t = Object.prototype.hasOwnProperty.call(CC_TEXT, k) ? CC_TEXT[k] : "この道具は知らない指示です。受け手はふつう無視します";
+    if (val !== null && /^\d+$/.test(val)) t = t + "（" + fmtSeconds(+val) + "）";
+    rows.push({ k:it, v:t });
+  }
+  return rows;
+}
+function rowsSetCookie(v){
+  var rows = [], parts = splitParams(v);
+  if (!parts.length) return rows;
+  var head = parts[0];
+  rows.push({ k:"名前", v:(head.v === null ? "（= がありません。名前だけのCookieは受け取られません）" : head.k) });
+  rows.push({ k:"値", v:(head.v === null ? head.k : (head.v === "" ? "（空）" : head.v)) });
+  var seen = {};
+  for (var i = 1; i < parts.length; i++){
+    var p = parts[i], k = p.k.toLowerCase();
+    seen[k] = p.v === null ? "" : p.v;
+    var t;
+    if (k === "expires"){
+      var ms = parseHttpDate(p.v === null ? "" : p.v);
+      t = ms === null ? "日付として読めません。読めない Expires は「すでに期限切れ」として扱われます"
+                      : "この時刻まで保存される（" + new Date(ms).toISOString() + "）";
+    }
+    else if (k === "max-age") t = /^-?\d+$/.test(p.v || "") ? (+p.v <= 0 ? "0以下なので、このCookieはすぐ削除される" : "受け取ってから " + fmtSeconds(+p.v) + " 保存される") : "数字として読めません";
+    else if (k === "domain") t = "このドメインと、その下のサブドメイン全部に送られる";
+    else if (k === "path") t = "このパスの下でだけ送られる";
+    else if (k === "secure") t = "https のときだけ送られる";
+    else if (k === "httponly") t = "JavaScript からは読めない（document.cookie に出ない）";
+    else if (k === "samesite") t = Object.prototype.hasOwnProperty.call(SAMESITE_TEXT, (p.v || "").toLowerCase())
+                                     ? SAMESITE_TEXT[(p.v || "").toLowerCase()] : "この値は知りません。ブラウザは既定の扱いに落とします";
+    else if (k === "partitioned") t = "埋め込み先のサイトごとに別のCookieとして扱われる";
+    else if (k === "priority") t = "数が多すぎて捨てるときの優先度（規格ではなくChromiumの独自指定）";
+    else t = "この道具は知らない属性です。ブラウザはふつう無視します";
+    rows.push({ k:p.raw, v:t });
+  }
+  return rows;
+}
+function rowsContentType(v){
+  var rows = [], parts = splitParams(v);
+  if (!parts.length) return rows;
+  var mt = parts[0].raw.toLowerCase();
+  rows.push({ k:"種類", v:mt });
+  var slash = mt.indexOf("/");
+  if (slash < 0) rows.push({ k:"形", v:"スラッシュがありません。種類として読めない値です" });
+  for (var i = 1; i < parts.length; i++){
+    var p = parts[i], k = p.k.toLowerCase();
+    var t;
+    if (k === "charset") t = "本文の文字コードは " + unquote(p.v || "") + " として読まれる";
+    else if (k === "boundary") t = "本文をこの区切りで割る";
+    else t = "この種類の追加指定";
+    rows.push({ k:p.raw, v:t });
+  }
+  return rows;
+}
+function rowsCSP(v){
+  var rows = [], parts = v.split(";");
+  for (var i = 0; i < parts.length; i++){
+    var t = trimOWS(parts[i]);
+    if (t === "") continue;
+    var sp = t.indexOf(" "), name = (sp < 0 ? t : t.slice(0, sp)).toLowerCase();
+    var val = sp < 0 ? "" : trimOWS(t.slice(sp + 1));
+    var desc = Object.prototype.hasOwnProperty.call(CSP_TEXT, name) ? CSP_TEXT[name] : "この道具は知らない指令です";
+    rows.push({ k:t, v:desc + (val === "" ? "" : " → " + val) });
+  }
+  return rows;
+}
+function rowsHSTS(v){
+  var rows = [], parts = splitParams(v);
+  for (var i = 0; i < parts.length; i++){
+    var p = parts[i], k = p.k.toLowerCase(), t;
+    if (k === "max-age") t = /^\d+$/.test(p.v || "") ? (+p.v === 0 ? "0 なので、この設定は解除される" : "この秒数のあいだ、http で来ても https に読み替える（" + fmtSeconds(+p.v) + "）") : "数字として読めません";
+    else if (k === "includesubdomains") t = "サブドメイン全部にも同じことを課す";
+    else if (k === "preload") t = "ブラウザに同梱される一覧への収載を希望する（載るかは別の申請と条件しだい）";
+    else t = "この道具は知らない指定です";
+    rows.push({ k:p.raw, v:t });
+  }
+  return rows;
+}
+function rowsSimpleList(v, dict, unknownText){
+  var rows = [], items = splitList(v);
+  for (var i = 0; i < items.length; i++){
+    var k = items[i].toLowerCase();
+    rows.push({ k:items[i], v:Object.prototype.hasOwnProperty.call(dict, k) ? dict[k] : unknownText });
+  }
+  return rows;
+}
+function rowsDate(v){
+  var ms = parseHttpDate(v);
+  if (ms === null) return [{ k:v, v:"HTTPの日付として読めません。読めない日付は「はるか昔」として扱われます" }];
+  var d = new Date(ms), now = Date.now();
+  var diff = Math.round((now - ms) / 1000);
+  return [
+    { k:"UTC", v:d.toISOString() },
+    { k:"この端末の時刻で", v:d.toLocaleString() },
+    { k:"いまとの差", v:(diff >= 0 ? fmtSeconds(diff) + " 前" : fmtSeconds(-diff) + " 後") }
+  ];
+}
+
+/* 読み下しを持っているヘッダの一覧。ここに無いものは値をそのまま出す。 */
+function explain(name, value, P){
+  if (name === "cache-control") return { rows:rowsCacheControl(value), sum:"キャッシュの指示です。左が書いたもの、右がその意味です。" };
+  if (name === "set-cookie") return { rows:rowsSetCookie(value), sum:"1つのCookieです。ブラウザはこの条件のときだけ送り返します。" };
+  if (name === "content-type") return { rows:rowsContentType(value), sum:"本文の種類です。ブラウザはこれを見て表示のしかたを決めます。" };
+  if (name === "content-security-policy" || name === "content-security-policy-report-only")
+    return { rows:rowsCSP(value), sum:"読み込んでよい取得元の一覧です。" };
+  if (name === "strict-transport-security") return { rows:rowsHSTS(value), sum:"https を強制する設定です。https の応答でだけ効きます。" };
+  if (name === "referrer-policy") return { rows:rowsSimpleList(value, REFERRER_TEXT, "この道具は知らない値です"), sum:"次のページに、どこから来たかをどれだけ伝えるかです。" };
+  if (name === "date" || name === "expires" || name === "last-modified")
+    return { rows:rowsDate(value), sum:"HTTPの日付です。" };
+  if (name === "content-length"){
+    var n = /^\d+$/.test(value) ? +value : null;
+    return { rows:[{ k:value, v:n === null ? "数字として読めません" : "本文は " + fmtBytes(n) + " です" }], sum:"本文の長さです。" };
+  }
+  if (name === "age"){
+    return { rows:[{ k:value, v:/^\d+$/.test(value) ? "この応答は元のサーバを出てから " + fmtSeconds(+value) + " 経っています（途中のキャッシュに置かれていた時間）" : "数字として読めません" }],
+             sum:"途中のキャッシュに置かれていた時間です。" };
+  }
+  if (name === "vary"){
+    var items = splitList(value), rows = [];
+    for (var i = 0; i < items.length; i++){
+      rows.push({ k:items[i], v:items[i] === "*" ? "この応答はキャッシュに保存できない、という意味になる"
+                                                 : "このヘッダの値が違えば別の応答として保存される" });
+    }
+    return { rows:rows, sum:"保存した応答を再利用してよい条件です。" };
+  }
+  if (name === "retry-after"){
+    var t;
+    if (/^\d+$/.test(value)) t = fmtSeconds(+value) + " 待ってから、もう一度試す";
+    else { var ms = parseHttpDate(value); t = ms === null ? "秒数でも日付でもありません。受け手は無視します" : new Date(ms).toISOString() + " 以降に、もう一度試す"; }
+    return { rows:[{ k:value, v:t }], sum:"いつ再挑戦してよいかです。" };
+  }
+  if (name === "etag"){
+    var weak = value.slice(0, 2) === "W/";
+    return { rows:[{ k:value, v:weak ? "弱い検証子。中身が「実質同じ」なら同じ札にしてよい" : "強い検証子。1バイトでも違えば別の札になる" }],
+             sum:"中身の版を表す札です。" };
+  }
+  if (name === "x-frame-options"){
+    var u = value.toUpperCase(), t2;
+    if (u === "DENY") t2 = "どのページからも枠に入れさせない";
+    else if (u === "SAMEORIGIN") t2 = "同じオリジンのページからだけ枠に入れてよい";
+    else if (u.indexOf("ALLOW-FROM") === 0) t2 = "この書き方はどのブラウザでも動きません（削除済み）";
+    else t2 = "この道具は知らない値です。ブラウザは無視するか DENY として扱います";
+    return { rows:[{ k:value, v:t2 }], sum:"このページを枠（iframe）に入れてよいかです。" };
+  }
+  if (name === "x-content-type-options"){
+    return { rows:[{ k:value, v:value.toLowerCase() === "nosniff" ? "中身を見て種類を推測しない。Content-Type を信じる" : "nosniff 以外の値に意味はありません" }],
+             sum:"種類の推測をやめさせる指定です。" };
+  }
+  if (name === "access-control-allow-origin"){
+    return { rows:[{ k:value, v:value === "*" ? "どのオリジンからでも読める（ただし資格情報つきの要求には使えない）"
+                                              : "このオリジンからだけ読める。ほかは拒まれる" }],
+             sum:"別オリジンのJavaScriptに中身を読ませてよいかです。" };
+  }
+  if (name === "content-disposition"){
+    var parts2 = splitParams(value), rows2 = [];
+    rows2.push({ k:parts2.length ? parts2[0].raw : value, v:(parts2.length && parts2[0].raw.toLowerCase() === "attachment") ? "表示せずに保存させる" : "そのまま表示してよい" });
+    for (var j = 1; j < parts2.length; j++){
+      var p2 = parts2[j], k2 = p2.k.toLowerCase(), t3;
+      if (k2 === "filename") t3 = "保存するときの名前: " + unquote(p2.v || "");
+      else if (k2 === "filename*") t3 = "文字コードつきの名前（RFC 5987）。非ASCIIの名前はこちらで書く";
+      else t3 = "この道具は知らない指定です";
+      rows2.push({ k:p2.raw, v:t3 });
+    }
+    return { rows:rows2, sum:"本文を表示するか保存するかです。" };
+  }
+  return null;
+}
+
+/* ---------- 落とし穴の検出（data-code で機械照合できるようにしてある） ---------- */
+
+function pitfalls(P, shared){
+  var out = [];
+  function add(code, sev, title, body){ out.push({ code:code, sev:sev, title:title, body:body }); }
+  var cc = has(P, "cache-control") ? combined(P, "cache-control") : "";
+  var ccl = cc.toLowerCase();
+  function ccHas(d){
+    var items = splitList(ccl);
+    for (var i = 0; i < items.length; i++){
+      var e = items[i].indexOf("=");
+      if ((e < 0 ? items[i] : trimOWS(items[i].slice(0, e))) === d) return true;
+    }
+    return false;
+  }
+  function ccVal(d){
+    var items = splitList(ccl);
+    for (var i = 0; i < items.length; i++){
+      var e = items[i].indexOf("=");
+      if (e >= 0 && trimOWS(items[i].slice(0, e)) === d) return unquote(trimOWS(items[i].slice(e + 1)));
+    }
+    return null;
+  }
+
+  /* --- 分解のところ --- */
+  for (var i = 0; i < P.errors.length; i++){
+    if (P.errors[i].code === "space-before-colon"){
+      add("space-before-colon", "high", "名前とコロンの間に空白があります",
+          "RFC 9112 は、この形を受け取った側が必ず拒否するよう定めています。応答を2つに割って偽の応答を差し込む古い手口（応答分割）の入口だからです。空白を消してください。");
+      break;
+    }
+  }
+  for (var f = 0; f < P.fields.length; f++){
+    if (P.fields[f].folded){
+      add("obs-fold", "high", "行頭の空白で値を折り返しています",
+          "改行してから空白で続きを書く形（obs-fold）は非推奨で、多くのサーバとプロキシが拒否します。1行に収めてください。");
+      break;
+    }
+  }
+  var dupNames = [];
+  for (var s = 0; s < SINGLETON.length; s++){
+    if (P.map[SINGLETON[s]] && P.map[SINGLETON[s]].length > 1) dupNames.push(SINGLETON[s]);
+  }
+  if (dupNames.length){
+    add("dup-singleton", "high", "一度しか置けないヘッダが複数あります: " + dupNames.join(", "),
+        "受け手によって、最初を採るか・最後を採るか・カンマで繋いで壊れるかが割れます。1つに絞ってください。");
+  }
+  if (P.map["set-cookie"] && P.map["set-cookie"].length > 1){
+    add("set-cookie-multi", "info", "Set-Cookie が " + P.map["set-cookie"].length + " 個あります",
+        "Set-Cookie は、同じ名前が複数あってもカンマで結合してはいけない唯一のヘッダです。Expires の値自体にカンマが入っているため、結合すると元に戻せなくなります。1つずつ別の行のまま扱ってください。");
+  }
+  for (var u = 0; u < P.fields.length; u++){
+    if (hasNonASCII(P.fields[u].value)){
+      add("nonascii-value", "high", "ヘッダの値に ASCII の外の文字が入っています",
+          "HTTPのヘッダは本来 ASCII の範囲で書くものです。日本語などを直に書くと、受け手によって UTF-8 と読むか Latin-1 と読むかが割れます。ファイル名なら Content-Disposition の filename* を、それ以外なら符号化した形を使ってください。");
+      break;
+    }
+  }
+
+  /* --- 要求のとき --- */
+  if (P.start && P.start.kind === "request"){
+    if (!has(P, "host") && P.start.version !== "1.0"){
+      add("req-host-missing", "high", "HTTP/1.1 の要求なのに Host がありません",
+          "1.1 では Host は必須で、無い要求はサーバが 400 を返さなければならない決まりです。手で組み立てた要求でよく抜けます。");
+    }
+    if (P.map["host"] && P.map["host"].length > 1){
+      add("req-host-multi", "high", "Host が複数あります",
+          "どれを採るかが実装ごとに割れます。前段と後段で違う Host を採ると、別のサイト宛の要求として通ってしまいます。");
+    }
+  }
+
+  /* --- キャッシュ --- */
+  if (ccHas("no-cache")){
+    add("cc-no-cache", "info", "no-cache は「保存しない」ではありません",
+        "保存はされます。使う前に毎回、元のサーバに「変わっていないか」を訊きにいく、という意味です。保存させたくないときは no-store です。");
+  }
+  if (ccHas("no-store") && (ccHas("max-age") || has(P, "expires"))){
+    add("cc-nostore-conflict", "info", "no-store と寿命の指定が同居しています",
+        "no-store が勝ちます。max-age や Expires は読まれません。どちらが本当なのかを決めてください。");
+  }
+  if (ccHas("max-age") && has(P, "expires")){
+    add("cc-maxage-vs-expires", "info", "max-age と Expires の両方があります",
+        "max-age が勝ち、Expires は無視されます。Expires は max-age を理解しない古い相手のためだけに残す形になります。");
+  }
+  if (has(P, "expires") && parseHttpDate(firstOf(P, "expires")) === null && !ccHas("max-age")){
+    add("expires-invalid", "high", "Expires が日付として読めません",
+        "読めない Expires は「はるか昔の日付」＝すでに期限切れとして扱われます。0 や -1 を書いて「キャッシュさせない」つもりのコードをよく見ますが、狙いどおりに見えるのは偶然です。no-store を使ってください。");
+  }
+  if (has(P, "set-cookie") && !ccHas("private") && !ccHas("no-store") && (ccHas("max-age") || ccHas("s-maxage") || ccHas("public") || has(P, "expires"))){
+    add("cookie-shared-cache", "high", "Set-Cookie があるのに private も no-store もありません",
+        "CDN やプロキシがこの応答を保存すると、ある人のCookieが別の人に配られます。個人向けの応答には Cache-Control: private か no-store を付けてください。");
+  }
+  if (has(P, "vary")){
+    var vlist = splitList(combined(P, "vary"));
+    var vlow = combined(P, "vary").toLowerCase();
+    if (vlist.indexOf("*") >= 0){
+      add("vary-star", "info", "Vary: * はキャッシュを完全に止めます",
+          "どんな条件でも再利用してよい保証がない、という意味になります。狙ってやっているなら問題ありませんが、no-store のつもりならそちらを書くほうが伝わります。");
+    }
+    if (vlow.indexOf("user-agent") >= 0){
+      add("vary-ua", "high", "Vary: User-Agent はキャッシュを実質無効にします",
+          "User-Agent の値は端末ごとにほぼ違うので、保存した応答がまず再利用されません。端末で出し分けたいなら Client Hints か、URL を分ける方法を検討してください。");
+    }
+    if (has(P, "access-control-allow-origin") && firstOf(P, "access-control-allow-origin") !== "*" && vlow.indexOf("origin") < 0){
+      add("cors-vary-origin", "high", "Origin ごとに違う値を返しているのに Vary: Origin がありません",
+          "途中のキャッシュが、あるオリジン向けの許可を別のオリジンにも配ります。Access-Control-Allow-Origin を動的に変えるなら Vary: Origin は必須です。");
+    }
+  }
+  if (has(P, "content-encoding") && (!has(P, "vary") || combined(P, "vary").toLowerCase().indexOf("accept-encoding") < 0)){
+    add("vary-missing-ae", "high", "Content-Encoding があるのに Vary に Accept-Encoding がありません",
+        "圧縮した応答が、圧縮を受け取れない相手にそのまま配られることがあります。中身は壊れて見えますが、エラーにはなりません。");
+  }
+  if (has(P, "age") && ccVal("max-age") !== null && /^\d+$/.test(firstOf(P, "age")) && /^\d+$/.test(ccVal("max-age"))
+      && +firstOf(P, "age") > +ccVal("max-age")){
+    add("age-over-maxage", "info", "Age が max-age を超えています",
+        "この応答は届いた時点ですでに期限切れです。stale-while-revalidate などで意図的にそうしているのでなければ、途中のキャッシュが古いものを配っています。");
+  }
+  if (!has(P, "cache-control") && !has(P, "expires") && P.start && P.start.kind === "status" && P.start.code === "200"){
+    add("no-cache-directive", "info", "キャッシュの指示がまったくありません",
+        "この場合キャッシュは Last-Modified からの推測で寿命を決めてよいことになっています（経過時間の10%が広く使われます）。「指定しない＝保存されない」ではありません。");
+  }
+  if (ccHas("immutable")){
+    add("cc-immutable", "info", "immutable は再読み込みでも確認しにいきません",
+        "内容が絶対に変わらないURL（名前にハッシュが入ったファイルなど）にだけ付けてください。付けたまま中身を差し替えると、期限が切れるまで古いものが出続けます。");
+  }
+
+  /* --- Cookie --- */
+  var cookies = P.map["set-cookie"] || [];
+  var flagged = {};
+  /* 同じ指摘を Cookie の数だけ並べない。最初の1件だけ出す。 */
+  function once(code, sev, title, body){ if (!flagged[code]){ flagged[code] = 1; add(code, sev, title, body); } }
+  for (var c = 0; c < cookies.length; c++){
+    var parts = splitParams(cookies[c]), attrs = {}, head = parts[0];
+    for (var a = 1; a < parts.length; a++) attrs[parts[a].k.toLowerCase()] = parts[a].v === null ? "" : parts[a].v;
+    var nm = head ? head.k : "";
+    var ss = Object.prototype.hasOwnProperty.call(attrs, "samesite") ? attrs["samesite"].toLowerCase() : null;
+
+    if (ss === "none" && !Object.prototype.hasOwnProperty.call(attrs, "secure")){
+      once("cookie-none-insecure", "high", "SameSite=None なのに Secure がありません（" + nm + "）",
+           "ブラウザはこのCookieを黙って捨てます。エラーも警告も出ないので、「なぜかログインが維持されない」という形でしか気づけません。");
+    }
+    if (ss === null){
+      once("cookie-samesite-missing", "info", "SameSite が指定されていません（" + nm + "）",
+           "既定の扱いがブラウザで割れます。Chromium は Lax として扱いますが、そうしないものもあります。書いておくほうが安全です。");
+    }
+    if (ss !== null && !Object.prototype.hasOwnProperty.call(SAMESITE_TEXT, ss)){
+      once("cookie-samesite-bad", "high", "SameSite の値が読めません（" + nm + "）",
+           "Strict / Lax / None のどれでもない値は無視され、既定の扱いに落ちます。綴り違いはここで黙って効かなくなります。");
+    }
+    if (!Object.prototype.hasOwnProperty.call(attrs, "secure")){
+      once("cookie-no-secure", "info", "Secure がありません（" + nm + "）",
+           "http の通信でも送られます。https だけのサイトでも、最初の1回が http なら盗まれます。");
+    }
+    if (!Object.prototype.hasOwnProperty.call(attrs, "httponly") && /sess|token|auth|login|jwt|sid/i.test(nm)){
+      once("cookie-no-httponly", "info", "HttpOnly がありません（" + nm + "）",
+           "名前からするとセッション用に見えます。HttpOnly が無いと JavaScript から読めるので、スクリプトを1つ差し込まれた時点で持ち出されます。");
+    }
+    if (Object.prototype.hasOwnProperty.call(attrs, "domain")){
+      once("cookie-domain", "info", "Domain 指定はサブドメイン全部に広がります（" + nm + "）",
+           "Domain=example.com と書くと a.example.com にも b.example.com にも送られます。先頭のドットの有無は関係ありません（RFC 6265 で無視されます）。狭めたいなら Domain を書かないことです。");
+    }
+    if (Object.prototype.hasOwnProperty.call(attrs, "max-age") && Object.prototype.hasOwnProperty.call(attrs, "expires")){
+      once("cookie-maxage-expires", "info", "Max-Age と Expires の両方があります（" + nm + "）",
+           "Max-Age が勝ちます。Expires は Max-Age を理解しない相手のためだけに残る形です。");
+    }
+    if (head && head.v !== null && /[ ,;]/.test(head.v) && head.v.charAt(0) !== "\""){
+      once("cookie-bad-value", "high", "Cookie の値に空白かカンマかセミコロンが入っています（" + nm + "）",
+           "セミコロンから先は属性として読まれ、値はそこで切れます。値は符号化してから入れてください。");
+    }
+    var blen = 0;
+    for (var bb = 0; bb < cookies[c].length; bb++){ var cp = cookies[c].charCodeAt(bb); blen += cp < 0x80 ? 1 : (cp < 0x800 ? 2 : 3); }
+    if (blen > 4096){
+      once("cookie-too-big", "high", "Cookie が 4096 バイトを超えています（" + nm + "、" + blen + " バイト）",
+           "ブラウザはこの大きさを超えたCookieを保存しません。捨てられたことは通知されません。");
+    }
+  }
+
+  /* --- 中身の種類 --- */
+  if (!has(P, "content-type") && P.start && P.start.kind === "status" && P.start.code !== "204" && P.start.code !== "304"){
+    add("ct-missing", "high", "Content-Type がありません",
+        "ブラウザは本文の先頭を見て種類を推測します。テキストのつもりのものが HTML として実行されることがあります。");
+  }
+  if (has(P, "content-type")){
+    var ct = firstOf(P, "content-type"), ctl = ct.toLowerCase();
+    if (/^\s*text\//.test(ctl) && ctl.indexOf("charset") < 0){
+      add("ct-no-charset", "info", "text/ で始まる種類なのに charset がありません",
+          "規格上の既定は US-ASCII ですが、実際のブラウザは中身から推測します。UTF-8 のつもりの日本語が化ける典型です。charset=utf-8 と書いてください。");
+    }
+    if (ctl.indexOf("application/json") === 0 && ctl.indexOf("charset") >= 0){
+      add("ct-json-charset", "info", "application/json に charset を付けています",
+          "JSON の種類に charset は定義されていないので、受け手は無視します。害はありませんが、これで文字コードが決まると思っていると当てが外れます。JSON は常に UTF-8 です。");
+    }
+    if (!has(P, "x-content-type-options") || firstOf(P, "x-content-type-options").toLowerCase() !== "nosniff"){
+      add("nosniff-missing", "info", "X-Content-Type-Options: nosniff がありません",
+          "ブラウザが Content-Type を信じず、中身から種類を推測することがあります。利用者が上げたファイルを配る場所では特に危険です。");
+    }
+  }
+  if (has(P, "content-disposition")){
+    var cd = firstOf(P, "content-disposition");
+    if (hasNonASCII(cd) && cd.toLowerCase().indexOf("filename*") < 0){
+      add("cd-nonascii", "high", "filename に ASCII の外の文字を直に書いています",
+          "この形は規格に無く、受け手によって化けます。filename*=UTF-8''... の形（RFC 5987）で書き、ASCII だけの filename を併記してください。");
+    }
+  }
+  if (has(P, "content-length") && has(P, "transfer-encoding")){
+    add("cl-and-te", "high", "Content-Length と Transfer-Encoding が同居しています",
+        "この2つが揃うと、どこで本文が終わるかの判断が受け手ごとに割れます。前段と後段で違う読み方をすると、要求を割り込ませる攻撃（スマグリング）が成立します。Transfer-Encoding があるなら Content-Length は消してください。");
+  }
+
+  /* --- セキュリティの指定 --- */
+  if (has(P, "x-frame-options")){
+    var xfo = firstOf(P, "x-frame-options").toUpperCase();
+    if (xfo.indexOf("ALLOW-FROM") === 0){
+      add("xfo-allow-from", "high", "X-Frame-Options: ALLOW-FROM はもう効きません",
+          "この書き方に対応しているブラウザはありません。値が読めないので、無視されるか DENY として扱われます。CSP の frame-ancestors を使ってください。");
+    }
+    if (has(P, "content-security-policy") && combined(P, "content-security-policy").toLowerCase().indexOf("frame-ancestors") >= 0){
+      add("xfo-and-csp", "info", "X-Frame-Options と CSP の frame-ancestors が両方あります",
+          "対応しているブラウザでは CSP が勝ち、X-Frame-Options は読まれません。片方だけ直して安心しないでください。");
+    }
+  }
+  if (has(P, "strict-transport-security")){
+    var hs = splitParams(firstOf(P, "strict-transport-security")), hm = null, hsub = false, hpre = false;
+    for (var h = 0; h < hs.length; h++){
+      var hk = hs[h].k.toLowerCase();
+      if (hk === "max-age" && /^\d+$/.test(hs[h].v || "")) hm = +hs[h].v;
+      if (hk === "includesubdomains") hsub = true;
+      if (hk === "preload") hpre = true;
+    }
+    if (hm === 0){
+      add("hsts-zero", "info", "max-age=0 は HSTS の解除です",
+          "この応答を受け取ったブラウザは、覚えていた設定を忘れます。止めるときの正しい書き方ですが、意図せず書いてあるなら効き目が消えています。");
+    }
+    if (hpre && (hm === null || hm < 31536000 || !hsub)){
+      add("hsts-preload-bad", "high", "preload と書いてありますが条件を満たしていません",
+          "同梱一覧に載るには max-age が 31536000（1年）以上で、includeSubDomains が必要です。条件を外れていてもエラーにはならず、ただ載らないだけです。");
+    }
+  }
+  if (has(P, "content-security-policy-report-only") && !has(P, "content-security-policy")){
+    add("csp-report-only", "high", "CSP が Report-Only でしか出ていません",
+        "このヘッダは違反を報告するだけで、何も止めません。試すための形なので、そのまま本番に置いたままになっていないか確かめてください。");
+  }
+  if (P.map["content-security-policy"] && P.map["content-security-policy"].length > 1){
+    add("csp-two", "info", "CSP のヘッダが2つあります",
+        "両方が別々に適用され、両方を満たすものだけが通ります。つまり後から足したほうで緩めることはできません。");
+  }
+  if (has(P, "content-security-policy") || has(P, "content-security-policy-report-only")){
+    var cspv = (has(P, "content-security-policy") ? combined(P, "content-security-policy") : combined(P, "content-security-policy-report-only")).toLowerCase();
+    var csp = {}, cspParts = cspv.split(";");
+    for (var cs = 0; cs < cspParts.length; cs++){
+      var ct2 = trimOWS(cspParts[cs]);
+      if (ct2 === "") continue;
+      var sp2 = ct2.indexOf(" ");
+      csp[sp2 < 0 ? ct2 : ct2.slice(0, sp2)] = sp2 < 0 ? "" : trimOWS(ct2.slice(sp2 + 1));
+    }
+    /* script-src が無ければ default-src が代わりに効く。style-src だけの unsafe-inline は別の話。 */
+    var scriptSrc = Object.prototype.hasOwnProperty.call(csp, "script-src") ? csp["script-src"]
+                  : (Object.prototype.hasOwnProperty.call(csp, "default-src") ? csp["default-src"] : null);
+    if (scriptSrc !== null && scriptSrc.indexOf("unsafe-inline") >= 0){
+      add("csp-unsafe-inline", "high", "スクリプトの取得元に unsafe-inline があります",
+          "ページに書かれたスクリプトを全部許すという意味なので、CSP の主目的（差し込まれたスクリプトを止めること）がほぼ無くなります。nonce か hash に置き換えてください。");
+    }
+    var lacks = [];
+    if (!Object.prototype.hasOwnProperty.call(csp, "frame-ancestors")) lacks.push("frame-ancestors");
+    if (!Object.prototype.hasOwnProperty.call(csp, "base-uri")) lacks.push("base-uri");
+    if (!Object.prototype.hasOwnProperty.call(csp, "form-action")) lacks.push("form-action");
+    if (Object.prototype.hasOwnProperty.call(csp, "default-src") && lacks.length){
+      add("csp-no-fallback", "info", "default-src では代われない指令が抜けています: " + lacks.join(", "),
+          "この3つは default-src の傘に入りません。書かなければ制限なしです。default-src 'self' を書いたから安心、とはなりません。");
+    }
+  }
+  if (has(P, "access-control-allow-origin")){
+    var acao = firstOf(P, "access-control-allow-origin");
+    if (acao === "*" && has(P, "access-control-allow-credentials")
+        && firstOf(P, "access-control-allow-credentials").toLowerCase() === "true"){
+      add("cors-star-credentials", "high", "Allow-Origin: * と Allow-Credentials: true は同時に使えません",
+          "ブラウザはこの組み合わせを拒否します。サーバから見れば200が返っているので、失敗しているのはブラウザの中だけです。資格情報を送るなら、オリジンを具体的に1つ書いてください。");
+    }
+    if (acao !== "*" && acao.indexOf(",") >= 0){
+      add("cors-multi-origin", "high", "Allow-Origin にオリジンを複数書いています",
+          "書けるのは1つか * だけです。カンマで並べた値はどのオリジンとも一致しないので、全部拒まれます。要求の Origin を見て1つ選んで返してください。");
+    }
+    if (!has(P, "access-control-expose-headers")){
+      add("cors-expose-missing", "info", "Access-Control-Expose-Headers がありません",
+          "別オリジンの JavaScript から読めるのは Cache-Control / Content-Language / Content-Length / Content-Type / Expires / Last-Modified / Pragma の7つだけです。独自ヘッダは、届いていても読めません。");
+    }
+  }
+  if (has(P, "referrer-policy") && combined(P, "referrer-policy").toLowerCase().indexOf("unsafe-url") >= 0){
+    add("referrer-unsafe", "high", "Referrer-Policy に unsafe-url があります",
+        "クエリ文字列を含むURLを丸ごと外部サイトに送ります。URLにトークンや検索語が入っていると、そのまま渡ります。");
+  }
+  if (has(P, "permissions-policy")){
+    var pp = firstOf(P, "permissions-policy");
+    /* 新しい書き方は必ず = を持つ。= が1つも無くて空白で区切られていたら古い形。 */
+    if (pp.indexOf("=") < 0 && /\S\s+\S/.test(pp)){
+      add("permissions-old-syntax", "high", "Feature-Policy の書き方になっています",
+          "Permissions-Policy は構造化フィールド（RFC 8941）なので geolocation=() の形で書きます。古い geolocation 'none' の形は読めない値として黙って捨てられます。");
+    }
+  }
+  if (has(P, "server") || has(P, "x-powered-by")){
+    var banner = [];
+    if (has(P, "server")) banner.push(firstOf(P, "server"));
+    if (has(P, "x-powered-by")) banner.push(firstOf(P, "x-powered-by"));
+    if (/\d/.test(banner.join(" "))){
+      add("version-banner", "info", "実装の名前とバージョンを出しています",
+          "攻める側は、まずここを見てから既知の弱点を探します: " + banner.join(" / ") + "。消しても守りにはなりませんが、狙いを絞らせる理由もありません。");
+    }
+  }
+  return out;
+}
+
+/* ---------- キャッシュの寿命（RFC 9111 の式） ---------- */
+
+function cacheModel(P, shared){
+  var r = { store:true, why:[], lifetime:null, source:"", age:null, heuristic:false };
+  var cc = has(P, "cache-control") ? combined(P, "cache-control").toLowerCase() : "";
+  var items = splitList(cc), dir = {};
+  for (var i = 0; i < items.length; i++){
+    var e = items[i].indexOf("=");
+    if (e < 0) dir[items[i]] = "";
+    else dir[trimOWS(items[i].slice(0, e))] = unquote(trimOWS(items[i].slice(e + 1)));
+  }
+  function d(k){ return Object.prototype.hasOwnProperty.call(dir, k); }
+
+  if (d("no-store")){ r.store = false; r.why.push("no-store があるので、どのキャッシュも保存しません。"); return r; }
+  if (shared && d("private")){ r.store = false; r.why.push("private があるので、共有キャッシュは保存しません（ブラウザ自身は保存します）。"); return r; }
+  if (has(P, "vary") && splitList(combined(P, "vary")).indexOf("*") >= 0){
+    r.store = false; r.why.push("Vary: * があるので、保存した応答を再利用できません。"); return r;
+  }
+
+  if (shared && d("s-maxage") && /^\d+$/.test(dir["s-maxage"])){
+    r.lifetime = +dir["s-maxage"]; r.source = "s-maxage";
+  } else if (d("max-age") && /^\d+$/.test(dir["max-age"])){
+    r.lifetime = +dir["max-age"]; r.source = "max-age";
+  } else if (has(P, "expires") && has(P, "date")){
+    var ex = parseHttpDate(firstOf(P, "expires")), dt = parseHttpDate(firstOf(P, "date"));
+    if (ex !== null && dt !== null){ r.lifetime = Math.round((ex - dt) / 1000); r.source = "Expires − Date"; }
+    else if (ex === null){ r.lifetime = 0; r.source = "読めない Expires"; }
+  } else if (has(P, "expires")){
+    var ex2 = parseHttpDate(firstOf(P, "expires"));
+    if (ex2 !== null){ r.lifetime = Math.round((ex2 - Date.now()) / 1000); r.source = "Expires（Date が無いので、いまを基準にしました）"; }
+    else { r.lifetime = 0; r.source = "読めない Expires"; }
+  } else if (has(P, "last-modified") && has(P, "date")){
+    var lm = parseHttpDate(firstOf(P, "last-modified")), dt2 = parseHttpDate(firstOf(P, "date"));
+    if (lm !== null && dt2 !== null){
+      /* 10% の端数は切り捨て。規格は丸め方を決めていないので、決めて書いておく。 */
+      r.lifetime = Math.max(0, Math.floor(Math.round((dt2 - lm) / 1000) / 10)); r.source = "Last-Modified からの推測（経過の10%）"; r.heuristic = true;
+    }
+  }
+
+  var ageHdr = has(P, "age") && /^\d+$/.test(firstOf(P, "age")) ? +firstOf(P, "age") : 0;
+  var dateMs = has(P, "date") ? parseHttpDate(firstOf(P, "date")) : null;
+  var resident = dateMs === null ? 0 : Math.max(0, Math.round((Date.now() - dateMs) / 1000));
+  r.age = ageHdr + resident;
+
+  if (d("no-cache")){
+    r.why.push("no-cache があるので、保存はしますが使う前に毎回確認します（実質、寿命は0です）。");
+    r.lifetime = 0; r.source = "no-cache";
+  }
+  if (r.lifetime === null){
+    r.why.push("寿命を決める指定がありません。この場合キャッシュは自分の判断で寿命を決めてよいことになっています。");
+  } else {
+    r.why.push("寿命は " + fmtSeconds(r.lifetime) + "（" + r.source + "）。");
+  }
+  if (dateMs !== null) r.why.push("この応答の齢は " + fmtSeconds(r.age) + "（Age " + ageHdr + " 秒 + Date からの経過 " + resident + " 秒）。");
+  else if (ageHdr) r.why.push("この応答の齢は " + fmtSeconds(ageHdr) + "（Age ヘッダ。Date が無いので経過分は数えていません）。");
+  if (d("immutable")) r.why.push("immutable があるので、期限内は再読み込みでも確認しにいきません。");
+  if (d("must-revalidate")) r.why.push("must-revalidate があるので、期限切れ後に元のサーバへ繋がらなければエラーを返します（古いものを出しません）。");
+  if (d("stale-while-revalidate") && /^\d+$/.test(dir["stale-while-revalidate"])){
+    r.why.push("期限切れ後 " + fmtSeconds(+dir["stale-while-revalidate"]) + " までは、裏で更新しながら古いものを出してよいことになっています。");
+  }
+  return r;
+}
+
+/* ---------- 自己検査: ブラウザの Headers と突き合わせる ---------- */
+
+var SELF_CASES = [
+  { t:"名前の大文字小文字は区別しない", pairs:[["Content-Type","text/html"],["CONTENT-TYPE","text/plain"]] },
+  { t:"同じ名前はカンマと空白で繋がる", pairs:[["Vary","Accept-Encoding"],["Vary","Origin"]] },
+  { t:"値の前後の空白は落とされる", pairs:[["X-Test","   spaced   "]] },
+  { t:"値の中の空白は残る", pairs:[["X-Test","a  b"]] },
+  { t:"値の中のタブは残る", pairs:[["X-Test","a\tb"]] },
+  { t:"空の値も置ける", pairs:[["X-Test",""]] },
+  { t:"名前に使える記号（token）", pairs:[["X-A!#$%&*+-.^_`|~1","ok"]] },
+  { t:"3つ以上の重複も順に繋がる", pairs:[["Accept","a"],["Accept","b"],["Accept","c"]] },
+  { t:"値にカンマが入っていてもそのまま", pairs:[["X-Test","a, b"]] },
+  { t:"Cache-Control の値はそのまま持つ", pairs:[["Cache-Control","max-age=0, no-cache"]] },
+  { t:"値の 0x80〜0xFF は通る（obs-text）", pairs:[["X-Test","café"]] },
+  { t:"名前の数字始まりも token なら通る", pairs:[["1x-Test","ok"]] }
+];
+var SELF_BAD = [
+  { t:"名前に空白は置けない", name:"X Test", value:"v" },
+  { t:"名前にコロンは置けない", name:"X:Test", value:"v" },
+  { t:"名前に丸括弧は置けない", name:"X(Test)", value:"v" },
+  { t:"値に改行は置けない", name:"X-Test", value:"a\nb" },
+  { t:"値にヌル文字は置けない", name:"X-Test", value:"a\u0000b" }
+];
+
+function selfCheck(){
+  var res = [];
+  for (var i = 0; i < SELF_CASES.length; i++){
+    var c = SELF_CASES[i], text = "", h;
+    for (var j = 0; j < c.pairs.length; j++) text += c.pairs[j][0] + ": " + c.pairs[j][1] + "\n";
+    var mine = parseBlock(text);
+    var ok = true, detail = "";
+    try {
+      h = new Headers();
+      for (var k = 0; k < c.pairs.length; k++) h.append(c.pairs[k][0], c.pairs[k][1]);
+    } catch (e){ ok = false; detail = "ブラウザ側が受け付けませんでした"; h = null; }
+    if (h){
+      var names = {};
+      for (var m = 0; m < c.pairs.length; m++) names[c.pairs[m][0].toLowerCase()] = 1;
+      for (var nm in names){
+        if (!Object.prototype.hasOwnProperty.call(names, nm)) continue;
+        var theirs = h.get(nm), ours = combined(mine, nm);
+        if (theirs !== ours){ ok = false; detail = nm + ": こちら " + JSON.stringify(ours) + " / ブラウザ " + JSON.stringify(theirs); }
+      }
+      if (mine.errors.length){ ok = false; detail = "こちらだけが拒否しました"; }
+    }
+    res.push({ t:c.t, ok:ok, detail:detail });
+  }
+  /* 受け付けない文字は、行に組み立て直さず名前と値のまま判定する。
+     1行にしてから読ませると X:Test が「名前 X、値 Test: v」に割れてしまい、
+     こちらが拒否できているかを測れない（最初そう書いていた）。 */
+  for (var b = 0; b < SELF_BAD.length; b++){
+    var bc = SELF_BAD[b], theyReject = false;
+    try { var hb = new Headers(); hb.append(bc.name, bc.value); } catch (e2){ theyReject = true; }
+    var weReject = !isToken(bc.name) || badValueCharAt(bc.value) >= 0;
+    res.push({ t:bc.t, ok:(theyReject === weReject), detail:theyReject === weReject ? "" : (weReject ? "こちらだけが拒否" : "ブラウザだけが拒否") });
+  }
+  return res;
+}
+
+/* ---------- 画面 ---------- */
+
+var PRESETS = [
+  { n:"よくある応答", v:"HTTP/1.1 200 OK\nDate: Mon, 24 Aug 2026 03:00:00 GMT\nContent-Type: text/html\nContent-Length: 5120\nCache-Control: max-age=3600\nSet-Cookie: session=abc123; Path=/; SameSite=None\nServer: nginx/1.24.0\nX-Powered-By: PHP/8.2.11" },
+  { n:"no-cache のつもり", v:"HTTP/1.1 200 OK\nDate: Mon, 24 Aug 2026 03:00:00 GMT\nContent-Type: application/json; charset=utf-8\nCache-Control: no-cache\nExpires: 0\nPragma: no-cache" },
+  { n:"CDNが個人向けを配る形", v:"HTTP/1.1 200 OK\nDate: Mon, 24 Aug 2026 03:00:00 GMT\nAge: 7200\nCache-Control: public, max-age=3600\nContent-Type: text/html; charset=utf-8\nContent-Encoding: gzip\nSet-Cookie: uid=42; Path=/" },
+  { n:"CORS の取り合わせ", v:"HTTP/1.1 200 OK\nContent-Type: application/json\nAccess-Control-Allow-Origin: *\nAccess-Control-Allow-Credentials: true\nAccess-Control-Allow-Methods: GET, POST" },
+  { n:"守りを固めたつもり", v:"HTTP/1.1 200 OK\nContent-Type: text/html; charset=utf-8\nContent-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'unsafe-inline'\nStrict-Transport-Security: max-age=86400; preload\nX-Frame-Options: ALLOW-FROM https://example.com\nReferrer-Policy: unsafe-url\nPermissions-Policy: geolocation 'none'" },
+  { n:"ダウンロードさせる", v:"HTTP/1.1 200 OK\nContent-Type: application/octet-stream\nContent-Disposition: attachment; filename=\"請求書.pdf\"\nContent-Length: 204800\nX-Content-Type-Options: nosniff" },
+  { n:"形が壊れている", v:"HTTP/1.1 200 OK\nContent-Type : text/html\nX-Note: first line\n   folded continuation\nContent-Length: 10\nTransfer-Encoding: chunked" },
+  { n:"要求ヘッダ", v:"GET /api/items?q=1 HTTP/1.1\nAccept: application/json\nAccept-Encoding: gzip, br\nCookie: session=abc123\nAuthorization: Bearer eyJhbGciOiJIUzI1NiJ9" }
+];
+
+var srcEl = document.getElementById("src");
+var sharedEl = document.getElementById("shared");
+
+function el(id){ return document.getElementById(id); }
+function show(id, on){ el(id).classList[on ? "remove" : "add"]("off"); }
+function textCell(row, cls, text){
+  var td = document.createElement("td");
+  td.className = cls; td.textContent = text;
+  row.appendChild(td); return td;
+}
+
+function render(){
+  var text = srcEl.value;
+  var P = parseBlock(text);
+  var shared = sharedEl.checked;
+
+  /* 1行目 */
+  show("startPanel", !!P.start);
+  if (P.start){
+    var tb = el("startTable").getElementsByTagName("tbody")[0];
+    tb.innerHTML = "";
+    var rows;
+    if (P.start.kind === "status"){
+      var st = Object.prototype.hasOwnProperty.call(STATUS_TEXT, P.start.code) ? STATUS_TEXT[P.start.code] : "この道具は説明を持っていない状態コードです";
+      rows = [["版", "HTTP/" + P.start.version], ["状態", P.start.code + " — " + st],
+              ["理由句", P.start.reason === "" ? "（無し。理由句に意味はありません）" : P.start.reason + "（表示のためだけの文で、プログラムが見るものではありません）"]];
+    } else {
+      rows = [["メソッド", P.start.method], ["対象", P.start.target], ["版", "HTTP/" + P.start.version]];
+    }
+    for (var i = 0; i < rows.length; i++){
+      var tr = document.createElement("tr");
+      textCell(tr, "k", rows[i][0]); textCell(tr, "v", rows[i][1]);
+      tb.appendChild(tr);
+    }
+  }
+
+  /* 分解した結果 */
+  show("fieldsPanel", P.fields.length > 0);
+  var ftb = el("fieldsTable").getElementsByTagName("tbody")[0];
+  ftb.innerHTML = "";
+  var doneNames = {};
+  for (var f = 0; f < P.order.length; f++){
+    var nm = P.order[f], vals = P.map[nm];
+    for (var vi = 0; vi < vals.length; vi++){
+      var tr2 = document.createElement("tr");
+      textCell(tr2, "k", vi === 0 ? nm : "");
+      var vc = textCell(tr2, "v", vals[vi] === "" ? "（空）" : vals[vi]);
+      if (vals[vi] === "") vc.className = "v empty";
+      var note = "";
+      if (vals.length > 1){
+        note = nm === "set-cookie" ? (vi + 1) + " 個目。Set-Cookie は結合しません"
+                                   : (vi === 0 ? vals.length + " 個あります。使うときは「" + vals.join(", ") + "」として繋がります" : "");
+      }
+      if (P.raws[nm][vi] !== nm && vi === 0) note = note ? note + " / 書いたのは " + P.raws[nm][vi] : "書いたのは " + P.raws[nm][vi] + "（名前は大文字小文字を区別しません）";
+      textCell(tr2, "note", note);
+      ftb.appendChild(tr2);
+    }
+    doneNames[nm] = 1;
+  }
+  el("fieldsNote").textContent = P.bodyFrom >= 0
+    ? "空行が出てきたので、そこから先は本文とみなして読んでいません。"
+    : "";
+
+  /* エラー */
+  show("errPanel", P.errors.length > 0);
+  if (P.errors.length){
+    var box = el("errMsg");
+    box.innerHTML = "";
+    var head = document.createElement("div");
+    head.textContent = "読めなかった行が " + P.errors.length + " 行あります。";
+    box.appendChild(head);
+    var ul = document.createElement("ul");
+    for (var e = 0; e < P.errors.length; e++){
+      var li = document.createElement("li");
+      li.textContent = P.errors[e].line + "行目: " + P.errors[e].msg;
+      ul.appendChild(li);
+    }
+    box.appendChild(ul);
+  }
+
+  /* 読み下し */
+  var readBox = el("readBox");
+  readBox.innerHTML = "";
+  var explained = 0;
+  for (var g = 0; g < P.fields.length; g++){
+    var fl = P.fields[g];
+    var ex = explain(fl.name, fl.value, P);
+    if (!ex || !ex.rows.length) continue;
+    explained++;
+    var card = document.createElement("div");
+    card.className = "hcard";
+    var hn = document.createElement("div"); hn.className = "hname"; hn.textContent = fl.rawName;
+    var hv = document.createElement("div"); hv.className = "hval"; hv.textContent = fl.value;
+    var hs = document.createElement("p"); hs.className = "hsum"; hs.textContent = ex.sum;
+    card.appendChild(hn); card.appendChild(hv); card.appendChild(hs);
+    var wrap = document.createElement("div"); wrap.className = "tablewrap";
+    var tbl = document.createElement("table"), tbody = document.createElement("tbody");
+    for (var rr = 0; rr < ex.rows.length; rr++){
+      var trr = document.createElement("tr");
+      textCell(trr, "k", ex.rows[rr].k); textCell(trr, "v", ex.rows[rr].v);
+      tbody.appendChild(trr);
+    }
+    tbl.appendChild(tbody); wrap.appendChild(tbl); card.appendChild(wrap);
+    readBox.appendChild(card);
+  }
+  show("readPanel", explained > 0);
+  el("readNote").textContent = explained < P.fields.length
+    ? "読み下しを持っていないヘッダは、上の表に値だけ出しています。" : "";
+
+  /* キャッシュ */
+  var isResponse = !P.start || P.start.kind === "status";
+  show("cachePanel", isResponse && P.fields.length > 0);
+  if (isResponse && P.fields.length > 0){
+    var cm = cacheModel(P, shared);
+    var cbox = el("cacheBox");
+    cbox.innerHTML = "";
+    var big = document.createElement("div");
+    big.className = "big " + (cm.store ? "yes" : "no");
+    if (!cm.store) big.textContent = shared ? "共有キャッシュには保存されません。" : "保存されません。";
+    else if (cm.lifetime === null) big.textContent = "保存されます。寿命はキャッシュの判断しだいです。";
+    else if (cm.lifetime <= 0) big.textContent = "保存されますが、使う前に毎回確認されます。";
+    else {
+      var left = cm.lifetime - cm.age;
+      big.textContent = "保存されます。新鮮なのは " + fmtSeconds(cm.lifetime) + "。"
+        + (cm.age > 0 ? (left > 0 ? "いまの齢を引くと、残り " + fmtSeconds(left) + " です。" : "齢がそれを超えているので、すでに期限切れです。") : "");
+    }
+    cbox.appendChild(big);
+    var cul = document.createElement("ul");
+    for (var w = 0; w < cm.why.length; w++){
+      var cli = document.createElement("li"); cli.textContent = cm.why[w]; cul.appendChild(cli);
+    }
+    var cli2 = document.createElement("li");
+    cli2.textContent = shared ? "CDN やプロキシとして読んでいます（s-maxage と private が効きます）。"
+                              : "ブラウザ自身のキャッシュとして読んでいます（s-maxage と private は効きません）。";
+    cul.appendChild(cli2);
+    if (cm.heuristic){
+      var cli3 = document.createElement("li");
+      cli3.textContent = "この寿命は規格が決めた値ではなく、広く使われている推測のしかたです。実際の秒数はキャッシュごとに違います。";
+      cul.appendChild(cli3);
+    }
+    cbox.appendChild(cul);
+  }
+
+  /* 指摘 */
+  var notes = pitfalls(P, shared);
+  var nl = el("notesList");
+  nl.innerHTML = "";
+  for (var n = 0; n < notes.length; n++){
+    var nli = document.createElement("li");
+    nli.className = "sev-" + notes[n].sev;
+    nli.setAttribute("data-code", notes[n].code);
+    var b = document.createElement("b"); b.textContent = notes[n].title;
+    nli.appendChild(b);
+    nli.appendChild(document.createTextNode(notes[n].body));
+    nl.appendChild(nli);
+  }
+  el("notesNone").style.display = notes.length ? "none" : "";
+}
+
+(function buildPresets(){
+  var box = el("presets");
+  for (var i = 0; i < PRESETS.length; i++){
+    (function(p){
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = p.n;
+      b.addEventListener("click", function(){ srcEl.value = p.v; render(); });
+      box.appendChild(b);
+    })(PRESETS[i]);
+  }
+})();
+
+(function runSelf(){
+  var res = selfCheck(), okN = 0;
+  var box = el("selfBox");
+  box.innerHTML = "";
+  for (var i = 0; i < res.length; i++){
+    if (res[i].ok) okN++;
+    var row = document.createElement("div"); row.className = "row";
+    var mk = document.createElement("span");
+    mk.className = "mark " + (res[i].ok ? "ok" : "ng");
+    mk.textContent = res[i].ok ? "\u2713" : "\u2717";
+    var tx = document.createElement("span");
+    tx.textContent = res[i].t + (res[i].detail ? "（" + res[i].detail + "）" : "");
+    row.appendChild(mk); row.appendChild(tx);
+    box.appendChild(row);
+  }
+  var head = el("selfHead");
+  head.innerHTML = "";
+  head.appendChild(document.createTextNode("この道具の分解を、いまこのブラウザの Headers と突き合わせました: "));
+  var strong = document.createElement("b");
+  strong.className = okN === res.length ? "ok" : "ng";
+  strong.textContent = okN + " / " + res.length + " 一致";
+  head.appendChild(strong);
+  head.appendChild(document.createTextNode(okN === res.length ? "。" : "。食い違ったところはブラウザのほうが正しいです。"));
+})();
+
+srcEl.addEventListener("input", render);
+sharedEl.addEventListener("change", render);
+srcEl.value = PRESETS[0].v;
+render();
+</script>
+</body>
+</html>
