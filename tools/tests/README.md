@@ -10,6 +10,7 @@
 | `test_railroad.py` | [正規表現を鉄道図にする](https://hirulab-dev.github.io/hirulab-tools/railroad/) とブラウザの `RegExp` + Python の `re`。ランダム生成した式をのべ 12,148 本、図から作った例文字列を 16,968 件 |
 | `test_regex_why.py` | [なぜマッチしないか診断](https://hirulab-dev.github.io/hirulab-tools/regex-why/) とブラウザの `RegExp`。自前の照合器の結果（マッチするか・範囲・各グループ）を 7,697 件突き合わせ、さらに「止まった位置」の主張を 6,174 個検算し、**正解の分かる欠陥を仕込んで直し方を名指しできるか**を 83 件で確認 |
 | `test_replace.py` | [正規表現の置換プレビュー](https://hirulab-dev.github.io/hirulab-tools/replace/) と ブラウザの `String.prototype.replace`。置換後の文字列を 5,822 件突き合わせ、さらに **「この文字はこのトークンから来た」という主張を、`replace` に関数を渡して本物のエンジンが返す値で 15,191 個検算**。仕込んだ落とし穴 26 件の名指しも確認 |
+| `test_url.py` | [URLの分解・組み立て](https://hirulab-dev.github.io/hirulab-tools/url/) と ブラウザの `URL`。分解した10項目を 965 件、**punycode は Python の `str.encode("punycode")`**、**クエリの読み分けは Python の `parse_qsl`** と別々に突き合わせる。分解して組み立て直すと元に戻るかも見る。仕込んだ落とし穴 29 件の名指しも確認 |
 
 ## 使い方
 
@@ -21,6 +22,7 @@ python tools/tests/test_csv.py --page docs/csv/index.html --cases 800
 python tools/tests/test_railroad.py --n 3000
 python tools/tests/test_regex_why.py --n 2500
 python tools/tests/test_replace.py --n 1200
+python tools/tests/test_url.py --n 600
 ```
 
 ## 出力の読み方
@@ -104,3 +106,11 @@ python tools/tests/test_replace.py --n 1200
 ★ この突き合わせで**自分のバグを1件見つけました**。後読み `(?<=…)` を
 「その位置で終わる開始点を左から探す」形で近似していたところ、7,697 件のうち **3 件**で
 グループの中身がずれました。仕様どおり**右から左へ照合する**形に書き直して 0 件になっています。
+
+## 対象外にした件数を毎回出す
+
+検証は「見なくていい」と決めた件（読めない式、打ち切りに掛かった件、など）を必ず持ちます。
+**除外の理由がバグと相関していると、壊した分だけ検査の外に出てしまい、検査が空振りします。**
+実際に一度そうなった（`test_replace.py` の `--sabotage` で仕込んだ欠陥が捕まらなかった）ので、
+`skipwatch.py` を通して**対象外の件数を毎回表に出し、前回の割合と比べる**ようにしました。
+増えていれば ★ が付きます。

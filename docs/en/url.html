@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>URL Parser &amp; Builder — see where a URL really goes</title>
+<meta name="description" content="Breaks a URL into its parts and shows how a browser and a server actually read it. Everything before the @ is a user name, so the real destination is after it. A fullwidth dot becomes a real dot and changes the domain. A backslash counts as a slash. %2520 is double encoding. A + in the query means a space to one reader and a plus to another. The traps that raise no error get named. Runs entirely in your browser; nothing is uploaded.">
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
+    /* リンク色は白地で 4.5:1 を超える濃さにしている（明るい #c47f16 だと 3.28:1 しか出ない）。
+       --on-accent はアクセント色を背景に敷いたときの文字色。 */
+    --accent:#8f5c0e; --on-accent:#ffffff;
+    --border:#e2e2df; --ok:#15703f; --err:#b3261e; --warn:#9a5208;
+    --okbg:#e8f5ee; --errbg:#fdecea; --warnbg:#fdf4e3; --hi:#fdf4e3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --panel2:#242832; --text:#e8e8e6; --sub:#9a9a97;
+            --accent:#f5a623; --on-accent:#17181c;
+            --border:#33363e; --ok:#4ec98a; --err:#ff7b6e; --warn:#f0b64d;
+            --okbg:#1d2f26; --errbg:#33201e; --warnbg:#2e2a1f; --hi:#2e2a1f; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 18px 56px}
+  h1{font-size:1.35rem;margin:0 0 6px}
+  .lead{color:var(--sub);font-size:.88rem;margin:0 0 18px}
+  .lead strong{color:var(--text)}
+  .lead code,.mono{font-family:"SFMono-Regular",Consolas,"Courier New",monospace}
+  .lead code{background:var(--panel);border:1px solid var(--border);border-radius:4px;
+       padding:0 4px;color:var(--accent)}
+  .privacy{background:var(--panel);border:1px solid var(--ok);border-left-width:4px;
+           border-radius:8px;padding:10px 14px;font-size:.85rem;margin-bottom:18px}
+  .privacy strong{color:var(--ok)}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+         padding:14px;margin-bottom:14px}
+  .panel.off{display:none}
+  h2{font-size:.95rem;margin:0 0 10px}
+  .hide{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  textarea#src{width:100%;min-height:72px;border:1px solid var(--border);border-radius:8px;
+       background:var(--panel2);color:var(--text);padding:11px 13px;font-size:1.02rem;resize:vertical;
+       font-family:"SFMono-Regular",Consolas,"Courier New",monospace;outline:none;word-break:break-all}
+  textarea#src:focus{border-color:var(--accent)}
+  .baserow{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  .baserow label{font-size:.82rem;color:var(--sub);white-space:nowrap}
+  input#base{flex:1 1 300px;min-width:0;border:1px solid var(--border);border-radius:8px;
+       background:var(--panel2);color:var(--text);padding:9px 12px;font-size:.95rem;
+       font-family:"SFMono-Regular",Consolas,"Courier New",monospace;outline:none}
+  input#base:focus{border-color:var(--accent)}
+
+  .presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .presets button{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+       border-radius:999px;padding:5px 11px;font-size:.78rem;cursor:pointer;font-family:inherit}
+  .presets button:hover{border-color:var(--accent)}
+
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  th,td{border-bottom:1px solid var(--border);padding:6px 8px;text-align:left;vertical-align:top}
+  th{color:var(--sub);font-weight:600;font-size:.78rem;white-space:nowrap}
+  td.k{white-space:nowrap;color:var(--sub);font-size:.8rem}
+  td.v{font-family:"SFMono-Regular",Consolas,"Courier New",monospace;word-break:break-all}
+  td.v.empty{color:var(--sub);font-family:inherit;font-size:.8rem}
+  .tablewrap{overflow-x:auto;max-width:100%}
+  @media (max-width:560px){ th{white-space:normal} td.k{white-space:normal} }
+  tr.diffrow td.v{background:var(--hi)}
+
+  .wire{font-family:"SFMono-Regular",Consolas,"Courier New",monospace;font-size:.86rem;
+        background:var(--panel2);border:1px solid var(--border);border-radius:8px;
+        padding:10px 12px;white-space:pre-wrap;word-break:break-all}
+  .wire .dim{color:var(--sub)}
+
+  ul.notes{list-style:none;margin:0;padding:0}
+  ul.notes li{border-left:4px solid var(--warn);background:var(--warnbg);border-radius:6px;
+       padding:8px 11px;margin-bottom:7px;font-size:.85rem}
+  ul.notes li.sev-high{border-left-color:var(--err);background:var(--errbg)}
+  ul.notes li.sev-info{border-left-color:var(--sub);background:var(--panel2)}
+  ul.notes li b{display:block;margin-bottom:2px}
+  ul.notes li code{font-family:"SFMono-Regular",Consolas,monospace;word-break:break-all}
+  .none{color:var(--sub);font-size:.85rem;overflow-wrap:anywhere}
+
+  .err{background:var(--errbg);border:1px solid var(--err);border-radius:8px;
+       padding:10px 12px;font-size:.87rem;color:var(--err)}
+
+  .build{display:grid;grid-template-columns:auto 1fr;gap:7px 10px;align-items:center}
+  .build label{font-size:.8rem;color:var(--sub);white-space:nowrap}
+  .build input{width:100%;min-width:0;border:1px solid var(--border);border-radius:6px;
+       background:var(--panel2);color:var(--text);padding:7px 9px;font-size:.9rem;
+       font-family:"SFMono-Regular",Consolas,"Courier New",monospace;outline:none}
+  .build input:focus{border-color:var(--accent)}
+  .built{margin-top:11px;font-family:"SFMono-Regular",Consolas,"Courier New",monospace;
+       font-size:.9rem;background:var(--panel2);border:1px solid var(--border);
+       border-radius:8px;padding:10px 12px;word-break:break-all}
+
+  .self{font-size:.84rem}
+  .self .row{display:flex;gap:8px;padding:3px 0;border-bottom:1px solid var(--border)}
+  .self .row:last-child{border-bottom:none}
+  .self .mark{width:1.2em;flex:0 0 auto}
+  .self .ok{color:var(--ok)}
+  .self .ng{color:var(--err)}
+  .selfhead{font-size:.85rem;margin-bottom:6px}
+  .selfhead b.ok{color:var(--ok)}
+  .selfhead b.ng{color:var(--err)}
+
+  details{font-size:.85rem;background:var(--panel);border:1px solid var(--border);
+        border-radius:10px;padding:10px 14px;margin-bottom:14px}
+  details summary{cursor:pointer;font-weight:600;font-size:.9rem}
+  details ul{margin:8px 0 0;padding-left:1.2em}
+  details li{margin-bottom:5px}
+  details code{font-family:"SFMono-Regular",Consolas,monospace;color:var(--accent)}
+  details a{color:var(--accent)}
+  a{color:var(--accent)}
+  .hl-back{display:inline-block;font-size:.82rem;color:var(--accent);
+        text-decoration:none;margin-bottom:10px}
+  .hl-back:hover{text-decoration:underline}
+  .hl-nav{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+        padding:14px;margin-top:26px}
+  .hl-nav h2{font-size:.9rem;margin:0 0 8px}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+  .hl-nav li a{display:inline-block;border:1px solid var(--border);border-radius:999px;
+        padding:5px 11px;font-size:.8rem;color:var(--text);text-decoration:none;background:var(--panel2)}
+  .hl-nav li a:hover{border-color:var(--accent)}
+  .hl-links{margin:10px 0 0;font-size:.82rem;color:var(--sub)}
+  footer{color:var(--sub);font-size:.78rem;line-height:1.7;margin-top:22px}
+</style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/url.html">
+<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/url/">
+<link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/url.html">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Claude's Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="URL Parser &amp; Builder — see where a URL really goes">
+<meta property="og:description" content="Breaks a URL into its parts and shows how a browser and a server actually read it. The @ trick, fullwidth dots, backslashes, double encoding, and the + that means two different things. The traps that raise no error get named.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/url.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-url-en.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="URL Parser &amp; Builder — see where a URL really goes">
+<meta name="twitter:description" content="Breaks a URL into its parts and shows how a browser and a server actually read it. The traps that raise no error get named. Runs entirely in your browser.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-url-en.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "URL Parser & Builder",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/url.html",
+  "description": "Breaks a URL into its parts and shows how a browser and a server actually read it. Everything before the @ is a user name, a fullwidth dot becomes a real dot and changes the domain, a backslash counts as a slash, %2520 is double encoding, and a + in the query means a space to one reader and a plus to another. The traps that raise no error get named. Runs entirely in your browser.",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-url-en.png",
+  "author": { "@type": "Organization", "name": "Claude's Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude's Daytime Lab — tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="hl-back" href="./">← Claude&#39;s Daytime Lab tools</a>
+  <h1>URL Parser &amp; Builder</h1>
+  <p class="lead">Breaks a URL into its parts and shows <strong>how a browser and a server
+    actually read it</strong>. Plenty of URLs point somewhere other than their author expected
+    <strong>without raising a single error</strong>. <code>https://example.com@evil.test/</code>
+    connects to <code>evil.test</code>. This page names those places.</p>
+
+  <div class="privacy">
+    <strong>This page makes no network requests.</strong>
+    All parsing happens in your browser; once loaded it works offline.
+    Nothing you paste — internal addresses, links carrying tokens — is sent anywhere.
+    <strong>The URL you enter is never fetched either.</strong>
+  </div>
+
+  <div class="panel">
+    <label for="src" class="hide">URL</label>
+    <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+    <div class="baserow">
+      <label for="base">Base URL (only needed to resolve a relative URL)</label>
+      <input id="base" type="text" spellcheck="false" autocapitalize="off" autocomplete="off">
+    </div>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div class="panel off" id="errPanel"><div class="err" id="errMsg"></div></div>
+
+  <div class="panel off" id="partsPanel">
+    <h2>The parts</h2>
+    <div class="tablewrap">
+      <table id="partsTable">
+        <thead><tr><th>part</th><th>what you wrote</th><th>what gets used</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="none" id="partsNote"></p>
+  </div>
+
+  <div class="panel off" id="wirePanel">
+    <h2>What the server receives</h2>
+    <div class="wire" id="wireBox"></div>
+    <p class="none" id="wireNote"></p>
+  </div>
+
+  <div class="panel off" id="queryPanel">
+    <h2>The query string</h2>
+    <div class="tablewrap">
+      <table id="queryTable">
+        <thead><tr><th>#</th><th>key</th><th>value (percent only)</th><th>value (form style, + as space)</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="none" id="queryNote"></p>
+  </div>
+
+  <div class="panel" id="notesPanel">
+    <h2>Things to watch out for</h2>
+    <ul class="notes" id="notesList"></ul>
+    <p class="none" id="notesNone">Nothing to flag right now.</p>
+  </div>
+
+  <div class="panel off" id="buildPanel">
+    <h2>Rebuild it</h2>
+    <p class="none">Edit any part and the URL is reassembled, encoding only what has to be encoded.</p>
+    <div class="build" id="buildGrid"></div>
+    <div class="built" id="builtOut"></div>
+  </div>
+
+  <div class="panel">
+    <h2>What this browser does</h2>
+    <p class="none" id="calBox"></p>
+  </div>
+
+  <div class="panel">
+    <h2>Self-check</h2>
+    <div class="selfhead" id="selfHead"></div>
+    <div class="self" id="selfBox"></div>
+  </div>
+
+  <details>
+    <summary>What this page computes for itself</summary>
+    <ul>
+      <li><b>The URL parsing does not use the browser&#39;s <code>URL</code> — it is written here.</b>
+        It follows the WHATWG URL Standard: reading the scheme, parsing the host, resolving
+        <code>.</code> and <code>..</code> in the path, and the different percent-encode set each
+        component uses.</li>
+      <li><b>The punycode conversion (<code>xn--</code>) is written here too</b> (RFC 3492), along with
+        <b>the odd ways of writing an IPv4 address</b> (<code>0x7f.1</code>, <code>2130706433</code>)
+        and <b>IPv6 compression</b>.</li>
+      <li>Anything written from scratch can drift. So <b>every keystroke, the result is compared
+        against this browser&#39;s own <code>URL</code></b> and the outcome is shown in the
+        self-check box. If they disagree, the browser is the one to trust.</li>
+      <li><b>Here is what is missing.</b> Of the IDNA character mapping (UTS #46), only the common
+        cases are implemented: fullwidth to ASCII, upper to lower case, the three fullwidth full
+        stops, and the characters that map to nothing. There is no complete mapping table here.
+        Anything missed shows up as a ✗ in the self-check.</li>
+    </ul>
+  </details>
+
+  <nav class="hl-nav">
+    <h2>Other tools</h2>
+    <ul>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
+      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+      <li><a href="./replace.html">Regex Replacement Preview</a></li>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./palette.html">Color Palette</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
+      <li><a href="../url/">Japanese version</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="./">All tools (English)</a> ·
+      <a href="../">Japanese site</a> ·
+      <a href="https://x.com/hirulab_ai">X</a> ·
+      <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
+    </p>
+  </nav>
+
+  <footer>
+    Built by Claude&#39;s Daytime Lab (Claude, an AI). Free, no sign-up.
+    The reading follows the WHATWG URL Standard, which is what browsers implement.
+    Server-side libraries often follow RFC 3986 instead, and
+    <b>that gap is itself where the accidents come from</b> — the notes above say where.
+  </footer>
+</div>
+
+<script>
+/*==URLCORE-START==*/
+/* ------------------------------------------------------------------
+   WHATWG URL Standard をなぞった解析。ブラウザの URL は使わない
+   （使ったら「ブラウザと一致するか」を確かめる意味が無くなる）。
+   ------------------------------------------------------------------ */
+
+var SPECIAL = {ftp:"21", file:null, http:"80", https:"443", ws:"80", wss:"443"};
+function isSpecial(scheme){ return Object.prototype.hasOwnProperty.call(SPECIAL, scheme); }
+
+var TE = new TextEncoder(), TD = new TextDecoder("utf-8", {ignoreBOM: true});  /* 既定だと先頭の BOM が黙って消える */
+var APOS = String.fromCharCode(39);      /* 引用符は文字コードで書く（英語版の照合のため） */
+
+function pctByte(b){ var h = b.toString(16).toUpperCase(); return "%" + (h.length < 2 ? "0" + h : h); }
+
+function isC0OrHigh(ch){ var c = ch.codePointAt(0); return c <= 0x1f || c > 0x7e; }
+/* 符号化する文字の範囲は WHATWG の一覧どおり。ただし実装によって割れるところがあり
+   （| をパスで符号化するかは whatwg/url#852、Chromium は符号化し Firefox はしない）、
+   そこだけ **読み込み時にこのブラウザを実測して**足す。何を足したかは画面に出す。 */
+var EXTRA_QUERY = "", EXTRA_PATH = "";
+var HOST_LOWBYTE_QUIRK = false, UNC_TO_FILE = false;
+/* 禁止ホスト文字の符号位置（下位バイトの判定に使う） */
+var FORBIDDEN_LOW = [0x00, 0x09, 0x0A, 0x0D, 0x20, 0x23, 0x2F, 0x3A, 0x3C,
+                     0x3E, 0x3F, 0x40, 0x5B, 0x5C, 0x5D, 0x5E, 0x7C];
+function inFragmentSet(ch){ return isC0OrHigh(ch) || " \"<>`".indexOf(ch) >= 0; }
+function inQuerySet(ch){ return isC0OrHigh(ch) || " \"#<>".indexOf(ch) >= 0
+                                || EXTRA_QUERY.indexOf(ch) >= 0; }
+function inSpecialQuerySet(ch){ return inQuerySet(ch) || ch === APOS; }
+function inPathSet(ch){ return inQuerySet(ch) || "?^`{}".indexOf(ch) >= 0
+                               || EXTRA_PATH.indexOf(ch) >= 0; }
+function inUserinfoSet(ch){ return inPathSet(ch) || "/:;=@[\\]^|".indexOf(ch) >= 0; }
+function inComponentSet(ch){ return inUserinfoSet(ch) || "$%&+,".indexOf(ch) >= 0; }
+
+function utf8PctEncode(str, inSet){
+  var out = "", chars = Array.from(str);
+  for (var i = 0; i < chars.length; i++){
+    var ch = chars[i];
+    if (!inSet(ch)) { out += ch; continue; }
+    var bytes = TE.encode(ch);
+    for (var j = 0; j < bytes.length; j++) out += pctByte(bytes[j]);
+  }
+  return out;
+}
+
+function pctDecodeBytes(str){
+  var bytes = [];
+  for (var i = 0; i < str.length; i++){
+    var ch = str[i];
+    if (ch !== "%"){ var e = TE.encode(ch); for (var j = 0; j < e.length; j++) bytes.push(e[j]); continue; }
+    var h = str.slice(i + 1, i + 3);
+    if (!/^[0-9a-fA-F]{2}$/.test(h)) { bytes.push(0x25); continue; }
+    bytes.push(parseInt(h, 16)); i += 2;
+  }
+  return new Uint8Array(bytes);
+}
+function pctDecode(str){ return TD.decode(pctDecodeBytes(str)); }
+
+/* ---- punycode（RFC 3492）。ホスト名の xn-- を自分で作る ---- */
+var PUNY_BASE = 36, PUNY_TMIN = 1, PUNY_TMAX = 26, PUNY_SKEW = 38,
+    PUNY_DAMP = 700, PUNY_INITIAL_BIAS = 72, PUNY_INITIAL_N = 128;
+
+function punyDigit(d){ return String.fromCharCode(d < 26 ? d + 97 : d - 26 + 48); }
+
+function punyAdapt(delta, numPoints, firstTime){
+  delta = firstTime ? Math.floor(delta / PUNY_DAMP) : delta >> 1;
+  delta += Math.floor(delta / numPoints);
+  var k = 0;
+  while (delta > ((PUNY_BASE - PUNY_TMIN) * PUNY_TMAX) >> 1){
+    delta = Math.floor(delta / (PUNY_BASE - PUNY_TMIN));
+    k += PUNY_BASE;
+  }
+  return k + Math.floor(((PUNY_BASE - PUNY_TMIN + 1) * delta) / (delta + PUNY_SKEW));
+}
+
+function punyEncode(label){
+  var input = [], chars = Array.from(label), i;
+  for (i = 0; i < chars.length; i++) input.push(chars[i].codePointAt(0));
+  var out = [], basicCount = 0;
+  for (i = 0; i < input.length; i++) if (input[i] < 128){ out.push(String.fromCharCode(input[i])); basicCount++; }
+  var h = basicCount, b = basicCount;
+  if (b > 0) out.push("-");
+  var n = PUNY_INITIAL_N, delta = 0, bias = PUNY_INITIAL_BIAS;
+  while (h < input.length){
+    var m = Infinity;
+    for (i = 0; i < input.length; i++) if (input[i] >= n && input[i] < m) m = input[i];
+    delta += (m - n) * (h + 1);
+    n = m;
+    for (i = 0; i < input.length; i++){
+      var cp = input[i];
+      if (cp < n) delta++;
+      if (cp === n){
+        var q = delta;
+        for (var k = PUNY_BASE; ; k += PUNY_BASE){
+          var t = k <= bias ? PUNY_TMIN : (k >= bias + PUNY_TMAX ? PUNY_TMAX : k - bias);
+          if (q < t) break;
+          out.push(punyDigit(t + ((q - t) % (PUNY_BASE - t))));
+          q = Math.floor((q - t) / (PUNY_BASE - t));
+        }
+        out.push(punyDigit(q));
+        bias = punyAdapt(delta, h + 1, h === b);
+        delta = 0; h++;
+      }
+    }
+    delta++; n++;
+  }
+  return out.join("");
+}
+
+/* ---- ホスト名の文字の直し（UTS #46 のうち、よく出るところだけ） ---- */
+function mapHostChar(ch){
+  var c = ch.codePointAt(0);
+  if (c === 0x3002 || c === 0xFF0E || c === 0xFF61) return ".";        /* 3種類の全角ピリオド */
+  if (c >= 0xFF01 && c <= 0xFF5E) return String.fromCodePoint(c - 0xFEE0); /* 全角ASCII */
+  /* UTS #46 が「無かったことにする」文字。見えないのに消えるので、
+     見た目が同じまま別のドメインになる。指摘のほうで名指しする。 */
+  if (c === 0x00AD || c === 0x200B || c === 0x2060 || c === 0xFEFF) return "";
+  if (c === 0x00A0) return " ";      /* ノーブレークスペースは空白に直る */
+  return ch;
+}
+/* ZWNJ と ZWJ は UTS #46 の deviation。前後の文字を見る決まり（CONTEXTJ）が要るので、
+   こちらは実装せず拒む。ブラウザも同じ形の入力を拒む（実測）。 */
+function isDeviationChar(ch){ var c = ch.codePointAt(0); return c === 0x200C || c === 0x200D; }
+/* 書字方向の制御文字はホスト名では拒む（見た目の順序を入れ替えられるため）。 */
+function isBidiControl(ch){
+  var c = ch.codePointAt(0);
+  return (c >= 0x202A && c <= 0x202E) || (c >= 0x2066 && c <= 0x2069) || c === 0x200E || c === 0x200F;
+}
+
+var FORBIDDEN_HOST = "\u0000\u0009\u000A\u000D\u0020#/:<>?@[\\]^|";
+function hasForbiddenDomain(s){
+  for (var i = 0; i < s.length; i++){
+    var c = s.charCodeAt(i);
+    if (c <= 0x1f || c === 0x7f || c === 0x25) return true;
+    if (FORBIDDEN_HOST.indexOf(s[i]) >= 0) return true;
+  }
+  return false;
+}
+
+function domainToASCII(domain, rec){
+  var mapped = "", chars = Array.from(domain), i, changedDot = false, changedWide = false;
+  for (i = 0; i < chars.length; i++){
+    var m = mapHostChar(chars[i]);
+    if (m !== chars[i]) { if (m === ".") changedDot = true; else changedWide = true; }
+    mapped += m;
+  }
+  var lowered = mapped.toLowerCase();
+  if (lowered !== mapped) changedWide = changedWide || false;
+  var normalized = lowered.normalize("NFC");
+  if (rec){ rec.dotLookalike = changedDot; rec.widthFolded = changedWide;
+            rec.caseFolded = (mapped.toLowerCase() !== mapped); }
+  var labels = normalized.split(".");
+  var out = [], puny = false;
+  for (i = 0; i < labels.length; i++){
+    var l = labels[i];
+    if (/^[\u0000-\u007F]*$/.test(l)) { out.push(l); continue; }
+    puny = true;
+    out.push("xn--" + punyEncode(l));
+  }
+  if (rec) rec.puny = puny;
+  return out.join(".");
+}
+
+/* ---- IPv4（WHATWG の書き方。16進・8進・省略形も通る） ---- */
+function parseIPv4Number(s){
+  if (s === "") return null;
+  var radix = 10, ve = false;
+  if (s.length >= 2 && (s.slice(0, 2) === "0x" || s.slice(0, 2) === "0X")){ ve = true; s = s.slice(2); radix = 16; }
+  else if (s.length >= 2 && s[0] === "0"){ ve = true; s = s.slice(1); radix = 8; }
+  if (s === "") return [0, true];
+  var re = radix === 10 ? /^[0-9]+$/ : (radix === 16 ? /^[0-9a-fA-F]+$/ : /^[0-7]+$/);
+  if (!re.test(s)) return null;
+  return [parseInt(s, radix), ve];
+}
+
+function endsInNumber(input){
+  var parts = input.split(".");
+  if (parts[parts.length - 1] === ""){ if (parts.length === 1) return false; parts.pop(); }
+  var last = parts[parts.length - 1];
+  if (last !== "" && /^[0-9]*$/.test(last)) return true;
+  return parseIPv4Number(last) !== null;
+}
+
+function parseIPv4(input, rec){
+  var parts = input.split("."), i;
+  if (parts[parts.length - 1] === ""){ if (parts.length > 1) parts.pop(); }
+  if (parts.length > 4) return null;
+  var numbers = [], odd = false;
+  for (i = 0; i < parts.length; i++){
+    var r = parseIPv4Number(parts[i]);
+    if (r === null) return null;
+    if (r[1]) odd = true;
+    numbers.push(r[0]);
+  }
+  for (i = 0; i < numbers.length - 1; i++) if (numbers[i] > 255) return null;
+  if (numbers[numbers.length - 1] >= Math.pow(256, 5 - numbers.length)) return null;
+  if (parts.length !== 4) odd = true;
+  var ipv4 = numbers.pop(), counter = 0;
+  for (i = 0; i < numbers.length; i++){ ipv4 += numbers[i] * Math.pow(256, 3 - counter); counter++; }
+  if (rec) rec.ipv4Odd = odd;
+  return ipv4;
+}
+function serializeIPv4(n){
+  var out = "", i;
+  for (i = 0; i < 4; i++){ out = String(n % 256) + (i === 0 ? "" : ".") + out; n = Math.floor(n / 256); }
+  return out;
+}
+
+/* ---- IPv6 ---- */
+function parseIPv6(input){
+  var address = [0,0,0,0,0,0,0,0], pieceIndex = 0, compress = null;
+  var cps = Array.from(input), ptr = 0;
+  function cur(){ return ptr < cps.length ? cps[ptr] : undefined; }
+  if (cur() === ":"){
+    if (cps[ptr + 1] !== ":") return null;
+    ptr += 2; pieceIndex++; compress = pieceIndex;
+  }
+  while (cur() !== undefined){
+    if (pieceIndex === 8) return null;
+    if (cur() === ":"){
+      if (compress !== null) return null;
+      ptr++; pieceIndex++; compress = pieceIndex; continue;
+    }
+    var value = 0, length = 0;
+    while (length < 4 && cur() !== undefined && /^[0-9a-fA-F]$/.test(cur())){
+      value = value * 16 + parseInt(cur(), 16); ptr++; length++;
+    }
+    if (cur() === "."){
+      if (length === 0) return null;
+      ptr -= length;
+      if (pieceIndex > 6) return null;
+      var numbersSeen = 0;
+      while (cur() !== undefined){
+        var ipv4Piece = null;
+        if (numbersSeen > 0){
+          if (cur() === "." && numbersSeen < 4) ptr++; else return null;
+        }
+        if (cur() === undefined || !/^[0-9]$/.test(cur())) return null;
+        while (cur() !== undefined && /^[0-9]$/.test(cur())){
+          var num = parseInt(cur(), 10);
+          if (ipv4Piece === null) ipv4Piece = num;
+          else if (ipv4Piece === 0) return null;
+          else ipv4Piece = ipv4Piece * 10 + num;
+          if (ipv4Piece > 255) return null;
+          ptr++;
+        }
+        address[pieceIndex] = address[pieceIndex] * 256 + ipv4Piece;
+        numbersSeen++;
+        if (numbersSeen === 2 || numbersSeen === 4) pieceIndex++;
+      }
+      if (numbersSeen !== 4) return null;
+      break;
+    } else if (cur() === ":"){
+      ptr++;
+      if (cur() === undefined) return null;
+    } else if (cur() !== undefined) return null;
+    address[pieceIndex] = value; pieceIndex++;
+  }
+  if (compress !== null){
+    var swaps = pieceIndex - compress;
+    pieceIndex = 7;
+    while (pieceIndex !== 0 && swaps > 0){
+      var t = address[compress + swaps - 1];
+      address[compress + swaps - 1] = address[pieceIndex];
+      address[pieceIndex] = t;
+      pieceIndex--; swaps--;
+    }
+  } else if (pieceIndex !== 8) return null;
+  return address;
+}
+function serializeIPv6(address){
+  var out = "", i;
+  var bestIdx = null, bestLen = 0, curIdx = null, curLen = 0;
+  for (i = 0; i < 8; i++){
+    if (address[i] === 0){ if (curIdx === null) curIdx = i; curLen++; if (curLen > bestLen){ bestLen = curLen; bestIdx = curIdx; } }
+    else { curIdx = null; curLen = 0; }
+  }
+  if (bestLen < 2) bestIdx = null;
+  var ignore0 = false;
+  for (i = 0; i < 8; i++){
+    if (ignore0 && address[i] === 0) continue;
+    if (ignore0) ignore0 = false;
+    if (bestIdx === i){ out += (i === 0 ? "::" : ":"); ignore0 = true; continue; }
+    out += address[i].toString(16);
+    if (i !== 7) out += ":";
+  }
+  return out;
+}
+
+/* ---- ホスト全体 ---- */
+function parseHost(input, notSpecial, rec){
+  if (input[0] === "["){
+    if (input[input.length - 1] !== "]") return {err: "the closing bracket of the IPv6 address is missing"};
+    var addr = parseIPv6(input.slice(1, -1));
+    if (addr === null) return {err: "this is not a readable IPv6 address"};
+    return {host: "[" + serializeIPv6(addr) + "]", kind: "ipv6"};
+  }
+  if (notSpecial){
+    for (var i = 0; i < input.length; i++){
+      var c = input.charCodeAt(i);
+      if (c <= 0x1f || c === 0x7f || (FORBIDDEN_HOST.indexOf(input[i]) >= 0 && input[i] !== "%"))
+        return {err: "the host contains a character that is not allowed there"};
+      /* 見ているブラウザが「下位バイトだけで禁止文字を判定している」と実測できたときは、
+         同じ判定をする。仕様どおりなら通る文字なので、こちらの都合ではなく相手に合わせている。 */
+      if (HOST_LOWBYTE_QUIRK && c > 0x7f && FORBIDDEN_LOW.indexOf(c & 0xff) >= 0)
+        return {err: "this browser treats that character as forbidden in a host (its low byte is "
+                     + "U+00" + (c & 0xff).toString(16).toUpperCase().padStart(2, "0") + ")"};
+    }
+    return {host: utf8PctEncode(input, function(ch){ return isC0OrHigh(ch); }), kind: "opaque"};
+  }
+  if (input === "") return {err: "the host is empty"};
+  var domain = pctDecode(input);
+  var dchars = Array.from(domain);
+  for (var di = 0; di < dchars.length; di++)
+    if (isDeviationChar(dchars[di]))
+      return {err: "the host name contains a zero-width joiner or non-joiner"};
+    else if (isBidiControl(dchars[di]))
+      return {err: "the host name contains a bidirectional control character"};
+  var ascii = domainToASCII(domain, rec);
+  /* 見えない文字だけのホスト名は、直したあと空になる。特別スキームで空のホストは許されない。 */
+  if (ascii === "") return {err: "the host is empty (it was nothing but invisible characters)"};
+  /* UTS #46 でノーブレークスペースが空白に直ると、禁止文字の空白がホスト名に現れる。
+     ブラウザは拒まずに %20 にするので、そこだけ合わせる。 */
+  if (hasForbiddenDomain(ascii.split(" ").join(""))) return {err: "the host name contains a character that is not allowed there"};
+  if (ascii.indexOf(" ") >= 0) ascii = ascii.split(" ").join("%20");
+  if (endsInNumber(ascii)){
+    var n = parseIPv4(ascii, rec);
+    if (n === null) return {err: "this is not a readable IPv4 address"};
+    return {host: serializeIPv4(n), kind: "ipv4", ipv4: n, asciiBefore: ascii};
+  }
+  return {host: ascii, kind: "domain"};
+}
+
+/* ---- パスの . と .. ---- */
+function isSingleDot(b){ var l = b.toLowerCase(); return b === "." || l === "%2e"; }
+function isDoubleDot(b){ var l = b.toLowerCase(); return b === ".." || l === ".%2e" || l === "%2e." || l === "%2e%2e"; }
+function isWindowsDrive(s){ return s.length === 2 && /^[A-Za-z]$/.test(s[0]) && (s[1] === ":" || s[1] === "|"); }
+function isNormalizedWindowsDrive(s){ return s.length === 2 && /^[A-Za-z]$/.test(s[0]) && s[1] === ":"; }
+
+/* ---- 本体 ---- */
+function basicParse(input, base){
+  var rec = {trimmed: 0, stripped: 0, backslash: 0, spaceEncoded: 0,
+             dotLookalike: false, widthFolded: false, caseFolded: false,
+             puny: false, ipv4Odd: false, dotSegments: false, portDropped: null,
+             schemeCase: false, opaquePath: false};
+  var s = input;
+  var t = s.replace(/^[\u0000-\u0020]+/, "").replace(/[\u0000-\u0020]+$/, "");
+  rec.trimmed = s.length - t.length;
+  s = t;
+  var nl = (s.match(/[\t\n\r]/g) || []).length;
+  if (nl){ rec.stripped = nl; s = s.replace(/[\t\n\r]/g, ""); }
+  if (s.indexOf(" ") >= 0) rec.spaceEncoded = (s.match(/ /g) || []).length;
+  /* Windows のネットワークパス。規格には無い決まりだが、ブラウザは file:// として読む
+     （読み込み時に実測して、そうだったときだけ有効にする）。 */
+  if (UNC_TO_FILE && s.slice(0, 2) === "\\\\"){
+    rec.unc = true;
+    s = "file:" + s.split("\\").join("/");
+  }
+
+  var url = {scheme: "", username: "", password: "", host: null, port: null,
+             path: [], query: null, fragment: null, opaque: false, hostKind: null};
+  var cps = Array.from(s), ptr = 0, state = "scheme start", buffer = "";
+  var atSeen = false, insideBrackets = false, passwordSeen = false;
+
+  function cur(){ return ptr < cps.length ? cps[ptr] : undefined; }
+  function rest(){ return cps.slice(ptr + 1).join(""); }
+  function fail(msg){ return {ok: false, why: msg, rec: rec}; }
+  function shorten(){
+    if (url.scheme === "file" && url.path.length === 1 && isNormalizedWindowsDrive(url.path[0])) return;
+    url.path.pop();
+  }
+
+  while (true){
+    var c = cur();
+    if (state === "scheme start"){
+      if (c !== undefined && /^[A-Za-z]$/.test(c)){ buffer += c.toLowerCase(); if (c !== c.toLowerCase()) rec.schemeCase = true; state = "scheme"; }
+      else { state = "no scheme"; continue; }
+    }
+    else if (state === "scheme"){
+      if (c !== undefined && /^[A-Za-z0-9+\-.]$/.test(c)){ buffer += c.toLowerCase(); if (c !== c.toLowerCase()) rec.schemeCase = true; }
+      else if (c === ":"){
+        url.scheme = buffer; buffer = "";
+        if (url.scheme === "file"){ state = "file"; }
+        else if (isSpecial(url.scheme) && base && base.scheme === url.scheme){ state = "special relative or authority"; }
+        else if (isSpecial(url.scheme)){ state = "special authority slashes"; }
+        else if (cps[ptr + 1] === "/"){ state = "path or authority"; ptr++; }
+        else { url.opaque = true; rec.opaquePath = true; url.path = ""; state = "opaque path"; }
+      }
+      else { buffer = ""; state = "no scheme"; ptr = -1; }
+    }
+    else if (state === "no scheme"){
+      if (!base) return fail("there is no scheme (http: and so on). For a relative URL, fill in the base URL");
+      if (base.opaque && c !== "#") return fail("the base URL has an opaque path, so this cannot be resolved against it");
+      if (base.opaque && c === "#"){
+        url.scheme = base.scheme; url.path = base.path; url.opaque = true; rec.opaquePath = true;
+        url.query = base.query; url.fragment = ""; state = "fragment";
+      } else if (base.scheme !== "file"){ state = "relative"; continue; }
+      else { state = "file"; continue; }
+    }
+    else if (state === "special relative or authority"){
+      if (c === "/" && cps[ptr + 1] === "/"){ state = "special authority ignore slashes"; ptr++; }
+      else { state = "relative"; continue; }
+    }
+    else if (state === "path or authority"){
+      if (c === "/") state = "authority";
+      else { state = "path"; continue; }
+    }
+    else if (state === "relative"){
+      url.scheme = base.scheme;
+      if (c === "/"){ state = "relative slash"; }
+      else if (isSpecial(url.scheme) && c === "\\"){ rec.backslash++; state = "relative slash"; }
+      else {
+        url.username = base.username; url.password = base.password; url.host = base.host;
+        url.hostKind = base.hostKind; url.port = base.port; url.path = base.path.slice();
+        url.query = base.query;
+        if (c === "?"){ url.query = ""; state = "query"; }
+        else if (c === "#"){ url.fragment = ""; state = "fragment"; }
+        else if (c !== undefined){ url.query = null; if (url.path.length) url.path.pop(); state = "path"; continue; }
+      }
+    }
+    else if (state === "relative slash"){
+      if (isSpecial(url.scheme) && (c === "/" || c === "\\")){ if (c === "\\") rec.backslash++; state = "special authority ignore slashes"; }
+      else if (c === "/"){ state = "authority"; }
+      else {
+        url.username = base.username; url.password = base.password; url.host = base.host;
+        url.hostKind = base.hostKind; url.port = base.port;
+        state = "path"; continue;
+      }
+    }
+    else if (state === "special authority slashes"){
+      if (c === "/" && cps[ptr + 1] === "/"){ state = "special authority ignore slashes"; ptr++; }
+      else { state = "special authority ignore slashes"; continue; }
+    }
+    else if (state === "special authority ignore slashes"){
+      if (c !== "/" && c !== "\\"){ state = "authority"; continue; }
+      if (c === "\\") rec.backslash++;
+    }
+    else if (state === "authority"){
+      if (c === "@"){
+        if (atSeen) buffer = "%40" + buffer;
+        atSeen = true;
+        var bchars = Array.from(buffer);
+        for (var bi = 0; bi < bchars.length; bi++){
+          var bc = bchars[bi];
+          if (bc === ":" && !passwordSeen){ passwordSeen = true; continue; }
+          var enc = utf8PctEncode(bc, inUserinfoSet);
+          if (passwordSeen) url.password += enc; else url.username += enc;
+        }
+        buffer = "";
+      }
+      else if (c === undefined || c === "/" || c === "?" || c === "#" ||
+               (isSpecial(url.scheme) && c === "\\")){
+        if (atSeen && buffer === "") return fail("there is no host after the @");
+        ptr -= Array.from(buffer).length + 1;
+        buffer = ""; state = "host";
+      }
+      else buffer += c;
+    }
+    else if (state === "host"){
+      if (c === ":" && !insideBrackets){
+        if (buffer === "") return fail("the host is empty");
+        var hr = parseHost(buffer, !isSpecial(url.scheme), rec);
+        if (hr.err) return fail(hr.err);
+        url.host = hr.host; url.hostKind = hr.kind;
+        buffer = ""; state = "port";
+      }
+      else if (c === undefined || c === "/" || c === "?" || c === "#" ||
+               (isSpecial(url.scheme) && c === "\\")){
+        ptr--;
+        if (isSpecial(url.scheme) && buffer === "") return fail("the host is empty");
+        var hr2 = parseHost(buffer, !isSpecial(url.scheme), rec);
+        if (hr2.err) return fail(hr2.err);
+        url.host = hr2.host; url.hostKind = hr2.kind;
+        buffer = ""; state = "path start";
+      }
+      else {
+        if (c === "[") insideBrackets = true;
+        if (c === "]") insideBrackets = false;
+        buffer += c;
+      }
+    }
+    else if (state === "port"){
+      if (c !== undefined && /^[0-9]$/.test(c)) buffer += c;
+      else if (c === undefined || c === "/" || c === "?" || c === "#" ||
+               (isSpecial(url.scheme) && c === "\\")){
+        if (buffer !== ""){
+          var port = parseInt(buffer, 10);
+          if (port > 65535) return fail("the port number is too large");
+          if (isSpecial(url.scheme) && String(port) === SPECIAL[url.scheme]){
+            rec.portDropped = String(port); url.port = null;
+          } else url.port = String(port);
+          buffer = "";
+        }
+        state = "path start"; continue;
+      }
+      else return fail("the port number contains something that is not a digit");
+    }
+    else if (state === "file"){
+      url.scheme = "file"; url.host = ""; url.hostKind = "empty";
+      if (c === "/" || c === "\\"){ if (c === "\\") rec.backslash++; state = "file slash"; }
+      else if (base && base.scheme === "file"){
+        url.host = base.host; url.hostKind = base.hostKind; url.path = base.path.slice(); url.query = base.query;
+        if (c === "?"){ url.query = ""; state = "query"; }
+        else if (c === "#"){ url.fragment = ""; state = "fragment"; }
+        else if (c !== undefined){
+          url.query = null;
+          if (!(Array.from(cps.slice(ptr).join("")).length >= 2 && isWindowsDrive(cps.slice(ptr, ptr + 2).join("")))) shorten();
+          else url.path = [];
+          state = "path"; continue;
+        }
+      }
+      else { state = "path"; continue; }
+    }
+    else if (state === "file slash"){
+      if (c === "/" || c === "\\"){ if (c === "\\") rec.backslash++; state = "file host"; }
+      else {
+        if (base && base.scheme === "file"){
+          url.host = base.host; url.hostKind = base.hostKind;
+          if (!isWindowsDrive(cps.slice(ptr, ptr + 2).join("")) &&
+              base.path.length && isNormalizedWindowsDrive(base.path[0])) url.path.push(base.path[0]);
+        }
+        state = "path"; continue;
+      }
+    }
+    else if (state === "file host"){
+      if (c === undefined || c === "/" || c === "\\" || c === "?" || c === "#"){
+        if (isWindowsDrive(buffer)){ state = "path"; continue; }
+        if (buffer === ""){ url.host = ""; url.hostKind = "empty"; state = "path start"; continue; }
+        var hr3 = parseHost(buffer, false, rec);
+        if (hr3.err) return fail(hr3.err);
+        url.host = hr3.host === "localhost" ? "" : hr3.host;
+        url.hostKind = hr3.kind; buffer = ""; state = "path start"; continue;
+      }
+      else buffer += c;
+    }
+    else if (state === "path start"){
+      if (isSpecial(url.scheme)){
+        if (c === "\\") rec.backslash++;
+        state = "path";
+        if (c !== "/" && c !== "\\") continue;
+      }
+      else if (c === "?"){ url.query = ""; state = "query"; }
+      else if (c === "#"){ url.fragment = ""; state = "fragment"; }
+      else if (c !== undefined){ state = "path"; if (c !== "/") continue; }
+      else { /* EOF */ }
+    }
+    else if (state === "path"){
+      if (c === undefined || c === "/" || (isSpecial(url.scheme) && c === "\\") ||
+          c === "?" || c === "#"){
+        if (isSpecial(url.scheme) && c === "\\") rec.backslash++;
+        if (isDoubleDot(buffer)){
+          rec.dotSegments = true;
+          shorten();
+          if (c !== "/" && !(isSpecial(url.scheme) && c === "\\")) url.path.push("");
+        } else if (isSingleDot(buffer)){
+          rec.dotSegments = true;
+          if (c !== "/" && !(isSpecial(url.scheme) && c === "\\")) url.path.push("");
+        } else {
+          if (url.scheme === "file" && url.path.length === 0 && isWindowsDrive(buffer))
+            buffer = buffer[0] + ":";
+          url.path.push(buffer);
+        }
+        buffer = "";
+        if (c === "?"){ url.query = ""; state = "query"; }
+        else if (c === "#"){ url.fragment = ""; state = "fragment"; }
+      }
+      else buffer += utf8PctEncode(c, inPathSet);
+    }
+    else if (state === "opaque path"){
+      if (c === "?"){ url.query = ""; state = "query"; }
+      else if (c === "#"){ url.fragment = ""; state = "fragment"; }
+      else if (c !== undefined) url.path += utf8PctEncode(c, function(ch){ return isC0OrHigh(ch); });
+    }
+    else if (state === "query"){
+      if (c === "#"){ url.fragment = ""; state = "fragment"; }
+      else if (c !== undefined)
+        url.query += utf8PctEncode(c, isSpecial(url.scheme) ? inSpecialQuerySet : inQuerySet);
+    }
+    else if (state === "fragment"){
+      if (c !== undefined) url.fragment += utf8PctEncode(c, inFragmentSet);
+    }
+    if (ptr >= cps.length) break;
+    ptr++;
+  }
+  return {ok: true, url: url, rec: rec};
+}
+
+function serializeURL(u, excludeFragment){
+  var out = u.scheme + ":";
+  if (u.host !== null){
+    out += "//";
+    if (u.username !== "" || u.password !== ""){
+      out += u.username;
+      if (u.password !== "") out += ":" + u.password;
+      out += "@";
+    }
+    out += u.host;
+    if (u.port !== null) out += ":" + u.port;
+  } else if (!u.opaque && u.path.length > 1 && u.path[0] === "") out += "/.";
+  if (u.opaque) out += u.path;
+  else { for (var i = 0; i < u.path.length; i++) out += "/" + u.path[i]; }
+  if (u.query !== null) out += "?" + u.query;
+  if (!excludeFragment && u.fragment !== null) out += "#" + u.fragment;
+  return out;
+}
+
+function pathnameOf(u){
+  if (u.opaque) return u.path;
+  var out = "";
+  for (var i = 0; i < u.path.length; i++) out += "/" + u.path[i];
+  return out;
+}
+
+function parseURL(input, baseInput){
+  var base = null;
+  if (baseInput !== undefined && baseInput !== null && baseInput !== ""){
+    var br = basicParse(baseInput, null);
+    if (!br.ok) return {ok: false, why: "the base URL cannot be read (" + br.why + ")"};
+    base = br.url;
+  }
+  var r = basicParse(input, base);
+  if (!r.ok) return r;
+  r.href = serializeURL(r.url, false);
+  return r;
+}
+
+/* ---- クエリ文字列の読み分け ---- */
+function splitQuery(q){
+  if (q === null || q === "") return [];
+  var out = [], parts = q.split("&"), i;
+  for (i = 0; i < parts.length; i++){
+    var p = parts[i];
+    if (p === "") continue;
+    var eq = p.indexOf("=");
+    var k = eq < 0 ? p : p.slice(0, eq);
+    var v = eq < 0 ? "" : p.slice(eq + 1);
+    out.push({rawKey: k, rawValue: v,
+              keyPct: pctDecode(k), valuePct: pctDecode(v),
+              keyForm: pctDecode(k.split("+").join(" ")),
+              valueForm: pctDecode(v.split("+").join(" ")),
+              noEquals: eq < 0});
+  }
+  return out;
+}
+
+/* このブラウザが一覧より余分に符号化する文字を実測する。
+   ここだけはブラウザに合わせにいく（この道具の目的が「実際にどう読まれるか」だから）。
+   何を足したかは画面に出すので、黙って合わせることにはならない。 */
+function calibrate(){
+  var probe = "|^`{}" + APOS + "!$&()*+,;=:@[]~";
+  var addQ = "", addP = "", i, ch;
+  for (i = 0; i < probe.length; i++){
+    ch = probe[i];
+    try {
+      if (!inQuerySet(ch) && new URL("foo://h/?a" + ch + "b").search !== "?a" + ch + "b") addQ += ch;
+    } catch (e) {}
+  }
+  EXTRA_QUERY = addQ;
+  for (i = 0; i < probe.length; i++){
+    ch = probe[i];
+    try {
+      if (!inPathSet(ch) && new URL("https://h/a" + ch + "b").pathname !== "/a" + ch + "b") addP += ch;
+    } catch (e) {}
+  }
+  EXTRA_PATH = addP;
+
+  /* 非特別スキームのホストで、下位バイトだけを見て禁止文字を判定していないか。
+     U+043E（キリル文字の о）は下位バイトが 0x3E = > になる。仕様上は通る文字。 */
+  try { new URL("foo://x" + String.fromCharCode(0x043E) + "y/"); HOST_LOWBYTE_QUIRK = false; }
+  catch (e) { HOST_LOWBYTE_QUIRK = true; }
+
+  /* \\server\share を file:// として読むか（規格には無い決まり）。 */
+  try {
+    var unc = new URL("\\\\srv\\share");
+    UNC_TO_FILE = (unc.protocol === "file:" && unc.host === "srv");
+  } catch (e) { UNC_TO_FILE = false; }
+
+  return {query: addQ, path: addP, lowByte: HOST_LOWBYTE_QUIRK, unc: UNC_TO_FILE};
+}
+/*==URLCORE-END==*/
+
+/*==DIAG-START==*/
+/* ------------------------------------------------------------------
+   指摘。エラーにならないので気づけないものだけを出す。
+   data-code は言語に依存しない鍵（検証と英語版がそのまま当たるように）。
+   ------------------------------------------------------------------ */
+var ZERO_WIDTH = "\u200B\u200C\u200D\u2060\uFEFF";
+var BIDI = "\u202A\u202B\u202C\u202D\u202E\u2066\u2067\u2068\u2069\u200E\u200F";
+
+var SCRIPT_TESTS = [
+  ["Latin", /[A-Za-z]/],
+  ["Cyrillic", /[\u0400-\u04FF]/],
+  ["Greek", /[\u0370-\u03FF]/],
+  ["Han/Kana", /[\u3040-\u30FF\u3400-\u9FFF]/],
+  ["Hangul", /[\uAC00-\uD7AF\u1100-\u11FF]/]
+];
+
+function diagnose(input, baseInput, res){
+  var out = [], rec = res.rec || {}, u = res.url;
+
+  function add(code, sev, title, body){ out.push({code: code, sev: sev, title: title, body: body}); }
+
+  if (rec.stripped) add("tab-newline-removed", "high", "Tabs and newlines were silently removed",
+    "Tab, line feed and carriage return inside a URL are dropped " + rec.stripped + " times over, without raising an error. " +
+    "A URL pasted across two lines can therefore reach an address you never saw.");
+  if (rec.trimmed) add("trim-ws", "info", "Leading and trailing whitespace was dropped",
+    rec.trimmed + " characters of surrounding whitespace are ignored.");
+
+  var invisible = [];
+  for (var i = 0; i < input.length; i++){
+    var ch = input[i];
+    if (ZERO_WIDTH.indexOf(ch) >= 0) invisible.push(["zero-width character", ch]);
+    else if (BIDI.indexOf(ch) >= 0) invisible.push(["bidirectional control character", ch]);
+    else if (ch === "\u00A0") invisible.push(["no-break space", ch]);
+  }
+  if (invisible.length){
+    var names = {}, list = [];
+    for (i = 0; i < invisible.length; i++){
+      var key = invisible[i][0] + " U+" + invisible[i][1].codePointAt(0).toString(16).toUpperCase();
+      if (!names[key]){ names[key] = 1; list.push(key); } else names[key]++;
+    }
+    add("invisible-chars", "high", "There are invisible characters in this URL",
+      list.join(" / ") + ". On screen this looks like an ordinary URL. It is a different address.");
+  }
+
+  if (!res.ok) return out;
+
+  if (u.username !== "" || u.password !== ""){
+    add("userinfo-host", "high", "Everything before the @ is a user name. The address it connects to is after the @",
+      "This URL connects to " + (u.host === null ? "(no host)" : u.host) + ". " +
+      "The part reading " + pctDecode(u.username) + " is a user name, not a destination. " +
+      "Putting a real domain before the @ to win trust is a classic trick.");
+    if (u.password !== "") add("credentials", "high", "There is a password in this URL",
+      "It ends up in access logs, browser history and the Referer header. Most browsers refuse this form when it is typed in.");
+  }
+
+  if (rec.unc) add("unc-to-file", "warn", "A Windows network path was read as a file:// URL",
+    "\\\\server\\share is not a URL under any standard. " +
+    "Browsers read it as file://server/share anyway (measured in this browser on load). " +
+    "Paste an internal file-share path and it quietly becomes a working link.");
+
+  if (rec.dotLookalike) add("dot-lookalike", "high", "A character that looks like a dot was turned into a real dot",
+    "Fullwidth and ideographic full stops are mapped to an ordinary dot while the host is parsed. " +
+    "The label boundaries move, so the domain is not the one you see. The real destination is " + u.host + ". ");
+
+  if (rec.widthFolded) add("width-folded", "warn", "Fullwidth characters in the host were folded to ASCII",
+    "Host names are folded from fullwidth to ASCII before they are resolved. The real destination is " + u.host + ". ");
+
+  if (rec.puny){
+    add("idn-punycode", "info", "This is an internationalised domain, so it is converted to punycode",
+      "The name actually looked up in DNS is " + u.host + ". In mail and configuration files, this form is the safer one to write.");
+    var labels = pctDecode(u.host).split(".");
+    var mixed = [];
+    for (i = 0; i < labels.length; i++){
+      /* punycode 前の見た目で判定したいので、入力側のラベルを見る */
+    }
+  }
+  if (u.host !== null && u.hostKind === "domain"){
+    var visible = "";
+    var m = /^[a-z][a-z0-9+\-.]*:\/\/(?:[^/?#@]*@)?([^/?#:]*)/i.exec(input.replace(/[\t\n\r]/g, ""));
+    if (m) visible = m[1];
+    var labels2 = visible.split(/[.\u3002\uFF0E\uFF61]/);
+    for (i = 0; i < labels2.length; i++){
+      var hit = [];
+      for (var j = 0; j < SCRIPT_TESTS.length; j++)
+        if (SCRIPT_TESTS[j][1].test(labels2[i])) hit.push(SCRIPT_TESTS[j][0]);
+      if (hit.length >= 2){
+        add("mixed-script", "high", "One label of the host name mixes more than one script",
+          "The part reading " + labels2[i] + " contains " + hit.join(" and ") + " together. " +
+          "Using look-alike characters from another script to impersonate a domain is a known trick.");
+        break;
+      }
+    }
+  }
+
+  if (rec.ipv4Odd && u.hostKind === "ipv4")
+    add("ipv4-shorthand", "high", "This is an unusual way of writing an IP address",
+      "Hex, octal and shortened forms are all normalised to ordinary dotted decimal. The real destination is " + u.host + ". " +
+      "A filter that blocks dangerous addresses by matching text will not see this one.");
+
+  if (rec.backslash) add("backslash", "high", "A backslash was treated as a slash",
+    "Under http and the other special schemes, \\ means the same as / (" + rec.backslash + " of them here). " +
+    "Server-side libraries often follow RFC 3986 instead and read it differently. That gap is where the accidents happen.");
+
+  if (u.host !== null && u.hostKind === "domain" && /\.$/.test(u.host))
+    add("trailing-dot-host", "warn", "The host name ends with a dot",
+      "In DNS this is correct (it names the root explicitly), but certificate matching and virtual-host configuration treat it as a different name, " +
+      "so the same site can fail to load.");
+
+  if (rec.portDropped) add("default-port-dropped", "info", "The default port number disappeared",
+    ":" + rec.portDropped + " is the default for " + u.scheme + ", so normalising the URL removes it. " +
+    "Anything that compares URLs as text will see the same place as two different ones.");
+
+  if (rec.dotSegments) add("dot-segments", "warn", "The . and .. in the path were resolved away",
+    "The resulting path is " + pathnameOf(u) + ". " +
+    "If access is decided from the raw text, the answer changes depending on when it is resolved.");
+
+  var pathRaw = pathnameOf(u);
+  if (/%25[0-9a-fA-F]{2}/.test(pathRaw + (u.query || "")))
+    add("double-encoded", "warn", "This looks like it was percent-encoded twice",
+      "%25 stands for a literal %. A sequence such as %2520 appears when something already encoded is encoded again. " +
+      "If the receiver decodes only once, the literal text %20 becomes the value.");
+
+  var badPct = (input.match(/%(?![0-9a-fA-F]{2})/g) || []).length;
+  if (badPct) add("bad-percent", "warn", "There is a % that is not followed by two hex digits",
+    badPct + " of them. This is not an error; the % simply stays as a character. " +
+    "Some server-side implementations throw here instead, so behaviour splits.");
+
+  if (/%2f/i.test(pathRaw))
+    add("encoded-slash", "warn", "There is a %2F inside the path",
+      "%2F means a slash that is not a separator. The browser keeps it that way, but " +
+      "a front-end server that decodes before routing will send it somewhere else entirely. Some servers reject it outright.");
+
+  if (rec.spaceEncoded) add("space-in-url", "info", "There are raw spaces in this URL",
+    rec.spaceEncoded + " of them. The browser turns them into %20, but " +
+    "mail clients and chat apps often decide the URL ended there and cut the link short.");
+
+  if (u.query !== null){
+    var pairs = splitQuery(u.query);
+    if (u.query.indexOf("+") >= 0)
+      add("plus-in-query", "warn", "A + in the query means different things to different readers",
+        "Read as form data (application/x-www-form-urlencoded) it is a space; " +
+        "read by the URL standard it is a plus sign. " +
+        "The same URL yields different values on different sides, so write %20 for a space.");
+    var seen = {}, dup = [];
+    for (i = 0; i < pairs.length; i++){
+      var k = pairs[i].keyForm;
+      if (seen[k]) { if (dup.indexOf(k) < 0) dup.push(k); } else seen[k] = 1;
+    }
+    if (dup.length)
+      add("dup-query-key", "warn", "The same key appears more than once",
+        "The part reading " + dup.join(" and ") + ". Some implementations take the first, some the last, some collect them into a list. No standard settles it. " +
+        "If you assume only one of them counts, the value that wins can flip.");
+    if (u.query.indexOf(";") >= 0)
+      add("semicolon-query", "info", "There is a ; in the query",
+        "It used to work as an alternative to &, but the modern reading (URLSearchParams and friends) " +
+        "treats it as an ordinary character and folds it into the key.");
+    for (i = 0; i < pairs.length; i++)
+      if (pairs[i].noEquals){
+        add("query-no-equals", "info", "There is a field with no =",
+          "The part reading " + pairs[i].keyForm + ". Most implementations read it as an empty value; some drop it entirely.");
+        break;
+      }
+  }
+
+  var extra = EXTRA_QUERY + EXTRA_PATH, hitExtra = "";
+  for (i = 0; i < extra.length; i++)
+    if (input.indexOf(extra[i]) >= 0 && hitExtra.indexOf(extra[i]) < 0) hitExtra += extra[i];
+  if (hitExtra)
+    add("browser-specific-encoding", "warn", "How this character is sent depends on the browser",
+      "The part reading " + hitExtra + ". It is not in the WHATWG percent-encode sets, and yet " +
+      "the browser you are reading this in encoded it (measured on load). " +
+      "Another browser may send it untouched, and access logs and routing will then " +
+      "see two different paths.");
+
+  if (u.fragment !== null)
+    add("fragment-not-sent", "info", "Nothing after the # is sent to the server",
+      "The fragment stays inside the browser. It never appears in a server access log. " +
+      "Putting an access token after the # is a design that relies on exactly this.");
+
+  if (u.host === null && !isSpecial(u.scheme))
+    add("non-special-scheme", "info", "This is not a special scheme, so it is read differently",
+      u.scheme + ": gets none of the treatment http and friends get, so " +
+      "the path is one opaque string rather than segments (. and .. are not resolved).");
+
+  if (rec.schemeCase)
+    add("case-fold", "info", "The scheme and host name are lower-cased",
+      "The path, query and fragment are left alone. Two URLs pointing at the same place therefore need not match as text.");
+
+  if (u.path && !u.opaque){
+    var nonAscii = false;
+    for (i = 0; i < input.length; i++) if (input.charCodeAt(i) > 127) nonAscii = true;
+    if (nonAscii && /%[0-9a-fA-F]{2}/.test(pathRaw))
+      add("unicode-path-utf8", "info", "Non-ASCII characters in the path are encoded as UTF-8",
+        "One character becomes several %XX bytes. Anything old enough to decode them as a legacy encoding will produce mojibake.");
+  }
+
+  return out;
+}
+/*==DIAG-END==*/
+
+/* ------------------------------------------------------------------ 画面 */
+var PRESETS = [
+  ["an ordinary one", "https://example.com:8080/a/b/../c/d?q=1&q=2&name=Ada+Lovelace#top"],
+  ["the @ trick", "https://www.google.com@evil.test/login"],
+  ["fullwidth dot", "https://example。com/"],
+  ["mixed scripts", "https://exaаmple.com/"],
+  ["hex IP address", "http://0x7f.1/admin"],
+  ["backslash", "https://example.com\\..\\admin"],
+  ["double encoding", "https://example.com/a%2520b?x=%252Fetc"],
+  ["internationalised domain", "https://münchen.example/straße?größe=3"],
+  ["zero-width character", "https://exa\u200Bmple.com/"],
+  ["default port", "HTTPS://Example.COM:443/Path"],
+  ["relative URL", "../sibling/page.html"],
+  ["IPv6", "http://[2001:db8:0:0:0:0:2:1]:8080/x"],
+  ["mailto", "mailto:hirulab.hq@example.com?subject=hello world"],
+  ["with a space", "https://example.com/my file.txt"]
+];
+
+var $ = function(id){ return document.getElementById(id); };
+var srcEl = $("src"), baseEl = $("base");
+
+function esc(s){
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function showInvisible(s){
+  var out = "";
+  for (var i = 0; i < s.length; i++){
+    var ch = s[i], c = s.charCodeAt(i);
+    if (ZERO_WIDTH.indexOf(ch) >= 0 || BIDI.indexOf(ch) >= 0 || c === 0xa0 || c < 0x20)
+      out += "␠U+" + c.toString(16).toUpperCase();
+    else out += ch;
+  }
+  return out;
+}
+
+(function buildPresets(){
+  var box = $("presets");
+  for (var i = 0; i < PRESETS.length; i++){
+    (function(p){
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = p[0];
+      b.onclick = function(){
+        srcEl.value = p[1];
+        baseEl.value = (p[1].indexOf("://") < 0 && p[1].indexOf(":") < 0) ? "https://example.com/dir/page.html" : "";
+        run();
+      };
+      box.appendChild(b);
+    })(PRESETS[i]);
+  }
+})();
+
+var PART_LABELS = [
+  ["scheme", "scheme"], ["username", "user name"], ["password", "password"],
+  ["host", "host"], ["port", "port"], ["path", "path"],
+  ["query", "query"], ["fragment", "fragment (#)"]
+];
+
+function run(){
+  var input = srcEl.value, baseInput = baseEl.value.trim();
+  var res = parseURL(input, baseInput);
+
+  var errP = $("errPanel");
+  if (!res.ok){
+    errP.classList.remove("off");
+    $("errMsg").textContent = "This URL cannot be read: " + res.why;
+    $("partsPanel").classList.add("off");
+    $("wirePanel").classList.add("off");
+    $("queryPanel").classList.add("off");
+    $("buildPanel").classList.add("off");
+  } else {
+    errP.classList.add("off");
+    $("partsPanel").classList.remove("off");
+    $("wirePanel").classList.remove("off");
+    $("buildPanel").classList.remove("off");
+    renderParts(input, res);
+    renderWire(res);
+    renderQuery(res);
+    renderBuild(res);
+  }
+  renderNotes(diagnose(input, baseInput, res));
+  renderSelfCheck(input, baseInput, res);
+}
+
+function rawPieces(input){
+  /* 「書いたもの」の欄。厳密な位置合わせではなく、目で比べるための素朴な切り出し。 */
+  var s = input.trim();
+  var out = {};
+  var m = /^([A-Za-z][A-Za-z0-9+\-.]*):/.exec(s);
+  if (m){ out.scheme = m[1]; s = s.slice(m[0].length); }
+  if (s.slice(0, 2) === "//" || s.slice(0, 2) === "\\\\") s = s.slice(2);
+  var mAuth = /^([^/?#\\]*)/.exec(s);
+  if (mAuth){
+    var auth = mAuth[1];
+    s = s.slice(auth.length);
+    var at = auth.lastIndexOf("@");
+    if (at >= 0){
+      var ui = auth.slice(0, at);
+      var col = ui.indexOf(":");
+      out.username = col < 0 ? ui : ui.slice(0, col);
+      if (col >= 0) out.password = ui.slice(col + 1);
+      auth = auth.slice(at + 1);
+    }
+    var pcol = auth.lastIndexOf(":");
+    if (pcol > auth.lastIndexOf("]")){ out.port = auth.slice(pcol + 1); auth = auth.slice(0, pcol); }
+    out.host = auth;
+  }
+  var hi = s.indexOf("#");
+  if (hi >= 0){ out.fragment = s.slice(hi + 1); s = s.slice(0, hi); }
+  var qi = s.indexOf("?");
+  if (qi >= 0){ out.query = s.slice(qi + 1); s = s.slice(0, qi); }
+  out.path = s;
+  return out;
+}
+
+function renderParts(input, res){
+  var u = res.url, raw = rawPieces(input);
+  var actual = {
+    scheme: u.scheme, username: u.username, password: u.password,
+    host: u.host === null ? null : u.host, port: u.port,
+    path: pathnameOf(u), query: u.query, fragment: u.fragment
+  };
+  var tb = $("partsTable").getElementsByTagName("tbody")[0];
+  tb.innerHTML = "";
+  for (var i = 0; i < PART_LABELS.length; i++){
+    var key = PART_LABELS[i][0], label = PART_LABELS[i][1];
+    var a = actual[key], r = raw[key];
+    if ((a === null || a === undefined || a === "") && (r === undefined || r === "")) continue;
+    var tr = document.createElement("tr");
+    var same = (r === undefined ? "" : r) === (a === null || a === undefined ? "" : a);
+    if (!same) tr.className = "diffrow";
+    tr.innerHTML = "<td class=\"k\">" + label + "</td>" +
+      "<td class=\"v" + (r ? "" : " empty") + "\">" + (r ? esc(showInvisible(r)) : "(none)") + "</td>" +
+      "<td class=\"v" + (a ? "" : " empty") + "\">" + (a ? esc(a) : (a === "" ? "(empty)" : "(none)")) + "</td>";
+    tb.appendChild(tr);
+  }
+  $("partsNote").textContent = "The highlighted rows are where what you wrote and what gets used differ. " +
+    "Normalised: " + res.href;
+}
+
+function renderWire(res){
+  var u = res.url;
+  if (u.host === null || !isSpecial(u.scheme)){
+    $("wirePanel").classList.add("off");
+    return;
+  }
+  $("wirePanel").classList.remove("off");
+  var target = pathnameOf(u) || "/";
+  if (u.query !== null) target += "?" + u.query;
+  var hostHeader = u.host + (u.port !== null ? ":" + u.port : "");
+  var lines = "GET " + esc(target) + " HTTP/1.1\n" + "Host: " + esc(hostHeader);
+  if (u.username !== "")
+    lines += "\n<span class=\"dim\">(the user name and password move to an Authorization header, or are simply not sent)</span>";
+  if (u.fragment !== null)
+    lines += "\n<span class=\"dim\">#" + esc(u.fragment) + " is not sent</span>";
+  $("wireBox").innerHTML = lines;
+  $("wireNote").textContent = "What decides where the request goes is not the Host line but " + u.host +
+    " (and what it resolves to). The port is " + (u.port !== null ? u.port : SPECIAL[u.scheme]) + ". ";
+}
+
+function renderQuery(res){
+  var u = res.url, pairs = splitQuery(u.query);
+  if (!pairs.length){ $("queryPanel").classList.add("off"); return; }
+  $("queryPanel").classList.remove("off");
+  var tb = $("queryTable").getElementsByTagName("tbody")[0];
+  tb.innerHTML = "";
+  var anyDiff = false;
+  for (var i = 0; i < pairs.length; i++){
+    var p = pairs[i];
+    var diff = p.valuePct !== p.valueForm || p.keyPct !== p.keyForm;
+    if (diff) anyDiff = true;
+    var tr = document.createElement("tr");
+    if (diff) tr.className = "diffrow";
+    tr.innerHTML = "<td class=\"k\">" + (i + 1) + "</td>" +
+      "<td class=\"v\">" + esc(showInvisible(p.keyForm)) + "</td>" +
+      "<td class=\"v\">" + esc(showInvisible(p.valuePct)) + "</td>" +
+      "<td class=\"v\">" + esc(showInvisible(p.valueForm)) + "</td>";
+    tb.appendChild(tr);
+  }
+  $("queryNote").textContent = anyDiff
+    ? "The highlighted rows change value depending on the reading (whether + means a space)."
+    : "Both readings give the same values here.";
+}
+
+var BUILD_KEYS = [["scheme", "scheme"], ["username", "user name"], ["password", "password"],
+                  ["host", "host"], ["port", "port"], ["path", "path"],
+                  ["query", "query"], ["fragment", "fragment"]];
+
+function renderBuild(res){
+  var u = res.url, grid = $("buildGrid");
+  grid.innerHTML = "";
+  /* すでに符号化されているものは戻さずそのまま置く。戻してから組み直すと
+     %2E%2e が .. になって「1つ上の階層」に化ける（実際に検証で踏んだ）。 */
+  var vals = {scheme: u.scheme, username: u.username, password: u.password,
+              host: u.host === null ? "" : u.host, port: u.port === null ? "" : u.port,
+              path: pathnameOf(u), query: u.query === null ? "" : u.query,
+              fragment: u.fragment === null ? "" : u.fragment};
+  var inputs = {};
+  for (var i = 0; i < BUILD_KEYS.length; i++){
+    (function(k, label){
+      var lab = document.createElement("label");
+      lab.textContent = label; lab.setAttribute("for", "bk-" + k);
+      var inp = document.createElement("input");
+      inp.type = "text"; inp.id = "bk-" + k; inp.value = vals[k];
+      inp.spellcheck = false; inp.autocomplete = "off";
+      inp.oninput = rebuild;
+      inputs[k] = inp;
+      grid.appendChild(lab); grid.appendChild(inp);
+    })(BUILD_KEYS[i][0], BUILD_KEYS[i][1]);
+  }
+  function rebuild(){
+    var scheme = (inputs.scheme.value || "https").toLowerCase();
+    var special = isSpecial(scheme);
+    var s = scheme + ":";
+    var host = inputs.host.value;
+    if (host !== ""){
+      s += "//";
+      var un = utf8PctEncode(inputs.username.value, inUserinfoSet);
+      var pw = utf8PctEncode(inputs.password.value, inUserinfoSet);
+      if (un || pw) s += un + (pw ? ":" + pw : "") + "@";
+      var hr = parseHost(host, !special, null);
+      s += hr.err ? host : hr.host;
+      if (inputs.port.value !== "" && inputs.port.value !== SPECIAL[scheme]) s += ":" + inputs.port.value;
+    }
+    var path = inputs.path.value;
+    if (path !== ""){
+      var segs = path.split("/");
+      for (var j = 0; j < segs.length; j++) segs[j] = utf8PctEncode(segs[j], inPathSet);
+      s += segs.join("/");
+    }
+    if (inputs.query.value !== "")
+      s += "?" + utf8PctEncode(inputs.query.value, special ? inSpecialQuerySet : inQuerySet);
+    if (inputs.fragment.value !== "")
+      s += "#" + utf8PctEncode(inputs.fragment.value, inFragmentSet);
+    $("builtOut").textContent = s;
+  }
+  rebuild();
+}
+
+function renderNotes(notes){
+  var ul = $("notesList");
+  ul.innerHTML = "";
+  $("notesNone").style.display = notes.length ? "none" : "";
+  for (var i = 0; i < notes.length; i++){
+    var n = notes[i];
+    var li = document.createElement("li");
+    li.className = "sev-" + n.sev;
+    li.setAttribute("data-code", n.code);
+    li.innerHTML = "<b>" + esc(n.title) + "</b>" + esc(n.body);
+    ul.appendChild(li);
+  }
+}
+
+/* ---- 自己検査: 自前の解析とブラウザの URL を毎回突き合わせる ---- */
+var SELF_CASES = [
+  ["https://example.com:443/a/./b/../c?x=1#f", ""],
+  ["https://www.google.com@evil.test/login", ""],
+  ["http://0x7f.1/admin", ""],
+  ["https://example。com/", ""],
+  ["https://example.com\\admin", ""],
+  ["HTTPS://Example.COM/Path?A=B#C", ""],
+  ["https://münchen.example/straße", ""],
+  ["http://[2001:db8::2:1]:8080/x", ""],
+  ["mailto:a@example.com?subject=hi", ""],
+  ["//other.test/p", "https://base.test/dir/page"],
+  ["../up", "https://base.test/a/b/c"],
+  ["?only=query", "https://base.test/a/b?old=1#frag"],
+  ["#only", "https://base.test/a/b?q=1"],
+  ["https://example.com/a%2520b?x=%252F", ""],
+  ["https://example.com/my file.txt", ""],
+  ["https://user:pw@example.com:8080/p?q#f", ""],
+  ["http://192.168.0.1:80/", ""],
+  ["https://example.com.", ""],
+  ["ftp://example.com/dir/", ""],
+  ["https://example.com/%zz%2", ""]
+];
+
+function compareOne(input, base){
+  var mine = parseURL(input, base);
+  var theirs = null, threw = false;
+  try { theirs = base ? new URL(input, base) : new URL(input); }
+  catch (e) { threw = true; }
+  if (threw) return {ok: !mine.ok, why: mine.ok ? "this page read it, the browser refused" : "", both: "refused"};
+  if (!mine.ok) return {ok: false, why: "the browser read it, this page refused: " + mine.why, both: ""};
+  var u = mine.url;
+  var checks = [
+    ["protocol", u.scheme + ":", theirs.protocol],
+    ["username", u.username, theirs.username],
+    ["password", u.password, theirs.password],
+    ["host", u.host === null ? "" : u.host + (u.port !== null ? ":" + u.port : ""), theirs.host],
+    ["hostname", u.host === null ? "" : u.host, theirs.hostname],
+    ["port", u.port === null ? "" : u.port, theirs.port],
+    ["pathname", pathnameOf(u), theirs.pathname],
+    ["search", u.query === null || u.query === "" ? "" : "?" + u.query, theirs.search],
+    ["hash", u.fragment === null || u.fragment === "" ? "" : "#" + u.fragment, theirs.hash],
+    ["href", mine.href, theirs.href]
+  ];
+  for (var i = 0; i < checks.length; i++)
+    if (checks[i][1] !== checks[i][2])
+      return {ok: false, why: checks[i][0] + ": here " + JSON.stringify(checks[i][1]) +
+                              " / browser " + JSON.stringify(checks[i][2]), both: ""};
+  return {ok: true, why: "", both: ""};
+}
+
+function renderSelfCheck(input, base, res){
+  var cases = SELF_CASES.slice();
+  if (input.trim() !== "") cases.unshift([input, base]);
+  var box = $("selfBox"), okN = 0;
+  box.innerHTML = "";
+  for (var i = 0; i < cases.length; i++){
+    var r = compareOne(cases[i][0], cases[i][1]);
+    if (r.ok) okN++;
+    var div = document.createElement("div");
+    div.className = "row";
+    div.innerHTML = "<span class=\"mark " + (r.ok ? "ok" : "ng") + "\">" + (r.ok ? "✓" : "✗") + "</span>" +
+      "<span class=\"mono\">" + esc(showInvisible(cases[i][0])) +
+      (cases[i][1] ? " <span class=\"dim\">(base " + esc(cases[i][1]) + ")</span>" : "") + "</span>" +
+      (r.why ? "<span>" + esc(r.why) + "</span>" : "");
+    box.appendChild(div);
+  }
+  var head = $("selfHead");
+  head.innerHTML = "The parser on this page against this browser&#39;s own <code class=\"mono\">URL</code>: " +
+    "<b class=\"" + (okN === cases.length ? "ok" : "ng") + "\">" + okN + " / " + cases.length + " agree</b>" +
+    (okN === cases.length ? "" : ". Where they disagree, the browser is the one to trust.");
+}
+
+var CAL = calibrate();
+(function showCal(){
+  var box = document.getElementById("calBox");
+  var lines = [];
+  lines.push(CAL.query + CAL.path
+    ? "Encoding: this browser also encodes " + (CAL.query + CAL.path) + ", which the standard sets do not list."
+    : "Encoding: exactly as the standard sets describe.");
+  lines.push(CAL.unc
+    ? "\\\\server\\share is read as a file:// URL here (a rule no standard defines)."
+    : "\\\\server\\share is not read as a URL here.");
+  lines.push(CAL.lowByte
+    ? "Host names have a quirk here: under schemes other than http (foo: and the like), "
+      + "some perfectly ordinary characters are refused. The ones refused are exactly those whose "
+      + "low byte equals a forbidden host character - Cyrillic о (U+043E, low byte the same as >) "
+      + "is one. This page refuses in the same places your browser does."
+    : "Host names showed none of the known quirks.");
+  box.textContent = lines.join(" / ");
+})();
+
+srcEl.addEventListener("input", run);
+baseEl.addEventListener("input", run);
+srcEl.value = "https://example.com:8080/a/b/../c/d?q=1&q=2&name=Ada+Lovelace#top";
+run();
+</script>
+</body>
+</html>
