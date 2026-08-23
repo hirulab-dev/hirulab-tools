@@ -60,6 +60,8 @@ docs/            GitHub Pages の公開ルート（Settings → Pages で /docs 
 tools/
   make_ogp.py    OGP画像ジェネレータ。`python tools/make_ogp.py <slug> "タイトル" "説明"`
   make_en_railroad.py  鉄道図ツールの英語版を日本語版から生成する。
+  make_en_regex_why.py 「なぜマッチしないか診断」の英語版を日本語版から生成する。
+                 解析器の訳語は make_en_railroad.py の表をそのまま読み込んで共有している。
                  **日本語版が唯一の原本**で、英語版は毎回ここから作り直す。
                  生成のたびに「文字列リテラルを取り除くと日英のコードがバイト単位で一致する」
                  ことを検査するので、文面以外がずれたら書き出しの時点で落ちる
@@ -68,9 +70,9 @@ tools/
 
 ## 英語版
 
-`docs/en/` に5本+1本あります（Regex Tester / Character Counter / Color Palette /
-Time Zone Converter / CSV Preview / **Regex Railroad Diagrams**）。
-鉄道図の英語版は `tools/make_en_railroad.py` で日本語版から生成しており、
+`docs/en/` に7本あります（Regex Tester / Character Counter / Color Palette /
+Time Zone Converter / CSV Preview / Regex Railroad Diagrams / **Why doesn't my regex match?**）。
+英語版のうち **Regex Railroad Diagrams と Why doesn't my regex match? は日本語版から生成**しており、
 **解析・作図・落とし穴検出・例文字列の生成のコードは日英で1バイトも違いません**
 （違うのは文字列リテラルの中身だけ、というのを生成のたびに機械で確かめています）。
 同じ検証スクリプトを英語ページにそのまま当てて、同じ結果になることも確認しています。

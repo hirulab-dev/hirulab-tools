@@ -23,6 +23,7 @@
    BOM を足す／CRLF／ノーブレークスペース／似たダッシュ／大文字化／ゼロ幅文字）を
    1つだけ適用する。壊れてマッチしなくなったら、道具が**その壊し方に対応する直し方**を
    出せるかを見る。ここが (B) の正しさの本体で、正解は生成側が握っている。
+   正解の文言は日英どちらでもよい形にしてあるので、英語版のページにもそのまま当てられる。
 
 4. **解析器が鉄道図ツールと1バイトも違わないか**
    この道具は 17本目（鉄道図）の解析器をそのまま使っている。
@@ -214,7 +215,7 @@ JS_FIX = r"""([cases]) => {
     const fixes = buildFixes(src, flags, subj);
     const labels = fixes.map(f => (f.label + ' ' + f.why).replace(/<[^>]*>/g, ''));
     out.push({src, flags, subj, want, skip: false,
-              found: labels.some(l => l.indexOf(want) >= 0), labels});
+              found: labels.some(l => want.some(w => l.indexOf(w) >= 0)), labels});
   }
   return out;
 }"""
@@ -243,16 +244,16 @@ def to_fullwidth(s):
 # 壊し方 → その壊し方に対して道具が出すべき文言。
 # 見えない文字は必ず \u で書く（原稿に貼ると消えるため）。
 DEFECTS = [
-    ("末尾に空白", lambda s: s + " ", "前後の空白"),
-    ("先頭に空白", lambda s: " " + s, "前後の空白"),
-    ("全角化", to_fullwidth, "NFKC"),
-    ("BOM を足す", lambda s: "\ufeff" + s, "ゼロ幅文字"),
-    ("ゼロ幅スペースを挟む", lambda s: s[:1] + "\u200b" + s[1:], "ゼロ幅文字"),
-    ("CRLF にする", lambda s: s + "\r", "改行コード"),
-    ("ノーブレークスペース", lambda s: s.replace(" ", "\u00a0"), "ノーブレークスペース"),
-    ("似たダッシュ", lambda s: s.replace("-", "\u2011"), "ダッシュ"),
-    ("大文字にする", lambda s: s.upper(), "i フラグを付ける"),
-    ("異体字セレクタ", lambda s: s + "\ufe0f", "異体字セレクタ"),
+    ("末尾に空白", lambda s: s + " ", ["前後の空白", "trim the whitespace"]),
+    ("先頭に空白", lambda s: " " + s, ["前後の空白", "trim the whitespace"]),
+    ("全角化", to_fullwidth, ["NFKC"]),
+    ("BOM を足す", lambda s: "\ufeff" + s, ["ゼロ幅文字", "zero-width"]),
+    ("ゼロ幅スペースを挟む", lambda s: s[:1] + "\u200b" + s[1:], ["ゼロ幅文字", "zero-width"]),
+    ("CRLF にする", lambda s: s + "\r", ["改行コード", "CRLF line ending"]),
+    ("ノーブレークスペース", lambda s: s.replace(" ", "\u00a0"), ["ノーブレークスペース", "no-break space"]),
+    ("似たダッシュ", lambda s: s.replace("-", "\u2011"), ["ダッシュ", "look-alike dashes"]),
+    ("大文字にする", lambda s: s.upper(), ["i フラグを付ける", "add the i flag"]),
+    ("異体字セレクタ", lambda s: s + "\ufe0f", ["異体字セレクタ", "variation selector"]),
 ]
 
 
@@ -407,7 +408,7 @@ def main():
             for m in miss[:8]:
                 print("    ✗ /%s/ × %s : 「%s」を挙げられなかった → %s"
                       % (m["src"], json.dumps(m["subj"], ensure_ascii=False),
-                         m["want"], m["labels"][:3]))
+                         " / ".join(m["want"]), m["labels"][:3]))
             pg.close()
         br.close()
 
