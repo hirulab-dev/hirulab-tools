@@ -1161,7 +1161,7 @@ function run() {
     el.className = 'selfcheck';
     el.innerHTML = '<b>✓ ' + sc.ok + ' cases agree</b>' +
       ' (the result assembled here is compared against <code>String.prototype.replace</code> in this browser' +
-      '' + (sc.skip ? '; a further ' + sc.skip + ' are out of scope' : '') + ').' +
+      '' + (sc.skip ? '; a further ' + sc.skip + ' are out of scope' : '') + '). ' +
       'The input on screen right now is one of the cases.';
   }
 }
