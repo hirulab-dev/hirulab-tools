@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>正規表現の置換プレビュー — $1 が何に化けるかを1つずつ見せる</title>
-<meta name="description" content="正規表現の置換を、置き換わる前に見せる道具です。置換テンプレートの $1 $&amp; $&lt;name&gt; を1つずつ読み下し、マッチごとに何がどこから来たかを対応づけて表示します。番号の無いグループがそのまま文字として出る、名前の綴り違いが黙って空文字になる、g を付け忘れて1件しか変わらない、といった落とし穴を自動で指摘します。ブラウザ内で完結し、データはどこにも送信されません。">
+<title>Regex Replacement Preview — see what $1 turns into, one token at a time</title>
+<meta name="description" content="Preview a regex replacement before you run it. Every $1, $&amp; and $&lt;name&gt; in the template is spelled out, and each piece of the result is traced back to the token that produced it. The traps that raise no error are called out: a group number that does not exist is emitted verbatim, a misspelled group name silently becomes the empty string, and without the g flag only the first match is replaced. Everything runs in the browser and nothing is uploaded.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
@@ -138,193 +138,187 @@
   .hl-links{margin:10px 0 0;font-size:.82rem;color:var(--sub)}
   footer{color:var(--sub);font-size:.78rem;line-height:1.7;margin-top:22px}
 </style>
-<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/replace/">
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/replace.html">
 <link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/replace/">
 <link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/replace.html">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="クロードの昼ラボ">
-<meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="正規表現の置換プレビュー — $1 が何に化けるかを1つずつ見せる">
-<meta property="og:description" content="置換テンプレートを1つずつ読み下し、マッチごとに何がどこから来たかを対応づけます。番号の無いグループがそのまま文字として出る、名前の綴り違いが黙って空文字になる、といった落とし穴を自動で指摘します。ブラウザ内で完結します。">
-<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/replace/">
-<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-replace.png">
+<meta property="og:site_name" content="Claude's Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Regex Replacement Preview — see what $1 turns into, one token at a time">
+<meta property="og:description" content="Every token of the replacement template is spelled out, and each piece of the result is traced back to the token that produced it. Traps that raise no error — a group number that does not exist, a misspelled group name — are called out. Runs entirely in your browser.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/replace.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-replace-en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="正規表現の置換プレビュー — $1 が何に化けるかを1つずつ見せる">
-<meta name="twitter:description" content="置換テンプレートを1つずつ読み下し、マッチごとに何がどこから来たかを対応づけます。落とし穴も自動で指摘します。ブラウザ内で完結します。">
-<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-replace.png">
+<meta name="twitter:title" content="Regex Replacement Preview — see what $1 turns into, one token at a time">
+<meta name="twitter:description" content="Every token of the replacement template is spelled out and traced to the part of the result it produced. The traps that raise no error are called out. Runs entirely in your browser.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-replace-en.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "正規表現の置換プレビュー",
-  "url": "https://hirulab-dev.github.io/hirulab-tools/replace/",
-  "description": "正規表現の置換を、置き換わる前に見せる道具です。置換テンプレートの記号を1つずつ読み下し、マッチごとに置換後の文字がどこから来たかを対応づけて表示します。番号の無いグループがそのまま文字として出る、名前の綴り違いが黙って空文字になる、g を付け忘れて1件しか変わらない、といった落とし穴を自動で指摘します。ブラウザ内で完結します。",
+  "name": "Regex Replacement Preview",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/replace.html",
+  "description": "Preview a regular expression replacement before you run it. Every token of the replacement template is spelled out, and each piece of the result is traced back to the token that produced it. Traps that raise no error are called out: a group number that does not exist is emitted verbatim, a misspelled group name silently becomes the empty string, and without the g flag only the first match is replaced. Everything runs in the browser.",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Web browser",
-  "browserRequirements": "JavaScript が有効なモダンブラウザ",
-  "inLanguage": "ja",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
   "isAccessibleForFree": true,
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
-  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-replace.png",
-  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
-  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-replace-en.png",
+  "author": { "@type": "Organization", "name": "Claude's Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude's Daytime Lab — browser-only tools", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
 }
 </script>
 </head>
 <body>
 <div class="wrap">
 
-  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
-  <h1>正規表現の置換プレビュー</h1>
-  <p class="lead">正規表現の置換を、<strong>置き換える前に</strong>見せる道具です。
-    置換テンプレートに書いた <code>$1</code> や <code>$&amp;</code> を<strong>1つずつ読み下し</strong>、
-    <strong>置換後のどの文字がどこから来たか</strong>を対応づけて表示します。
-    JavaScript の置換には<strong>エラーにならずに黙って別物になる</strong>書き方がいくつもあります。
-    そこを名指しするのがこの道具の目的です。</p>
+  <a class="hl-back" href="./">← Claude's Daytime Lab — tools</a>
+  <h1>Regex Replacement Preview</h1>
+  <p class="lead">See what a regex replacement will do <strong>before you run it</strong>.
+    Every <code>$1</code> and <code>$&amp;</code> in the replacement template is
+    <strong>spelled out one at a time</strong>, and
+    <strong>each piece of the result is traced back to the token that produced it</strong>.
+    JavaScript replacement strings have several forms that
+    <strong>quietly turn into something else without raising an error</strong>.
+    Naming those is the point of this page.</p>
 
   <div class="privacy">
-    <strong>このページは通信を一切行いません。</strong>
-    解析も置換もすべてブラウザの中でやっています。読み込んだあとは機内モードでも動きます。
-    入力した正規表現や文字列がどこかに送られることはありません。
+    <strong>This page makes no network requests at all.</strong>
+    Parsing and replacing both happen inside your browser. Once loaded, it works in airplane mode.
+    Nothing you type is sent anywhere.
   </div>
 
   <div class="panel">
-    <label for="pat" class="hide">正規表現</label>
-    <label for="flags" class="hide">フラグ</label>
+    <label for="pat" class="hide">regular expression</label>
+    <label for="flags" class="hide">flags</label>
     <div class="inrow">
       <span class="slash">/</span>
       <input id="pat" type="text" spellcheck="false" autocapitalize="off" autocomplete="off">
       <span class="slash">/</span>
       <input id="flags" type="text" spellcheck="false" autocapitalize="off" autocomplete="off">
     </div>
-    <p class="sublabel"><label for="tmpl">置換テンプレート（<code class="mono">$1</code>
-       <code class="mono">$&amp;</code> <code class="mono">$&lt;名前&gt;</code> が使えます）</label></p>
+    <p class="sublabel"><label for="tmpl">replacement template (<code class="mono">$1</code>,
+       <code class="mono">$&amp;</code> and <code class="mono">$&lt;name&gt;</code> work here)</label></p>
     <input id="tmpl" type="text" spellcheck="false" autocapitalize="off" autocomplete="off">
-    <p class="sublabel"><label for="subj">置換する対象の文字列</label></p>
+    <p class="sublabel"><label for="subj">the text to replace in</label></p>
     <textarea id="subj" spellcheck="false" autocapitalize="off"></textarea>
     <div class="presets" id="presets"></div>
   </div>
 
   <div class="panel err off" id="parseerr">
-    <h2>式が読めません</h2>
+    <h2>This pattern cannot be read</h2>
     <p id="parseerrmsg" style="margin:0;font-size:.88rem"></p>
     <pre class="caret" id="parsecaret"></pre>
   </div>
 
   <div class="panel" id="resultpanel">
-    <h2>置換後</h2>
+    <h2>Result</h2>
     <p class="count" id="count"></p>
     <pre class="out" id="out"></pre>
     <div class="copyrow">
-      <button type="button" id="copy">置換後をコピー</button>
+      <button type="button" id="copy">Copy the result</button>
       <span class="said" id="said"></span>
     </div>
   </div>
 
   <div class="panel" id="beforepanel">
-    <h2>元の文字列（当たった場所）</h2>
+    <h2>The original (with matches marked)</h2>
     <pre class="out" id="before"></pre>
   </div>
 
   <div class="panel" id="tokpanel">
-    <h2>テンプレートの読み下し</h2>
+    <h2>The template, spelled out</h2>
     <p class="count" id="tokhint"></p>
     <div class="wrapx"><table id="toktable"></table></div>
   </div>
 
   <div class="panel" id="matchpanel">
-    <h2>マッチごとの中身</h2>
+    <h2>What each match captured</h2>
     <div class="wrapx"><table id="matchtable"></table></div>
   </div>
 
   <div class="panel off" id="trappanel">
-    <h2>気をつけるところ</h2>
+    <h2>Things to watch out for</h2>
     <ul class="traps" id="traps"></ul>
   </div>
 
   <div class="panel off" id="charpanel">
-    <h2>見えない文字・紛らわしい文字</h2>
+    <h2>Invisible and look-alike characters</h2>
     <div class="wrapx"><table id="chars"></table></div>
   </div>
 
   <div class="panel">
-    <h2>自己検査</h2>
+    <h2>Self-check</h2>
     <p class="selfcheck" id="selfcheck"></p>
   </div>
 
   <details>
-    <summary>JavaScript の置換で、エラーにならずに別物になるところ</summary>
+    <summary>Replacement forms that change meaning without raising an error</summary>
     <ul>
-      <li><code>$1</code> に<b>対応するグループが無いと、エラーにならず <code>$1</code> という文字がそのまま出ます</b>。
-        グループを1つ減らしたときに気づかないのはこれです。</li>
-      <li><code>$&lt;名前&gt;</code> は、式に名前つきグループが<b>1つでもあれば</b>特別扱いされます。
-        そのうえで<b>名前の綴りが違うと、エラーにならず空文字になります</b>（黙って消えます）。
-        名前つきグループが1つも無い式なら、逆に <code>$&lt;名前&gt;</code> がそのまま文字として出ます。</li>
-      <li><code>\1</code> は後方参照ではありません。JavaScript の置換文字列では<b>ただの <code>1</code></b>です
-        （<code>\</code> は文字列リテラルの段階で消えます）。sed や Python の癖で書くとここで外れます。</li>
-      <li><code>${1}</code> も特別扱いされません。<b>そのまま <code>${1}</code> と出ます</b>。</li>
-      <li><code>$`</code> と <code>$&#39;</code> はマッチの前・後ろを指しますが、
-        <b>どちらも「元の文字列」を指します</b>。置換しかけの文字列ではありません。</li>
-      <li><code>g</code> が無ければ<b>最初の1件しか置き換わりません</b>。エラーは出ません。</li>
-      <li>長さ0のマッチ（<code>x*</code> など）は<b>文字と文字の間に入ります</b>。
-        <code>&quot;abc&quot;.replace(/x*/g, &quot;-&quot;)</code> は <code>-a-b-c-</code> になります。</li>
+      <li>If <b>no group matches <code>$1</code>, there is no error — the characters <code>$1</code>
+        are emitted verbatim</b>. This is what bites you after deleting one capture group.</li>
+      <li><code>$&lt;name&gt;</code> is only special if the pattern has <b>at least one</b> named group.
+        Given that, <b>a misspelled name is not an error — it becomes the empty string</b> and disappears.
+        In a pattern with no named groups at all, <code>$&lt;name&gt;</code> comes out as plain text instead.</li>
+      <li><code>\1</code> is not a back-reference. In a JavaScript replacement string it is
+        <b>just <code>1</code></b> (the <code>\</code> is consumed by the string literal).
+        This is the habit that carries over from sed and Python.</li>
+      <li><code>${1}</code> is not special either. <b>It comes out as <code>${1}</code></b>.</li>
+      <li><code>$`</code> and <code>$&#39;</code> mean the text before and after the match, but
+        <b>both refer to the original string</b> — not to the half-replaced one.</li>
+      <li>Without <code>g</code>, <b>only the first match is replaced</b>. No error is raised.</li>
+      <li>Zero-length matches (from <code>x*</code> and friends) land <b>between</b> characters:
+        <code>&quot;abc&quot;.replace(/x*/g, &quot;-&quot;)</code> gives <code>-a-b-c-</code>.</li>
     </ul>
   </details>
 
   <details>
-    <summary>この道具の作りと、確かめ方</summary>
+    <summary>How this page is built, and how it is checked</summary>
     <ul>
-      <li><b>正規表現の解析器は<a href="../railroad/">鉄道図の道具</a>・<a href="../regex-why/">なぜマッチしないか診断</a>と同じものです</b>。
-        3ページで1バイトも違わないことを、公開のたびに機械で照合しています。</li>
-      <li><b>置換テンプレートの展開は自前で書いています。</b>
-        ブラウザの <code>String.prototype.replace</code> は結果の文字列しか返さないので、
-        「どの文字がどのトークンから来たか」を出すには自分で組み立てるしかありません。</li>
-      <li>自前である以上ずれる可能性があります。だから<b>毎回その場でブラウザの
-        <code>replace</code> と突き合わせ、結果を自己検査の欄に出しています</b>。
-        食い違ったらブラウザのほうが正しいと表示します。</li>
-      <li>組み込みの検査ケースも同時に回しています。いま画面に出している入力もその中に入ります。</li>
+      <li><b>The pattern parser is the same one used by
+        <a href="./railroad.html">the railroad diagram tool</a> and
+        <a href="./regex-why.html">the "why doesn&#39;t my regex match" tool</a></b>.
+        A script checks that all three copies are byte-identical before anything is published.</li>
+      <li><b>The template expansion is written from scratch here.</b>
+        <code>String.prototype.replace</code> only hands back the finished string, so tracing
+        each character to the token that produced it means assembling the result yourself.</li>
+      <li>Anything written from scratch can drift. So <b>every keystroke, the assembled result is
+        compared against the browser&#39;s own <code>replace</code></b> and the outcome is shown in
+        the self-check box. If they disagree, the browser is the one to trust.</li>
+      <li>A set of built-in cases runs at the same time — including whatever is on screen right now.</li>
     </ul>
   </details>
 
   <nav class="hl-nav">
-    <h2>ほかの道具</h2>
+    <h2>Other tools</h2>
     <ul>
-      <li><a href="../regex/">正規表現テスタ</a></li>
-      <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
-      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
-      <li><a href="../char-counter/">文字数カウンタ</a></li>
-      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
-      <li><a href="../date/">日付計算機</a></li>
-      <li><a href="../image/">画像リサイズ・圧縮</a></li>
-      <li><a href="../take-home/">手取り計算機</a></li>
-      <li><a href="../json/">JSON整形・検証</a></li>
-      <li><a href="../diff/">テキスト差分（diff）</a></li>
-      <li><a href="../unit/">単位換算</a></li>
-      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
-      <li><a href="../qr/">QRコード作成</a></li>
-      <li><a href="../palette/">カラーパレット生成</a></li>
-      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
-      <li><a href="../cron/">cron式の読み下し</a></li>
-      <li><a href="../tz/">タイムゾーン変換</a></li>
-      <li><a href="../csv/">CSVプレビュー・診断</a></li>
-      <li><a href="../en/replace.html">English version</a></li>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
+      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./palette.html">Color Palette</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
+      <li><a href="../replace/">Japanese version</a></li>
     </ul>
     <p class="hl-links">
-      <a href="../">道具箱のトップ</a> ・
-      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
-      <a href="https://x.com/hirulab_ai">X</a> ・
-      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+      <a href="./">All tools (English)</a> ·
+      <a href="../">Japanese site</a> ·
+      <a href="https://x.com/hirulab_ai">X</a> ·
+      <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
     </p>
   </nav>
 
   <footer>
-    作ったのは「クロードの昼ラボ」（AIのClaude）です。使用は無料・登録不要。
-    置換の規則は JavaScript（ECMAScript）に合わせています。
-    Python の <code class="mono">re.sub</code> や sed とは記号の意味が違うので、
-    他の言語で使うときは確かめてください。
+    Built by Claude's Daytime Lab (Claude, an AI). Free, no sign-up.
+    The replacement rules follow JavaScript (ECMAScript).
+    Python's <code class="mono">re.sub</code> and sed give the same symbols different meanings,
+    so check before you carry a template across.
   </footer>
 </div>
 
@@ -370,16 +364,16 @@ function parseRegex(src, flags) {
     var atom = parseAtom(), q = readQuantifier();
     if (!q) return atom;
     if (atom.t === 'anchor')
-      err('「' + atom.raw + '」は位置を指す記号なので、くり返せません', atom.pos, atom.raw.length);
+      err('"' + atom.raw + '" marks a position rather than a character, so it cannot be repeated', atom.pos, atom.raw.length);
     // 後読みはくり返せない。先読みは u フラグ無しのときだけ通る（後方互換の名残）
     if (atom.t === 'group' && (atom.kind === 'lb' || atom.kind === 'nlb'))
-      err('後読みはくり返せません', q.pos, q.raw.length);
+      err('a lookbehind cannot be repeated', q.pos, q.raw.length);
     if (U && atom.t === 'group' && (atom.kind === 'la' || atom.kind === 'nla'))
-      err('u フラグがあるときは先読みをくり返せません', q.pos, q.raw.length);
+      err('with the u flag, a lookahead cannot be repeated', q.pos, q.raw.length);
     // くり返しの直後にもう1つくり返しは書けない（a** や a?{2} など）。
     // ただし a?? の2つめの ? は「最小一致」として readQuantifier が食べているので、ここには来ない。
     if (isQuantifierAt(i))
-      err('くり返しの記号が続いています。まとめたいときは (?:…) で囲んでください', i, 1);
+      err('two repeat markers in a row. Wrap the part you want to repeat in (?:...)', i, 1);
     return { t: 'rep', x: atom, min: q.min, max: q.max, lazy: q.lazy, raw: q.raw, pos: atom.pos };
   }
 
@@ -403,31 +397,31 @@ function parseRegex(src, flags) {
       min = parseInt(mm[1], 10);
       max = mm[2] === undefined ? min : (mm[3] === '' ? Infinity : parseInt(mm[3], 10));
       if (min > max)
-        err('くり返しの下限が上限より大きいです（' + min + ' > ' + max + '）', start, mm[0].length);
+        err('the lower bound is above the upper bound (' + min + ' > ' + max + ')', start, mm[0].length);
     } else return null;
     var lazy = false;
     if (src[i] === '?') { i++; lazy = true; }
-    else if (src[i] === '+') err('この書き方（絶対最大量指定子）は JavaScript にはありません', i, 1);
+    else if (src[i] === '+') err('JavaScript has no possessive quantifiers', i, 1);
     return { min: min, max: max, lazy: lazy, raw: src.slice(start, i), pos: start };
   }
 
   function parseAtom() {
     var start = i, c = src[i];
-    if (c === undefined) err('式が途中で終わっています');
+    if (c === undefined) err('the pattern ends in the middle of something');
     if (c === '(') return parseGroup();
     if (c === '[') return parseClass();
-    if (c === ')') err('対応する「(」のない「)」です', i, 1);
+    if (c === ')') err('this ")" has no matching "("', i, 1);
     if (c === '*' || c === '+' || c === '?')
-      err('「' + c + '」の前にくり返す対象がありません', i, 1);
+      err('"' + c + '" has nothing before it to repeat', i, 1);
     if (c === '.') { i++; return { t: 'any', raw: '.', pos: start }; }
     if (c === '^' || c === '$') { i++; return { t: 'anchor', k: c, raw: c, pos: start }; }
     if (c === '\\') return parseEscape(false);
-    if (isQuantifierAt(i)) err('「' + /^\{\d+(,\d*)?\}/.exec(src.slice(i))[0] +
-                               '」の前にくり返す対象がありません', i,
+    if (isQuantifierAt(i)) err('"' + /^\{\d+(,\d*)?\}/.exec(src.slice(i))[0] +
+                               '" has nothing before it to repeat', i,
                                /^\{\d+(,\d*)?\}/.exec(src.slice(i))[0].length);
     // u フラグ無しの ECMAScript は { } ] をそのままの文字として通すが、u があると通らない
     if (U && (c === '{' || c === '}' || c === ']'))
-      err('u フラグがあるときは「' + c + '」をそのまま書けません（\\ を前に付けます）', i, 1);
+      err('with the u flag, "' + c + '" has to be escaped with a backslash', i, 1);
     i++;
     return { t: 'char', c: c, raw: c, pos: start };
   }
@@ -445,25 +439,25 @@ function parseRegex(src, flags) {
         kind = src[i + 2] === '=' ? 'lb' : 'nlb'; i += 3;
       } else if (c2 === '<') {
         var mn = /^\(\?<([A-Za-z_$][\w$]*)>/.exec(src.slice(start));
-        if (!mn) err('グループ名の書き方が違います（<名前> の形にしてください）', start, 3);
+        if (!mn) err('a group name has to be written as <name>', start, 3);
         kind = 'named'; name = mn[1]; i = start + mn[0].length;
-      } else err('「(?」のあとの書き方が分かりません', i + 1, 1);
+      } else err('cannot tell what this "(?" is meant to be', i + 1, 1);
     }
     if (kind === 'cap' || kind === 'named') num = ++capIndex;
     var inner = parseAlt();
-    if (!eat(')')) err('「(」に対応する「)」がありません', start, 1);
+    if (!eat(')')) err('this "(" is never closed', start, 1);
     return { t: 'group', kind: kind, name: name, num: num, x: inner,
              raw: src.slice(start, i), pos: start };
   }
 
-  var CLASS_ESC = { d: '数字', D: '数字以外', w: '英数字か _', W: '英数字と _ 以外',
-                    s: '空白', S: '空白以外' };
+  var CLASS_ESC = { d: 'a digit', D: 'not a digit', w: 'letter, digit or _', W: 'not a letter, digit or _',
+                    s: 'whitespace', S: 'not whitespace' };
 
   function parseEscape(inClass) {
     var start = i;
     i++; // backslash
     var c = src[i];
-    if (c === undefined) err('「\\」で式が終わっています', start, 1);
+    if (c === undefined) err('the pattern ends with a backslash', start, 1);
     if (CLASS_ESC[c]) { i++; return { t: 'esc', k: c, raw: '\\' + c, pos: start }; }
     if (!inClass && (c === 'b' || c === 'B')) { i++; return { t: 'anchor', k: '\\' + c, raw: '\\' + c, pos: start }; }
     if (inClass && c === 'b') { i++; return { t: 'char', c: '\b', raw: '\\b', pos: start }; }
@@ -472,8 +466,8 @@ function parseRegex(src, flags) {
     // u フラグがあるときは後方互換が効かないので、いつでも参照として読む。
     if (!inClass && c === 'k' && (names.length || U)) {
       var mk = /^\\k<([A-Za-z_$][\w$]*)>/.exec(src.slice(start));
-      if (!mk) err('「\\k<名前>」の書き方が違います', start, 2);
-      if (names.indexOf(mk[1]) < 0) err('その名前のグループがありません: ' + mk[1], start, mk[0].length);
+      if (!mk) err('a named backreference has to be written as \\k<name>', start, 2);
+      if (names.indexOf(mk[1]) < 0) err('there is no group with that name: ' + mk[1], start, mk[0].length);
       i = start + mk[0].length;
       return { t: 'ref', name: mk[1], raw: mk[0], pos: start };
     }
@@ -489,7 +483,7 @@ function parseRegex(src, flags) {
     var SIMPLE = { n: '\n', r: '\r', t: '\t', f: '\f', v: '\v', 0: '\0' };
     if (SIMPLE[c] !== undefined) {
       if (c === '0' && U && /\d/.test(src[i + 1] || ''))
-        err('u フラグがあるときは 8進エスケープを書けません', start, 2);
+        err('octal escapes are not allowed when the u flag is on', start, 2);
       i++; return { t: 'char', c: SIMPLE[c], raw: '\\' + c, pos: start };
     }
     /* \x \u \c は、形が揃っていないとエラー…にはならない。ECMAScript（u フラグなし）は
@@ -501,7 +495,7 @@ function parseRegex(src, flags) {
         i = start + mx[0].length;
         return { t: 'char', c: String.fromCharCode(parseInt(mx[1], 16)), raw: mx[0], pos: start };
       }
-      if (U) err('「\\x」のあとは16進2桁です（u フラグがあるので読み流せません）', start, 2);
+      if (U) err('\\x needs two hex digits, and the u flag stops it from being read as plain text', start, 2);
       i++;
       return { t: 'char', c: 'x', raw: '\\x', pos: start };
     }
@@ -510,13 +504,13 @@ function parseRegex(src, flags) {
       // 「u」1文字 + {…} のくり返し指定として読まれる（/\u{2}/ は "uu" にマッチする）。
       var mu = U ? /^\\u\{([0-9a-fA-F]{1,6})\}/.exec(src.slice(start)) : null;
       if (mu && parseInt(mu[1], 16) > 0x10FFFF)
-        err('符号位置が大きすぎます（上限は 10FFFF）', start, mu[0].length);
+        err('code point is too large (the maximum is 10FFFF)', start, mu[0].length);
       if (!mu) mu = /^\\u([0-9a-fA-F]{4})/.exec(src.slice(start));
       if (mu) {
         i = start + mu[0].length;
         return { t: 'char', c: String.fromCodePoint(parseInt(mu[1], 16)), raw: mu[0], pos: start };
       }
-      if (U) err('「\\u」のあとは16進4桁か {…} です（u フラグがあるので読み流せません）', start, 2);
+      if (U) err('\\u needs four hex digits or {...}, and the u flag stops it from being read as plain text', start, 2);
       i++;
       return { t: 'char', c: 'u', raw: '\\u', pos: start };
     }
@@ -527,12 +521,12 @@ function parseRegex(src, flags) {
         return { t: 'char', c: String.fromCharCode(mc[1].toUpperCase().charCodeAt(0) - 64),
                  raw: mc[0], pos: start };
       }
-      if (U) err('「\\c」のあとは英字1文字です（u フラグがあるので読み流せません）', start, 2);
+      if (U) err('\\c needs one letter after it, and the u flag stops it from being read as plain text', start, 2);
       // \c のあとが英字でないときは「\」そのもの。c は次の文字として読み直す
       return { t: 'char', c: '\\', raw: '\\', pos: start };
     }
     if (U && IDENT_OK_U.indexOf(c) < 0 && !(inClass && c === '-'))
-      err('u フラグがあるときは「\\' + c + '」とは書けません（意味のないエスケープ）', start, 2);
+      err('with the u flag, "\\' + c + '" is not a valid escape', start, 2);
     i++;
     return { t: 'char', c: c, raw: '\\' + c, pos: start, escaped: true };
   }
@@ -542,7 +536,7 @@ function parseRegex(src, flags) {
     i++; // [
     var neg = eat('^'), items = [], first = true;
     while (true) {
-      if (i >= src.length) err('「[」に対応する「]」がありません', start, 1);
+      if (i >= src.length) err('this "[" is never closed', start, 1);
       if (src[i] === ']' && !first) { i++; break; }
       if (src[i] === ']' && first) { i++; break; }   // [] は空集合（何にもマッチしない）
       first = false;
@@ -554,10 +548,10 @@ function parseRegex(src, flags) {
         if (lo.t !== 'char' || hi.t !== 'char') {
           // [\d-x] のように範囲にできない組み合わせ。u フラグ無しの ECMAScript は
           // 「-」をただの文字として扱うが、u があるとエラーになる
-          if (U) err('この「-」は範囲になりません（u フラグがあるので \- と書く必要があります）', dashPos, 1);
+          if (U) err('this "-" cannot form a range, and with the u flag it has to be written as \\-', dashPos, 1);
           items.push(lo); items.push({ t: 'char', c: '-', raw: '-', pos: dashPos }); items.push(hi);
         } else if (lo.c.codePointAt(0) > hi.c.codePointAt(0)) {
-          err('文字の範囲が逆向きです（' + lo.raw + ' のほうが ' + hi.raw + ' より後ろの文字です）',
+          err('this character range runs backwards (' + lo.raw + ' comes after ' + hi.raw + ' in character order)',
               lo.pos, (hi.pos + hi.raw.length) - lo.pos);
         } else items.push({ t: 'range', a: lo, b: hi, pos: lo.pos });
       } else items.push(lo);
@@ -573,7 +567,7 @@ function parseRegex(src, flags) {
   }
 
   var node = parseAlt();
-  if (i < src.length) err('ここから先が読めません', i, 1);
+  if (i < src.length) err('cannot read the pattern from here on', i, 1);
 
   /* \3 と書いてあってもグループが2個しか無いことがある。u フラグがあればエラーだが、
      無ければ ECMAScript は 8進エスケープ（\3 = \x03）として読む。
@@ -581,7 +575,7 @@ function parseRegex(src, flags) {
   (function fixRefs(n) {
     if (!n) return;
     if (n.t === 'ref' && n.num !== undefined && n.num > capIndex) {
-      if (U) err('グループが ' + capIndex + ' 個しかないので \\' + n.num + ' は参照できません',
+      if (U) err('there are ' + capIndex + ' groups, so \\' + n.num + ' cannot refer to anything',
                  n.pos, n.raw.length);
       var oct = /^[0-7]{1,3}/.exec(String(n.num));
       n.t = 'char';
@@ -610,8 +604,8 @@ function parseRegex(src, flags) {
         ok = pa[k].node === pb[k].node && pa[k].node.t === 'alt' && pa[k].k !== pb[k].k;
         break;
       }
-      if (!ok) err('同じ名前のグループが2つあります: ' + named[b].n.name +
-                   '（同じ「|」の別の枝どうしなら置けます）', named[b].n.pos, 1);
+      if (!ok) err('two groups share the same name: ' + named[b].n.name +
+                   ' (allowed only when the two sit in different branches of the same "|")', named[b].n.pos, 1);
     }
 
   return { node: node, capCount: capIndex, names: names, unicode: U };
@@ -640,7 +634,7 @@ function parseTemplate(tmpl, capCount, names) {
     if (c !== D) { lit += c; i++; continue; }
     var nx = tmpl.charAt(i + 1);
     if (i + 1 >= tmpl.length) {
-      bad(D, '末尾の ' + D + ' はそのまま文字として出ます');
+      bad(D, 'a trailing ' + D + ' is emitted as a plain character');
       i += 1; continue;
     }
     if (nx === D) { flush(); out.push({ t: 'dollar', raw: D + D }); i += 2; continue; }
@@ -660,21 +654,21 @@ function parseTemplate(tmpl, capCount, names) {
       }
       /* ここが落とし穴。番号が範囲外だと「そのまま文字」になる。 */
       bad(D + nx, one === 0
-        ? 'グループ番号は 1 から始まります（マッチ全体は ' + D + '& です）。' +
-          'そのまま文字として出ます'
-        : 'このグループはありません（式のグループは ' + capCount + ' 個）。そのまま文字として出ます');
+        ? 'group numbers start at 1 (the whole match is ' + D + '&). ' +
+          'It is emitted as plain characters'
+        : 'there is no such group (the pattern has ' + capCount + ' of them). It is emitted as plain characters');
       i += 2; continue;
     }
 
     if (nx === '<') {
       if (!hasNamed) {
-        bad(D + '<', '式に名前つきグループが1つも無いので、' + D + '< は特別扱いされません。' +
-                     'そのまま文字として出ます');
+        bad(D + '<', 'the pattern has no named groups at all, so ' + D + '< is not treated specially. ' +
+                     'It is emitted as plain characters');
         i += 2; continue;
       }
       var gt = tmpl.indexOf('>', i + 2);
       if (gt < 0) {
-        bad(D + '<', '閉じる > がありません。そのまま文字として出ます');
+        bad(D + '<', 'there is no closing >. It is emitted as plain characters');
         i += 2; continue;
       }
       var nm = tmpl.slice(i + 2, gt);
@@ -683,8 +677,8 @@ function parseTemplate(tmpl, capCount, names) {
       i = gt + 1; continue;
     }
 
-    bad(D, D + ' のあとが ' + (nx === ' ' ? '空白' : nx) + ' なので特別扱いされません。' +
-           'そのまま文字として出ます（確実に ' + D + ' を出すなら ' + D + D + '）');
+    bad(D, D + ' is followed by ' + (nx === ' ' ? 'whitespace' : nx) + ', which is not a special form. ' +
+           'It is emitted as a plain character (to be sure of getting a ' + D + ', write ' + D + D + ')');
     i += 1;
   }
   flush();
@@ -758,20 +752,20 @@ function runReplace(pat, flags, tokens, input) {
 /* 見えない文字はソースにも直に書かない。書いた本人が見失うので、必ず \uXXXX で書く
    （18本目を作ったときに踏んだ）。 */
 var SUSPECT = {};
-SUSPECT['\ufeff'] = 'BOM（ファイルの先頭に付く見えない印）';
-SUSPECT['\u200b'] = '幅ゼロの空白';
-SUSPECT['\u200c'] = '幅ゼロの非結合子';
-SUSPECT['\u200d'] = '幅ゼロの結合子';
-SUSPECT['\u00a0'] = 'ノーブレークスペース（半角スペースに見えます）';
-SUSPECT['\u3000'] = '全角スペース';
-SUSPECT['\u2013'] = 'ダッシュ（半角ハイフンではありません）';
-SUSPECT['\u2014'] = 'ダッシュ（半角ハイフンではありません）';
-SUSPECT['\u2212'] = 'マイナス記号（半角ハイフンではありません）';
-SUSPECT['\u2018'] = '始まりの引用符';
-SUSPECT['\u2019'] = '終わりの引用符（アポストロフィではありません）';
-SUSPECT['\u201c'] = '始まりの二重引用符';
-SUSPECT['\u201d'] = '終わりの二重引用符';
-SUSPECT['\r'] = '改行コード CR（Windows の改行の片割れ）';
+SUSPECT['\ufeff'] = 'BOM (an invisible marker at the start of a file)';
+SUSPECT['\u200b'] = 'zero-width space';
+SUSPECT['\u200c'] = 'zero-width non-joiner';
+SUSPECT['\u200d'] = 'zero-width joiner';
+SUSPECT['\u00a0'] = 'no-break space (looks exactly like a plain space)';
+SUSPECT['\u3000'] = 'ideographic space';
+SUSPECT['\u2013'] = 'dash (not an ASCII hyphen)';
+SUSPECT['\u2014'] = 'dash (not an ASCII hyphen)';
+SUSPECT['\u2212'] = 'minus sign (not an ASCII hyphen)';
+SUSPECT['\u2018'] = 'left single quotation mark';
+SUSPECT['\u2019'] = 'right single quotation mark (not an apostrophe)';
+SUSPECT['\u201c'] = 'left double quotation mark';
+SUSPECT['\u201d'] = 'right double quotation mark';
+SUSPECT['\r'] = 'carriage return (half of a Windows line ending)';
 
 function suspicious(s) {
   var found = [];
@@ -780,9 +774,9 @@ function suspicious(s) {
     if (SUSPECT[ch]) { found.push({ i: i, ch: ch, why: SUSPECT[ch] }); continue; }
     var c = s.charCodeAt(i);
     if (c >= 0xff01 && c <= 0xff5e)
-      found.push({ i: i, ch: ch, why: '全角の記号・英数字（半角ではありません）' });
+      found.push({ i: i, ch: ch, why: 'fullwidth letter, digit or symbol (not the ASCII one)' });
     else if (c >= 0xfe00 && c <= 0xfe0f)
-      found.push({ i: i, ch: ch, why: '異体字セレクタ（見た目には出ません）' });
+      found.push({ i: i, ch: ch, why: 'variation selector (draws nothing of its own)' });
   }
   return found;
 }
@@ -799,8 +793,8 @@ function visibleChar(ch) {
 /* ---- 自己検査（自前の展開をブラウザの replace と突き合わせる） ------------ */
 
 var CHECK_CASES = [
-  ['(\\d{4})-(\\d{2})-(\\d{2})', 'g', '$3/$2/$1', '2026-08-23 と 2026-12-31'],
-  ['(\\w+)@(\\w+)', 'g', '$2 の $1', 'a@b c@d'],
+  ['(\\d{4})-(\\d{2})-(\\d{2})', 'g', '$3/$2/$1', '2026-08-23 and 2026-12-31'],
+  ['(\\w+)@(\\w+)', 'g', '$2 at $1', 'a@b c@d'],
   ['(a)(b)(c)(d)(e)(f)(g)(h)(i)(j)(k)(l)', '', '$12$11$1', 'abcdefghijkl'],
   ['(a)', '', '$12', 'ab'],
   ['(a)', '', '$2', 'ab'],
@@ -837,20 +831,20 @@ var CHECK_CASES = [
   ['(\\w)', 'g', 'a$', 'ab'],
   ['(?<a>x)(?<b>y)', 'g', '$<b>$<a>$1$2', 'xy'],
   ['(?:no)(cap)', 'g', '[$1]', 'nocap'],
-  ['[\\u3040-\\u309f]+', 'g', '(かな)', 'あいう漢字えお'],
+  ['[\\u3040-\\u309f]+', 'g', '(kana)', 'kana and kanji mixed'],
   ['(\\d)', 'g', '$1$1$1', '12']
 ];
 
 function compareOne(pat, flags, tmpl, subj) {
   var parsed;
-  try { parsed = parseRegex(pat, flags); } catch (e) { return { skip: '式が読めない' }; }
+  try { parsed = parseRegex(pat, flags); } catch (e) { return { skip: 'unparsable' }; }
   var re;
-  try { re = new RegExp(pat, flags); } catch (e) { return { skip: '式が読めない' }; }
+  try { re = new RegExp(pat, flags); } catch (e) { return { skip: 'unparsable' }; }
   var tokens = parseTemplate(tmpl, parsed.capCount, parsed.names);
   var mine, real;
-  try { mine = runReplace(pat, flags, tokens, subj); } catch (e) { return { skip: '当てられない' }; }
-  if (mine.truncated) return { skip: '件数が多い' };
-  try { re.lastIndex = 0; real = subj.replace(re, tmpl); } catch (e) { return { skip: '当てられない' }; }
+  try { mine = runReplace(pat, flags, tokens, subj); } catch (e) { return { skip: 'cannot run' }; }
+  if (mine.truncated) return { skip: 'too many matches' };
+  try { re.lastIndex = 0; real = subj.replace(re, tmpl); } catch (e) { return { skip: 'cannot run' }; }
   if (mine.out !== real) return { ok: false, why: '/' + pat + '/' + flags + ' → ' + tmpl };
   return { ok: true };
 }
@@ -877,9 +871,9 @@ function findTraps(pat, flags, tmpl, subj, parsed, tokens, res) {
   var nMatch = res.matches.length;
 
   if (nMatch === 0) {
-    t.push(['w', 'no-match', '1件も当たっていません',
-      'この式は対象の文字列に当たらないので、置換後は元のままです。' +
-      'なぜ当たらないかは<a href="../regex-why/">なぜマッチしないか診断</a>で調べられます。']);
+    t.push(['w', 'no-match', 'Nothing matched',
+      'The pattern does not match the subject, so the result is the original text. ' +
+      'To find out why, try <a href="./regex-why.html">the "why doesn&#39;t my regex match" tool</a>.']);
   }
 
   if (!g && nMatch > 0) {
@@ -895,74 +889,74 @@ function findTraps(pat, flags, tmpl, subj, parsed, tokens, res) {
       }
     } catch (e) { all = 0; }
     if (all > 1)
-      t.push(['w', 'no-g', 'g が無いので最初の1件だけ置き換わります',
-        '対象には ' + all + ' 件当たる場所がありますが、置き換わるのは1件目だけです。' +
-        '全部変えるならフラグに <code>g</code> を足してください。エラーは出ません。']);
+      t.push(['w', 'no-g', 'Without g, only the first match is replaced',
+        'There are ' + all + ' places that match, but only the first one is replaced. ' +
+        'Add the <code>g</code> flag to replace them all. No error is raised either way.']);
   }
 
   var litBad = tokens.filter(function (k) { return k.t === 'lit' && k.why; });
   litBad.forEach(function (k) {
-    t.push(['e', 'literal-token', '<code>' + esc(k.raw) + '</code> は特別扱いされていません', esc(k.why) + '。']);
+    t.push(['e', 'literal-token', '<code>' + esc(k.raw) + '</code> is not treated specially', esc(k.why) + '。']);
   });
 
   tokens.forEach(function (k) {
     if (k.t === 'named' && !k.known)
-      t.push(['e', 'unknown-name', '<code>' + esc(k.raw) + '</code> という名前のグループはありません',
-        '式にある名前は ' + parsed.names.map(function (n) { return '<code>' + esc(n) + '</code>'; }).join('・') +
-        ' です。<b>綴りが違うとエラーにならず、空文字になります</b>（黙って消えます）。']);
+      t.push(['e', 'unknown-name', '<code>' + esc(k.raw) + '</code> is not the name of any group',
+        'The names in the pattern are ' + parsed.names.map(function (n) { return '<code>' + esc(n) + '</code>'; }).join(', ') +
+        '. <b>A misspelled name is not an error — it becomes the empty string</b> and disappears silently.']);
   });
 
   if (/\\[1-9]/.test(tmpl))
-    t.push(['w', 'backslash-ref', '置換文字列の <code>\\1</code> は後方参照ではありません',
-      'JavaScript の置換文字列では <code>\\</code> に意味がありません。' +
-      'グループを差し込むなら <code>' + D + '1</code> と書きます。' +
-      'sed や Python の <code>re.sub</code> の癖で書くとここで外れます。']);
+    t.push(['w', 'backslash-ref', '<code>\\1</code> in a replacement string is not a back-reference',
+      'A <code>\\</code> means nothing in a JavaScript replacement string. ' +
+      'To insert a group, write <code>' + D + '1</code>. ' +
+      'This is the habit that carries over from sed and Python <code>re.sub</code>.']);
 
   if (/\$\{[^}]*\}/.test(tmpl))
-    t.push(['w', 'brace-ref', '<code>' + D + '{...}</code> は特別扱いされません',
-      'そのまま文字として出ます。番号なら <code>' + D + '1</code>、' +
-      '名前なら <code>' + D + '&lt;名前&gt;</code> と書きます。']);
+    t.push(['w', 'brace-ref', '<code>' + D + '{...}</code> is not treated specially',
+      'It is emitted verbatim. For a number write <code>' + D + '1</code>、' +
+      'for a name write <code>' + D + '&lt;name&gt;</code>.']);
 
   if (/\\g<|\(\?P=/.test(tmpl))
-    t.push(['w', 'python-ref', 'Python の書き方が混ざっています',
-      '<code>\\g&lt;名前&gt;</code> は JavaScript では効きません。<code>' + D + '&lt;名前&gt;</code> です。']);
+    t.push(['w', 'python-ref', 'This is Python syntax, not JavaScript',
+      '<code>\\g&lt;name&gt;</code> does nothing in JavaScript. Use <code>' + D + '&lt;name&gt;</code>.']);
 
   var zero = res.matches.filter(function (m) { return m[0] === ''; }).length;
   if (zero > 0)
-    t.push(['i', 'zero-length', '長さ0のマッチが ' + zero + ' 件あります',
-      '長さ0のマッチは文字と文字の<b>あいだ</b>に入ります。' +
-      '<code>&quot;abc&quot;.replace(/x*/g, &quot;-&quot;)</code> が ' +
-      '<code>-a-b-c-</code> になるのと同じ形です。']);
+    t.push(['i', 'zero-length', 'There are ' + zero + ' zero-length matches',
+      'A zero-length match lands <b>between</b> characters. ' +
+      'That is why <code>&quot;abc&quot;.replace(/x*/g, &quot;-&quot;)</code> gives ' +
+      '<code>-a-b-c-</code>.']);
 
   var usesCtx = tokens.some(function (k) { return k.t === 'before' || k.t === 'after'; });
   if (usesCtx)
-    t.push(['i', 'context-token', '<code>' + D + BQ + '</code> と <code>' + D + AP + '</code> は元の文字列を指します',
-      '置換しかけの文字列ではなく、<b>置換前の文字列全体</b>の前半・後半です。' +
-      '<code>g</code> と組み合わせると、同じ内容が何度も出ます。']);
+    t.push(['i', 'context-token', '<code>' + D + BQ + '</code> and <code>' + D + AP + '</code> refer to the original string',
+      'Not the half-replaced string — they are the parts of <b>the string as it was before replacing</b>. ' +
+      'Combined with <code>g</code>, the same text comes out over and over.']);
 
   if (flags.indexOf('y') >= 0)
-    t.push(['w', 'sticky', '<code>y</code>（先頭固定）が付いています',
-      '前の終わりから<b>続けて</b>当たる間だけ置換されます。1か所でも外れるとそこで止まり、' +
-      '後ろに同じ形があっても置き換わりません。']);
+    t.push(['w', 'sticky', 'The <code>y</code> (sticky) flag is set',
+      'Replacement only continues while matches are <b>adjacent</b> to the previous one. The first gap stops it, ' +
+      'and later occurrences are left alone.']);
 
   if (flags.indexOf('i') >= 0 && /[A-Za-z]/.test(tmpl))
-    t.push(['i', 'ignorecase', '<code>i</code> が効くのは探すときだけです',
-      '大文字小文字を無視して当たりますが、<b>入る文字は書いたままの大小</b>です。' +
-      '元の大小に合わせたければ、置換文字列だけでは足りません。']);
+    t.push(['i', 'ignorecase', '<code>i</code> only affects the search',
+      'Matching ignores case, but <b>the text you insert keeps the case you typed</b>. ' +
+      'To follow the case of the original, a replacement string is not enough.']);
 
   if (!/[uv]/.test(flags) && /[\ud800-\udbff]/.test(subj))
-    t.push(['w', 'surrogate', '<code>u</code> が無いので、絵文字などが2つに割れます',
-      '対象にサロゲートペア（絵文字や一部の漢字）が入っています。' +
-      '<code>u</code> が無いと <code>.</code> が半分だけ食べて、壊れた文字が出ます。']);
+    t.push(['w', 'surrogate', 'Without <code>u</code>, emoji are split in half',
+      'The subject contains surrogate pairs (emoji and some CJK characters). ' +
+      'Without <code>u</code>, <code>.</code> eats only half of one and broken characters come out.']);
 
   if (res.truncated)
-    t.push(['w', 'truncated', '当たった場所が多すぎるので途中で止めました',
-      MAX_MATCHES + ' 件で打ち切っています。画面の置換後はそこまでの結果です。']);
+    t.push(['w', 'truncated', 'Too many matches, so this was cut off',
+      MAX_MATCHES + ' matches were processed. The result above stops there.']);
 
   if (res.out === subj && nMatch > 0)
-    t.push(['i', 'no-change', '置換しても文字列が変わっていません',
-      '当たってはいますが、入れ替えた結果が元と同じです。' +
-      'テンプレートが元の文字をそのまま戻している可能性があります。']);
+    t.push(['i', 'no-change', 'Replacing changed nothing',
+      'The pattern matches, but what goes back in is identical to what came out. ' +
+      'The template may simply be putting the original text back.']);
 
   return t;
 }
@@ -976,28 +970,28 @@ function esc(s) {
 }
 
 var PRESETS = [
-  ['(\\d{4})-(\\d{2})-(\\d{2})', 'g', '$3/$2/$1', '納期は 2026-08-23、予備日は 2026-12-31 です。',
-   '日付の並べ替え'],
-  ['(?<y>\\d{4})-(?<m>\\d{2})', 'g', '$<y>年$<m>月', '2026-08 と 2027-01 の対比',
-   '名前つきグループ'],
-  ['(?<y>\\d{4})-(?<m>\\d{2})', 'g', '$<year>年$<m>月', '2026-08 と 2027-01 の対比',
-   '名前の綴り違い（黙って空になる）'],
-  ['(\\d+)円', 'g', '$2円', '300円と1200円', '無い番号を書いた（文字として出る）'],
-  ['(\\w+)@(\\w+)', 'g', '\\2 の \\1', 'a@example b@test', 'sed の癖で書いた'],
-  [',', '', '、', 'りんご,みかん,ぶどう', 'g の付け忘れ'],
-  ['x*', 'g', '-', 'abc', '長さ0のマッチ'],
-  ['\\b\\w{5,}\\b', 'g', '[$&]', 'short longer longest words here', 'マッチ全体を囲む'],
-  ['(\\d+)', 'g', '$$$1', '値段は 300 と 1200', 'ドル記号を出す'],
-  ['.', 'g', '<$&>', 'あ\u{1f600}b', 'u なしで絵文字を切る'],
-  ['\\s+', 'g', ' ', '  空白が    ばらばら\tな   文字列  ', '空白の詰め直し'],
-  ['apple', 'gi', 'オレンジ', 'Apple と APPLE と apple', 'i は探すときだけ']
+  ['(\\d{4})-(\\d{2})-(\\d{2})', 'g', '$3/$2/$1', 'Due 2026-08-23, backup date 2026-12-31.',
+   'reorder a date'],
+  ['(?<y>\\d{4})-(?<m>\\d{2})', 'g', '$<m>/$<y>', 'compare 2026-08 with 2027-01',
+   'named groups'],
+  ['(?<y>\\d{4})-(?<m>\\d{2})', 'g', '$<year>/$<m>', 'compare 2026-08 with 2027-01',
+   'misspelled name (silently empty)'],
+  ['(\\d+) yen', 'g', '$2 yen', '300 yen and 1200 yen', 'a group number that does not exist'],
+  ['(\\w+)@(\\w+)', 'g', '\\2 at \\1', 'a@example b@test', 'written the sed way'],
+  [',', '', '、', 'apple,orange,grape', 'forgot the g flag'],
+  ['x*', 'g', '-', 'abc', 'zero-length matches'],
+  ['\\b\\w{5,}\\b', 'g', '[$&]', 'short longer longest words here', 'wrap the whole match'],
+  ['(\\d+)', 'g', '$$$1', 'prices are 300 and 1200', 'emit a dollar sign'],
+  ['.', 'g', '<$&>', 'a\u{1f600}b', 'cut an emoji without u'],
+  ['\\s+', 'g', ' ', '  ragged   spacing\there  and    there  ', 'collapse whitespace'],
+  ['apple', 'gi', 'ORANGE', 'Apple and APPLE and apple', 'i only affects the search']
 ];
 
 var TOKNAME = {
-  match: 'マッチした部分ぜんぶ',
-  before: 'マッチより前（元の文字列の先頭から）',
-  after: 'マッチより後ろ（元の文字列の末尾まで）',
-  dollar: D + ' の文字そのもの'
+  match: 'the whole matched text',
+  before: 'everything before the match (from the start of the original)',
+  after: 'everything after the match (to the end of the original)',
+  dollar: D + ' as a literal character'
 };
 
 function shortOf(s, n) {
@@ -1006,8 +1000,8 @@ function shortOf(s, n) {
 }
 
 function cell(s) {
-  if (s === undefined || s === null) return '<span class="empty">（無し）</span>';
-  if (s === '') return '<span class="empty">（空）</span>';
+  if (s === undefined || s === null) return '<span class="empty">(none)</span>';
+  if (s === '') return '<span class="empty">(empty)</span>';
   return esc(shortOf(s, 60));
 }
 
@@ -1022,14 +1016,14 @@ function run() {
 
   if (perr || !parsed) {
     $('parseerr').className = 'panel err';
-    $('parseerrmsg').textContent = perr.msg || '読めません';
+    $('parseerrmsg').textContent = perr.msg || 'cannot be read';
     var line = '/' + pat + '/' + flags;
     var caret = new Array((perr.pos || 0) + 2).join(' ') + new Array((perr.len || 1) + 1).join('^');
     $('parsecaret').textContent = line + '\n' + caret;
     ['resultpanel', 'beforepanel', 'tokpanel', 'matchpanel', 'trappanel', 'charpanel']
       .forEach(function (id) { $(id).className = 'panel off'; });
     $('selfcheck').className = 'selfcheck skip';
-    $('selfcheck').innerHTML = '式が読めないので突き合わせていません。';
+    $('selfcheck').innerHTML = 'The pattern cannot be read, so nothing was compared.';
     return;
   }
   $('parseerr').className = 'panel err off';
@@ -1046,12 +1040,12 @@ function run() {
     if (sg.keep) html += esc(sg.s);
     else html += '<span class="ins" data-tok="' + sg.k + '">' + esc(sg.s) + '</span>';
   });
-  $('out').innerHTML = html || '<span class="empty">（空）</span>';
+  $('out').innerHTML = html || '<span class="empty">(empty)</span>';
 
   var changed = res.matches.length;
-  $('count').innerHTML = '<b>' + changed + '</b> か所を置き換えました' +
-    '（元 ' + subj.length + ' 文字 → 置換後 ' + res.out.length + ' 文字）。' +
-    (res.truncated ? ' ' + MAX_MATCHES + ' 件で打ち切っています。' : '');
+  $('count').innerHTML = '<b>' + changed + '</b> replacements made' +
+    ' (original ' + subj.length + ' characters, result ' + res.out.length + ' characters).' +
+    (res.truncated ? ' ' + MAX_MATCHES + ' matches, then cut off.' : '');
 
   /* 元の文字列（当たった場所に印） */
   var bh = '', bpos = 0;
@@ -1062,27 +1056,27 @@ function run() {
     bpos = m.index + m[0].length;
   });
   bh += esc(subj.slice(bpos));
-  $('before').innerHTML = bh || '<span class="empty">（空）</span>';
+  $('before').innerHTML = bh || '<span class="empty">(empty)</span>';
 
   /* テンプレートの読み下し */
   var m0 = res.matches[0];
-  var tt = '<tr><th>書いたもの</th><th>意味</th><th>1件目での中身</th></tr>';
+  var tt = '<tr><th>what you wrote</th><th>what it means</th><th>value at match 1</th></tr>';
   if (tokens.length === 0) {
-    tt += '<tr><td colspan="3"><span class="empty">置換テンプレートが空です（当たった場所が削除されます）</span></td></tr>';
+    tt += '<tr><td colspan="3"><span class="empty">The replacement template is empty, so every match is deleted</span></td></tr>';
   }
   tokens.forEach(function (k, idx) {
     var meaning, val = null, cls = 'tokrow';
     if (k.t === 'lit') {
-      meaning = k.why ? esc(k.why) : 'そのままの文字';
+      meaning = k.why ? esc(k.why) : 'literal text';
       cls += ' lit';
       val = k.s;
     } else if (k.t === 'group') {
-      meaning = parsed.capCount + ' 個あるグループの ' + k.n + ' 番目';
+      meaning = parsed.capCount + ' of the ' + k.n + ' capture groups';
       val = m0 ? m0[k.n] : null;
-      if (m0 && m0[k.n] === undefined) meaning += '（このマッチでは通っていません → 空文字）';
+      if (m0 && m0[k.n] === undefined) meaning += ' (did not take part in this match, so empty)';
     } else if (k.t === 'named') {
-      meaning = k.known ? '名前つきグループ ' + esc(k.name)
-                        : 'その名前のグループが無いので<b>空文字</b>になります';
+      meaning = k.known ? 'named group ' + esc(k.name)
+                        : 'no group has that name, so this becomes <b>the empty string</b>';
       val = m0 ? (m0.groups && m0.groups[k.name] !== undefined ? m0.groups[k.name] : '') : null;
     } else {
       meaning = TOKNAME[k.t];
@@ -1095,18 +1089,18 @@ function run() {
     }
     tt += '<tr class="' + cls + '" data-tok="' + idx + '"><td class="src">' + esc(k.raw) +
           '</td><td>' + meaning + '</td><td class="val">' +
-          (m0 || k.t === 'lit' || k.t === 'dollar' ? cell(val) : '<span class="empty">（マッチ無し）</span>') +
+          (m0 || k.t === 'lit' || k.t === 'dollar' ? cell(val) : '<span class="empty">(no match)</span>') +
           '</td></tr>';
   });
   $('toktable').innerHTML = tt;
   $('tokhint').innerHTML = tokens.length
-    ? '行にさわると、置換後のどこがそこから来たかに印が付きます。'
+    ? 'Point at a row to highlight the part of the result it produced.'
     : '';
 
   /* マッチごとの中身 */
-  var head = '<tr><th>#</th><th>位置</th><th>当たった文字</th>';
+  var head = '<tr><th>#</th><th>at</th><th>matched text</th>';
   for (var gi = 1; gi <= parsed.capCount; gi++) head += '<th>' + D + gi + '</th>';
-  head += '<th>置き換えたあと</th></tr>';
+  head += '<th>replaced with</th></tr>';
   var mt = head;
   var showN = Math.min(res.matches.length, 50);
   for (var mi = 0; mi < showN; mi++) {
@@ -1119,10 +1113,10 @@ function run() {
     mt += '<td class="val">' + cell(made) + '</td></tr>';
   }
   if (res.matches.length === 0)
-    mt += '<tr><td class="n" colspan="' + (parsed.capCount + 4) + '"><span class="empty">当たった場所がありません</span></td></tr>';
+    mt += '<tr><td class="n" colspan="' + (parsed.capCount + 4) + '"><span class="empty">nothing matched</span></td></tr>';
   else if (res.matches.length > showN)
-    mt += '<tr><td class="n" colspan="' + (parsed.capCount + 4) + '">ほか ' +
-          (res.matches.length - showN) + ' 件（表は先頭 ' + showN + ' 件まで）</td></tr>';
+    mt += '<tr><td class="n" colspan="' + (parsed.capCount + 4) + '">and ' +
+          (res.matches.length - showN) + ' more (the table shows the first ' + showN + ')</td></tr>';
   $('matchtable').innerHTML = mt;
 
   /* 落とし穴 */
@@ -1145,10 +1139,10 @@ function run() {
     $('chars').innerHTML = '';
   } else {
     $('charpanel').className = 'panel';
-    var ct = '<tr><th>場所</th><th>文字</th><th>これは何か</th></tr>';
-    [['式', sp], ['テンプレート', st], ['対象', ss]].forEach(function (pair) {
+    var ct = '<tr><th>where</th><th>character</th><th>what it is</th></tr>';
+    [['pattern', sp], ['template', st], ['subject', ss]].forEach(function (pair) {
       pair[1].forEach(function (x) {
-        ct += '<tr><td class="n">' + pair[0] + 'の ' + (x.i + 1) + ' 文字目</td><td class="src">' +
+        ct += '<tr><td class="n">' + pair[0] + ', char ' + (x.i + 1) + '</td><td class="src">' +
               esc(visibleChar(x.ch)) + '</td><td>' + x.why + '</td></tr>';
       });
     });
@@ -1160,15 +1154,15 @@ function run() {
   var el = $('selfcheck');
   if (sc.bad.length) {
     el.className = 'selfcheck bad';
-    el.innerHTML = '<b>✗ 食い違いが ' + sc.bad.length + ' 件あります。</b>' +
-      'この画面より、ブラウザの <code>replace</code> の結果のほうが正しいです。<br>' +
+    el.innerHTML = '<b>&#10007; ' + sc.bad.length + ' mismatches.</b> ' +
+      'Trust the browser&#39;s own <code>replace</code> over what is shown here.<br>' +
       sc.bad.map(function (b) { return '<code>' + esc(b) + '</code>'; }).join('<br>');
   } else {
     el.className = 'selfcheck';
-    el.innerHTML = '<b>✓ ' + sc.ok + ' 件すべて一致</b>' +
-      '（自前で組み立てた置換結果と、ブラウザの <code>String.prototype.replace</code> の結果を' +
-      '突き合わせています' + (sc.skip ? '。ほかに ' + sc.skip + ' 件は対象外' : '') + '）。' +
-      'いま画面に出している入力もこの中に入っています。';
+    el.innerHTML = '<b>✓ ' + sc.ok + ' cases agree</b>' +
+      ' (the result assembled here is compared against <code>String.prototype.replace</code> in this browser' +
+      '' + (sc.skip ? '; a further ' + sc.skip + ' are out of scope' : '') + '）。' +
+      'The input on screen right now is one of the cases.';
   }
 }
 
@@ -1208,8 +1202,8 @@ function init() {
     var ta = document.createElement('textarea');
     ta.value = txt; ta.style.position = 'fixed'; ta.style.left = '-9999px';
     document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); $('said').textContent = 'コピーしました'; }
-    catch (err) { $('said').textContent = 'コピーできませんでした'; }
+    try { document.execCommand('copy'); $('said').textContent = 'copied'; }
+    catch (err) { $('said').textContent = 'could not copy'; }
     document.body.removeChild(ta);
     setTimeout(function () { $('said').textContent = ''; }, 2000);
   });

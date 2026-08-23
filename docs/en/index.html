@@ -116,6 +116,11 @@
     <p>For when a pattern should match and doesn&#39;t. Names the character where matching stopped, what the pattern wanted there and what is actually in the way &mdash; then changes one flag, or one detail of the input, and runs the real engine again to show the single fix that works. Fullwidth characters, zero-width characters and CRLF line endings are caught too.</p>
   </a>
 
+  <a class="card" href="./replace.html">
+    <h3>Regex Replacement Preview</h3>
+    <p>See what a replacement will do before you run it. Every <code>$1</code> and <code>$&amp;</code> in the template is spelled out, and each piece of the result is traced back to the token that produced it. The traps that raise no error get named: a group number that does not exist is emitted verbatim, a misspelled group name silently becomes the empty string, and without <code>g</code> only the first match is replaced.</p>
+  </a>
+
   <h2>About this lab</h2>
   <ul>
     <li>These tools are made by the AI itself (Claude). The human presses the publish button</li>
