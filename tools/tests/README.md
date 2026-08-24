@@ -11,6 +11,7 @@
 | `test_regex_why.py` | [なぜマッチしないか診断](https://hirulab-dev.github.io/hirulab-tools/regex-why/) とブラウザの `RegExp`。自前の照合器の結果（マッチするか・範囲・各グループ）を 7,697 件突き合わせ、さらに「止まった位置」の主張を 6,174 個検算し、**正解の分かる欠陥を仕込んで直し方を名指しできるか**を 83 件で確認 |
 | `test_replace.py` | [正規表現の置換プレビュー](https://hirulab-dev.github.io/hirulab-tools/replace/) と ブラウザの `String.prototype.replace`。置換後の文字列を 5,822 件突き合わせ、さらに **「この文字はこのトークンから来た」という主張を、`replace` に関数を渡して本物のエンジンが返す値で 15,191 個検算**。仕込んだ落とし穴 26 件の名指しも確認 |
 | `test_url.py` | [URLの分解・組み立て](https://hirulab-dev.github.io/hirulab-tools/url/) と ブラウザの `URL`。分解した10項目を 965 件、**punycode は Python の `str.encode("punycode")`**、**クエリの読み分けは Python の `parse_qsl`** と別々に突き合わせる。分解して組み立て直すと元に戻るかも見る。仕込んだ落とし穴 29 件の名指しも確認 |
+| `test_jwt.py` | [JWTの読み下し](https://hirulab-dev.github.io/hirulab-tools/jwt/) と **PyJWT（第三者実装）**・Python の `base64`/`json`・`hmac`/`cryptography`。分解を 400 件、クレームの期限判定を PyJWT と 400 件、**署名の検証をブラウザの `crypto.subtle` vs Python で 23 件**（HS/RS/PS/ES と DER 形式）、壊れた符号化の扱いを 37 件。仕込んだ落とし穴 57 件の名指しも確認 |
 
 ## 使い方
 
@@ -23,6 +24,7 @@ python tools/tests/test_railroad.py --n 3000
 python tools/tests/test_regex_why.py --n 2500
 python tools/tests/test_replace.py --n 1200
 python tools/tests/test_url.py --n 600
+python tools/tests/test_jwt.py --n 400
 ```
 
 ## 出力の読み方
@@ -151,3 +153,44 @@ python tools/tests/test_url.py --n 600
 組み立て直して同じ年月日に戻るかを見る形にして直しています。
 
 `--sabotage` で**7種類のバグを仕込んで、7種類とも狙った検査が落ちること**を確認しています。
+
+
+---
+
+## `test_jwt.py` — JWTの読み下し
+
+対象: https://hirulab-dev.github.io/hirulab-tools/jwt/
+
+ここも参照を1つに寄せず、**別の出どころに散らして**います。
+
+1. **分解した結果 vs Python の `base64` / UTF-8 / `json`**（400件）
+   この道具は `atob` も `TextDecoder` も `JSON.parse` も使わず自前で書いてあるので、
+   **3つとも別の標準ライブラリ**に当てる意味があります。
+2. **壊れた符号化の扱い vs Python**（37件）
+   長さが4で割って1余る / 字表にない文字 / overlong な UTF-8 / サロゲート / U+10FFFF 超え。
+   ★ 既定の `urlsafe_b64decode` は**字表にない文字を黙って捨てる**ので参照になりません。
+   `validate=True` を明示して初めて拒みます。
+   「余ったビットが0でない」は Python が拒まないので、**書き戻すと別の文字列になるか**で定義しています。
+3. **クレームの判定 vs PyJWT**（400件）— ここがいちばん強い参照です。
+   PyJWT は別の言語の第三者実装で、`exp` が切れているか・`nbf` がまだかを自分で判断します。
+   この道具の指摘（`exp-past` / `nbf-future`）と、PyJWT が投げる例外が一致するかを見ます。
+4. **署名の検証 vs Python**（23件）
+   ブラウザの `crypto.subtle` と Python の `hmac` / `cryptography` という**まったく別の実装どうし**。
+   HS256/384/512・RS256/384/512・PS256/384・ES256/384 を、正しい鍵・違う鍵・
+   中身を書き換えたもの・**DER 形式のまま入れた署名**で当てています。
+5. **★「規格が拒む形」と「実装が拒む形」は違う**
+   RFC 7515 は base64url の詰め（`=`）を書いてはいけないと決め、`+` `/` も認めません。
+   ところが **PyJWT はどちらも受け取り、署名の検証まで通します**（この検査で 73 / 73 件）。
+   この道具は**拒みません**（貼られたものを読んで説明するのが仕事なので）。
+   代わりに `b64-padding` / `b64-standard` / `b64-slack` で名指しします。
+   つまりここは「拒むか」ではなく「名指しできるか」で測るのが正しい、という切り分けです。
+   ★ 参照が何も拒まないだけだと検査が空振りするので、
+   **明らかに壊れたトークンを PyJWT が本当に拒むこと**を先に確かめています。
+6. **正解を握った落とし穴の名指し**（57件）— `data-code` で照合するので英語版にもそのまま当たります。
+7. **ページ内の自己検査**（6件）— 道具自身がその場で `atob` / `TextDecoder` / `JSON.parse` と
+   突き合わせている欄が、全部 ✓ になっているか。
+
+`--sabotage` で**8種類のバグを仕込んで、8種類とも狙った検査が落ちること**を確認しています。
+★ 最初の版では**3種類が空振りしました**（余りビットの片方の枝 / 長さが4で割って1余る形 /
+overlong な UTF-8）。どれも**検査データにその形が1件も無かった**のが原因です。
+2 の検査はそのために足しました。

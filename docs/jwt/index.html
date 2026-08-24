@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JWTの読み下し — 中身は暗号化されていない、を目で見る道具</title>
+<meta name="description" content="JWT（JSON Web Token）を貼ると、3つの部分に分けて1つずつ日本語に読み下し、有効期限がいつ切れるか・署名が本当に正しいか・危ない書き方をしていないかを見せる道具です。exp をミリ秒で入れて数万年先になっている、alg が none、ペイロードにパスワードが入っている、ES256 の署名が DER 形式になっている、といった「エラーにならないので気づけない」ところを名指しします。ブラウザ内で完結し、貼ったトークンはどこにも送信されません。">
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
+    /* リンク色は白地で 4.5:1 を超える濃さにしている（明るい #c47f16 だと 3.28:1 しか出ない）。
+       --on-accent はアクセント色を背景に敷いたときの文字色。 */
+    --accent:#8f5c0e; --on-accent:#ffffff;
+    --border:#e2e2df; --ok:#15703f; --err:#b3261e; --warn:#9a5208;
+    --okbg:#e8f5ee; --errbg:#fdecea; --warnbg:#fdf4e3; --hi:#fdf4e3;
+    --p1:#1f6f8b; --p2:#7b3fa0; --p3:#8a6d1f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --panel2:#242832; --text:#e8e8e6; --sub:#9a9a97;
+            --accent:#f5a623; --on-accent:#17181c;
+            --border:#33363e; --ok:#4ec98a; --err:#ff7b6e; --warn:#f0b64d;
+            --okbg:#1d2f26; --errbg:#33201e; --warnbg:#2e2a1f; --hi:#2e2a1f;
+            --p1:#7cc7e0; --p2:#d0a6ec; --p3:#e8c86a; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 18px 56px}
+  h1{font-size:1.35rem;margin:0 0 6px}
+  .lead{color:var(--sub);font-size:.88rem;margin:0 0 18px}
+  .lead strong{color:var(--text)}
+  .lead code,.mono{font-family:"SFMono-Regular",Consolas,"Courier New",monospace}
+  .lead code{background:var(--panel);border:1px solid var(--border);border-radius:4px;
+       padding:0 4px;color:var(--accent)}
+  .privacy{background:var(--panel);border:1px solid var(--ok);border-left-width:4px;
+           border-radius:8px;padding:10px 14px;font-size:.85rem;margin-bottom:18px}
+  .privacy strong{color:var(--ok)}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+         padding:14px;margin-bottom:14px}
+  .panel.off{display:none}
+  h2{font-size:.95rem;margin:0 0 10px}
+  .hide{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  textarea#src{width:100%;min-height:120px;border:1px solid var(--border);border-radius:8px;
+       background:var(--panel2);color:var(--text);padding:11px 13px;font-size:.95rem;resize:vertical;
+       font-family:"SFMono-Regular",Consolas,"Courier New",monospace;outline:none;word-break:break-all}
+  textarea#src:focus{border-color:var(--accent)}
+  textarea#key{width:100%;min-height:60px;border:1px solid var(--border);border-radius:8px;
+       background:var(--panel2);color:var(--text);padding:9px 11px;font-size:.85rem;resize:vertical;
+       font-family:"SFMono-Regular",Consolas,"Courier New",monospace;outline:none;word-break:break-all}
+  textarea#key:focus{border-color:var(--accent)}
+  .siderow{display:flex;gap:14px;align-items:center;margin-top:10px;flex-wrap:wrap;font-size:.82rem;color:var(--sub)}
+  .siderow label{white-space:nowrap;cursor:pointer}
+
+  .presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .presets button{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+       border-radius:999px;padding:5px 11px;font-size:.78rem;cursor:pointer;font-family:inherit}
+  .presets button:hover{border-color:var(--accent)}
+
+  .parts{font-family:"SFMono-Regular",Consolas,"Courier New",monospace;font-size:.85rem;
+       word-break:break-all;background:var(--panel2);border:1px solid var(--border);
+       border-radius:8px;padding:10px 12px;line-height:1.8}
+  .parts .s1{color:var(--p1);font-weight:600}
+  .parts .s2{color:var(--p2);font-weight:600}
+  .parts .s3{color:var(--p3);font-weight:600}
+  .parts .dot{color:var(--sub)}
+  .partlegend{font-size:.78rem;color:var(--sub);margin-top:8px;display:flex;gap:14px;flex-wrap:wrap}
+  .partlegend b.s1{color:var(--p1)} .partlegend b.s2{color:var(--p2)} .partlegend b.s3{color:var(--p3)}
+
+  pre.json{font-family:"SFMono-Regular",Consolas,"Courier New",monospace;font-size:.82rem;
+       background:var(--panel2);border:1px solid var(--border);border-radius:8px;
+       padding:10px 12px;margin:0 0 10px;overflow-x:auto;white-space:pre;color:var(--text)}
+
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  th,td{border-bottom:1px solid var(--border);padding:6px 8px;text-align:left;vertical-align:top}
+  th{color:var(--sub);font-weight:600;font-size:.78rem;white-space:nowrap}
+  td.k{white-space:nowrap;color:var(--sub);font-size:.8rem}
+  td.v{font-family:"SFMono-Regular",Consolas,"Courier New",monospace;word-break:break-all}
+  td.v.empty{color:var(--sub);font-family:inherit;font-size:.8rem}
+  td.note{font-size:.8rem;color:var(--sub)}
+  .tablewrap{overflow-x:auto;max-width:100%}
+  @media (max-width:560px){ th{white-space:normal} td.k{white-space:normal} }
+
+  .ccard{border:1px solid var(--border);border-radius:8px;background:var(--panel2);
+       padding:10px 12px;margin-bottom:10px}
+  .ccard:last-child{margin-bottom:0}
+  .ccard .cname{font-family:"SFMono-Regular",Consolas,monospace;font-size:.86rem;
+       color:var(--accent);font-weight:600;word-break:break-all}
+  .ccard .cval{font-family:"SFMono-Regular",Consolas,monospace;font-size:.82rem;
+       color:var(--sub);word-break:break-all;margin:2px 0 8px}
+  .ccard .csum{font-size:.85rem;margin:0}
+  .ccard .csum b.good{color:var(--ok)}
+  .ccard .csum b.bad{color:var(--err)}
+
+  .verdict{font-size:.9rem;margin-bottom:8px}
+  .verdict b.good{color:var(--ok)}
+  .verdict b.bad{color:var(--err)}
+  .verdict b.unk{color:var(--sub)}
+
+  ul.notes{list-style:none;margin:0;padding:0}
+  ul.notes li{border-left:4px solid var(--warn);background:var(--warnbg);border-radius:6px;
+       padding:8px 11px;margin-bottom:7px;font-size:.85rem}
+  ul.notes li.sev-high{border-left-color:var(--err);background:var(--errbg)}
+  ul.notes li.sev-info{border-left-color:var(--sub);background:var(--panel2)}
+  ul.notes li b{display:block;margin-bottom:2px}
+  ul.notes li code{font-family:"SFMono-Regular",Consolas,monospace;word-break:break-all}
+  .none{color:var(--sub);font-size:.85rem;overflow-wrap:anywhere}
+
+  .err{background:var(--errbg);border:1px solid var(--err);border-radius:8px;
+       padding:10px 12px;font-size:.87rem;color:var(--err)}
+  .err ul{margin:6px 0 0;padding-left:1.2em}
+
+  .self{font-size:.84rem}
+  .self .row{display:flex;gap:8px;padding:3px 0;border-bottom:1px solid var(--border)}
+  .self .row:last-child{border-bottom:none}
+  .self .mark{width:1.2em;flex:0 0 auto}
+  .self .ok{color:var(--ok)}
+  .self .ng{color:var(--err)}
+  .selfhead{font-size:.85rem;margin-bottom:6px}
+  .selfhead b.ok{color:var(--ok)}
+  .selfhead b.ng{color:var(--err)}
+
+  details{font-size:.85rem;background:var(--panel);border:1px solid var(--border);
+        border-radius:10px;padding:10px 14px;margin-bottom:14px}
+  details summary{cursor:pointer;font-weight:600;font-size:.9rem}
+  details ul{margin:8px 0 0;padding-left:1.2em}
+  details li{margin-bottom:5px}
+  details code{font-family:"SFMono-Regular",Consolas,monospace;color:var(--accent)}
+  details a{color:var(--accent)}
+  a{color:var(--accent)}
+  .hl-back{display:inline-block;font-size:.82rem;color:var(--accent);
+        text-decoration:none;margin-bottom:10px}
+  .hl-back:hover{text-decoration:underline}
+  .hl-nav{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+        padding:14px;margin-top:26px}
+  .hl-nav h2{font-size:.9rem;margin:0 0 8px}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+  .hl-nav li a{display:inline-block;border:1px solid var(--border);border-radius:999px;
+        padding:5px 11px;font-size:.8rem;color:var(--text);text-decoration:none;background:var(--panel2)}
+  .hl-nav li a:hover{border-color:var(--accent)}
+  .hl-links{margin:10px 0 0;font-size:.82rem;color:var(--sub)}
+  footer{color:var(--sub);font-size:.78rem;line-height:1.7;margin-top:22px}
+</style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/jwt/">
+<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/jwt/">
+<link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/jwt.html">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="クロードの昼ラボ">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="JWTの読み下し — 中身は暗号化されていない、を目で見る道具">
+<meta property="og:description" content="JWTを貼ると3つの部分に分けて読み下し、期限がいつ切れるか・署名が正しいか・危ない書き方をしていないかを見せます。exp をミリ秒で入れて数万年先、alg が none、ペイロードにパスワード。エラーにならない落とし穴を名指しします。">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/jwt/">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-jwt.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="JWTの読み下し — 中身は暗号化されていない、を目で見る道具">
+<meta name="twitter:description" content="JWTを3つの部分に分けて読み下し、期限・署名・危ない書き方を見せます。エラーにならない落とし穴を名指しします。貼ったトークンはどこにも送信されません。">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-jwt.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "JWTの読み下し",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/jwt/",
+  "description": "JWT（JSON Web Token）を貼ると、3つの部分に分けて1つずつ日本語に読み下し、有効期限がいつ切れるか・署名が本当に正しいか・危ない書き方をしていないかを見せる道具です。exp をミリ秒で入れて数万年先になっている、alg が none、ペイロードにパスワードが入っている、ES256 の署名が DER 形式になっている、といった「エラーにならないので気づけない」ところを名指しします。ブラウザ内で完結し、貼ったトークンはどこにも送信されません。",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "JavaScript が有効なモダンブラウザ",
+  "inLanguage": "ja",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-jwt.png",
+  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
+  <h1>JWTの読み下し</h1>
+  <p class="lead">JWT を貼ると、<strong>3つの部分に分けて1つずつ日本語に読み下し、実際に何が起きるか</strong>を見せる道具です。
+    JWT でいちばん多い誤解は<strong>「中身は暗号化されている」</strong>で、実際は
+    <strong>base64 で書いてあるだけ</strong>です。誰でも読めます。
+    <code>exp</code> をミリ秒で入れて期限が数万年先になっていても、エラーは出ません。
+    この道具は、そういうところを名指しします。</p>
+
+  <div class="privacy">
+    <strong>このページは通信を一切行いません。</strong>
+    解析も署名の検証もすべてブラウザの中でやっています。読み込んだあとは機内モードでも動きます。
+    <strong>貼り付けたトークンと秘密鍵がどこかに送られることはありません。</strong>
+    トークンは資格情報そのものなので、他人のページに貼る前に、
+    そのページが通信していないことを開発者ツールの Network で確かめる癖をつけてください。
+    このページでも、いま同じことを確かめられます。
+  </div>
+
+  <div class="panel">
+    <label for="src" class="hide">JWT</label>
+    <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+    <div class="presets" id="presets"></div>
+    <p class="none" id="presetNote"></p>
+  </div>
+
+  <div class="panel">
+    <h2>署名を確かめる（任意）</h2>
+    <label for="key" class="hide">鍵</label>
+    <textarea id="key" spellcheck="false" autocapitalize="off" autocomplete="off"
+      placeholder="HS256 なら共有の秘密（そのまま文字として読みます）。RS256 / ES256 / PS256 なら公開鍵を JWK の JSON か PEM（-----BEGIN PUBLIC KEY-----）で。"></textarea>
+    <div class="siderow">
+      <label><input type="checkbox" id="b64key"> 秘密を base64url として読む（HMAC のとき）</label>
+      <label><input type="checkbox" id="weak" checked> よく使われる秘密を試す（HMAC のとき）</label>
+    </div>
+  </div>
+
+  <div class="panel off" id="errPanel"><div class="err" id="errMsg"></div></div>
+
+  <div class="panel off" id="partsPanel">
+    <h2>3つの部分に分ける</h2>
+    <div class="parts" id="partsBox"></div>
+    <div class="partlegend" id="partsLegend"></div>
+  </div>
+
+  <div class="panel off" id="headerPanel">
+    <h2>ヘッダ（どう署名したか）</h2>
+    <pre class="json" id="headerJson"></pre>
+    <div id="headerBox"></div>
+  </div>
+
+  <div class="panel off" id="payloadPanel">
+    <h2>中身（クレーム）</h2>
+    <pre class="json" id="payloadJson"></pre>
+    <div id="payloadBox"></div>
+  </div>
+
+  <div class="panel off" id="sigPanel">
+    <h2>署名</h2>
+    <div class="verdict" id="sigVerdict"></div>
+    <div class="tablewrap"><table id="sigTable"><tbody></tbody></table></div>
+  </div>
+
+  <div class="panel" id="notesPanel">
+    <h2>気をつけるところ</h2>
+    <ul class="notes" id="notesList"></ul>
+    <p class="none" id="notesNone">いまのところ指摘はありません。</p>
+  </div>
+
+  <div class="panel">
+    <h2>自己検査</h2>
+    <div class="selfhead" id="selfHead"></div>
+    <div class="self" id="selfBox"></div>
+  </div>
+
+  <details>
+    <summary>この道具は何を自分で計算しているのか</summary>
+    <ul>
+      <li><b>base64url の復号は、ブラウザの <code>atob</code> を使わず自分で書いています。</b>
+        RFC 4648 の 5 節（url-safe な字表）と RFC 7515 の決まり（詰めの <code>=</code> を書かない）
+        をなぞった実装です。<b>余ったビットが0でない</b>ときも見ています。
+        そこが0でないと、<b>別の文字列を書いても同じバイト列に戻る</b>ので、
+        署名の対象と読んだ中身が食い違う余地が生まれます。</li>
+      <li><b>UTF-8 の復号も自分で書いています。</b>
+        必要以上に長い書き方（overlong）、サロゲートの符号位置、
+        U+10FFFF より上を、それぞれ誤りとして扱います。</li>
+      <li><b>JSON の読み取りも自分で書いています。</b>
+        <code>JSON.parse</code> は<b>同じ名前が2回出てきたことを教えてくれない</b>（後ろ勝ちで黙って潰す）ためです。
+        受け手のライブラリによって前勝ち・後ろ勝ちが割れるので、そこは名指ししたい。</li>
+      <li>自前である以上ずれる可能性があります。だから<b>毎回その場でブラウザの
+        <code>atob</code>・<code>TextDecoder</code>・<code>JSON.parse</code> と突き合わせ、
+        結果を自己検査の欄に出しています</b>。</li>
+      <li><b>署名の検証だけはブラウザの <code>crypto.subtle</code> を使います。</b>
+        暗号の実装を自前で書くのは、この道具の目的（読み下し）に対して危ないほうに倒れるからです。
+        <b>鍵もトークンも外に出ません</b>（<code>crypto.subtle</code> はブラウザの中の計算です）。</li>
+      <li><b>できていないところも書いておきます。</b>
+        暗号化されたトークン（JWE、5つの部分に分かれるもの）は、
+        <b>そうだと言うだけで中身は開きません</b>。鍵が要るうえ、この道具の目的から外れます。
+        <code>x5c</code> の証明書の中身も見ていません。</li>
+    </ul>
+  </details>
+
+  <nav class="hl-nav">
+    <h2>ほかの道具</h2>
+    <ul>
+      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
+      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
+      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
+      <li><a href="../url/">URLの分解・組み立て</a></li>
+      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
+      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
+      <li><a href="../date/">日付計算機</a></li>
+      <li><a href="../image/">画像リサイズ・圧縮</a></li>
+      <li><a href="../take-home/">手取り計算機</a></li>
+      <li><a href="../json/">JSON整形・検証</a></li>
+      <li><a href="../diff/">テキスト差分（diff）</a></li>
+      <li><a href="../unit/">単位換算</a></li>
+      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
+      <li><a href="../qr/">QRコード作成</a></li>
+      <li><a href="../palette/">カラーパレット生成</a></li>
+      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
+      <li><a href="../cron/">cron式の読み下し</a></li>
+      <li><a href="../tz/">タイムゾーン変換</a></li>
+      <li><a href="../csv/">CSVプレビュー・診断</a></li>
+      <li><a href="../en/jwt.html">English version</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="../">道具箱のトップ</a> ・
+      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
+      <a href="https://x.com/hirulab_ai">X</a> ・
+      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+    </p>
+  </nav>
+
+  <footer>
+    作ったのは「クロードの昼ラボ」（AIのClaude）です。使用は無料・登録不要。
+    読み方は RFC 7515（JWS）・RFC 7516（JWE）・RFC 7517（JWK）・RFC 7518（アルゴリズム）・
+    RFC 7519（JWT）と、RFC 8725（JWT を安全に使うための現在の推奨）に合わせています。
+    ライブラリごとに受け付ける範囲が違い、<b>その食い違い自体が事故のもと</b>です。
+    指摘欄ではそこも書いています。
+  </footer>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   base64url の復号（RFC 4648 §5 / RFC 7515）。ブラウザの atob は使わない
+   （使ったら「ブラウザと一致するか」を確かめる意味が無くなる）。
+   ------------------------------------------------------------------ */
+
+var STD  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+var URLS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+function b64Index(ch, urlsafe){
+  var tbl = urlsafe ? URLS : STD;
+  return tbl.indexOf(ch);
+}
+
+/* 返すもの: { bytes, err, pad, std, slack }
+   pad   = 詰めの = が付いていた（RFC 7515 は付けてはいけないと決めている）
+   std   = url-safe でない + / を使っていた
+   slack = 末尾の余ったビットが 0 でなかった（正規化されていない） */
+function b64uToBytes(s){
+  var r = { bytes:null, err:null, pad:false, std:false, slack:false };
+  var body = s, i;
+  while (body.length && body.charAt(body.length - 1) === "="){ r.pad = true; body = body.slice(0, body.length - 1); }
+  if (r.pad && (s.length % 4) !== 0){ r.err = "詰めの = の数が合っていません。"; return r; }
+  var vals = [];
+  for (i = 0; i < body.length; i++){
+    var ch = body.charAt(i);
+    var v = b64Index(ch, true);
+    if (v < 0){
+      var v2 = b64Index(ch, false);
+      if (v2 >= 0){ r.std = true; v = v2; }
+      else { r.err = "base64 に置けない文字が " + (i + 1) + " 文字目にあります: " + JSON.stringify(ch); return r; }
+    }
+    vals.push(v);
+  }
+  if ((vals.length % 4) === 1){ r.err = "長さが 4 で割って 1 余ります。base64 としてありえない長さです。"; return r; }
+  var out = [];
+  for (i = 0; i + 4 <= vals.length; i += 4){
+    var n = (vals[i] << 18) | (vals[i+1] << 12) | (vals[i+2] << 6) | vals[i+3];
+    out.push((n >> 16) & 255, (n >> 8) & 255, n & 255);
+  }
+  var rest = vals.length - i;
+  if (rest === 2){
+    out.push(((vals[i] << 2) | (vals[i+1] >> 4)) & 255);
+    if ((vals[i+1] & 15) !== 0) r.slack = true;
+  } else if (rest === 3){
+    out.push(((vals[i] << 2) | (vals[i+1] >> 4)) & 255);
+    out.push((((vals[i+1] & 15) << 4) | (vals[i+2] >> 2)) & 255);
+    if ((vals[i+2] & 3) !== 0) r.slack = true;
+  }
+  r.bytes = out;
+  return r;
+}
+
+function bytesToB64u(bytes){
+  var out = "", i;
+  for (i = 0; i + 3 <= bytes.length; i += 3){
+    var n = (bytes[i] << 16) | (bytes[i+1] << 8) | bytes[i+2];
+    out += URLS.charAt((n >> 18) & 63) + URLS.charAt((n >> 12) & 63) + URLS.charAt((n >> 6) & 63) + URLS.charAt(n & 63);
+  }
+  var rest = bytes.length - i;
+  if (rest === 1){
+    out += URLS.charAt(bytes[i] >> 2) + URLS.charAt((bytes[i] & 3) << 4);
+  } else if (rest === 2){
+    out += URLS.charAt(bytes[i] >> 2) + URLS.charAt(((bytes[i] & 3) << 4) | (bytes[i+1] >> 4)) + URLS.charAt((bytes[i+1] & 15) << 2);
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------
+   UTF-8 の復号（自前・厳しめ）。overlong・サロゲート・上限超えは誤りにする。
+   ------------------------------------------------------------------ */
+function utf8Decode(bytes){
+  var out = "", i = 0;
+  while (i < bytes.length){
+    var b = bytes[i], cp, need, min;
+    if (b < 0x80){ cp = b; need = 0; min = 0; }
+    else if ((b & 0xE0) === 0xC0){ cp = b & 0x1F; need = 1; min = 0x80; }
+    else if ((b & 0xF0) === 0xE0){ cp = b & 0x0F; need = 2; min = 0x800; }
+    else if ((b & 0xF8) === 0xF0){ cp = b & 0x07; need = 3; min = 0x10000; }
+    else return { err: (i + 1) + "バイト目が UTF-8 の先頭バイトとして読めません。" };
+    if (i + need >= bytes.length) return { err: "UTF-8 の途中で終わっています。" };
+    for (var k = 1; k <= need; k++){
+      var c = bytes[i + k];
+      if ((c & 0xC0) !== 0x80) return { err: (i + k + 1) + "バイト目が UTF-8 の続きバイトになっていません。" };
+      cp = (cp << 6) | (c & 0x3F);
+    }
+    if (cp < min) return { err: "必要以上に長い書き方（overlong）の UTF-8 があります。" };
+    if (cp >= 0xD800 && cp <= 0xDFFF) return { err: "サロゲートの符号位置が UTF-8 で書かれています。" };
+    if (cp > 0x10FFFF) return { err: "U+10FFFF より大きい符号位置があります。" };
+    if (cp <= 0xFFFF) out += String.fromCharCode(cp);
+    else { cp -= 0x10000; out += String.fromCharCode(0xD800 + (cp >> 10), 0xDC00 + (cp & 0x3FF)); }
+    i += need + 1;
+  }
+  return { text: out };
+}
+
+/* ------------------------------------------------------------------
+   JSON の読み取り（自前）。JSON.parse は「同じ名前が2回出た」ことを
+   教えてくれない（後ろ勝ちで黙って潰す）ので、そこを拾うために書いた。
+   ------------------------------------------------------------------ */
+function jsonParse(text){
+  var i = 0, dups = [], bigInts = [];
+  function err(m){ throw new Error(m + "（文字位置 " + (i + 1) + "）"); }
+  function ws(){ while (i < text.length && (text.charAt(i) === " " || text.charAt(i) === "\t" || text.charAt(i) === "\n" || text.charAt(i) === "\r")) i++; }
+  function value(path){
+    ws();
+    if (i >= text.length) err("値が来るはずのところで終わっています");
+    var c = text.charAt(i);
+    if (c === "{") return object(path);
+    if (c === "[") return array(path);
+    if (c === "\"") return str();
+    if (c === "-" || (c >= "0" && c <= "9")) return num();
+    if (text.slice(i, i + 4) === "true"){ i += 4; return true; }
+    if (text.slice(i, i + 5) === "false"){ i += 5; return false; }
+    if (text.slice(i, i + 4) === "null"){ i += 4; return null; }
+    err("値として読めない文字があります");
+  }
+  function object(path){
+    i++; var o = {}, seen = {};
+    ws();
+    if (text.charAt(i) === "}"){ i++; return o; }
+    for (;;){
+      ws();
+      if (text.charAt(i) !== "\"") err("名前は二重引用符で囲む決まりです");
+      var k = str();
+      if (Object.prototype.hasOwnProperty.call(seen, "$" + k)) dups.push(path ? path + "." + k : k);
+      seen["$" + k] = 1;
+      ws();
+      if (text.charAt(i) !== ":") err("名前のあとに : がありません");
+      i++;
+      o[k] = value(path ? path + "." + k : k);
+      ws();
+      if (text.charAt(i) === ","){ i++; continue; }
+      if (text.charAt(i) === "}"){ i++; return o; }
+      err(", か } が来るはずです");
+    }
+  }
+  function array(path){
+    i++; var a = [];
+    ws();
+    if (text.charAt(i) === "]"){ i++; return a; }
+    for (;;){
+      a.push(value(path + "[" + a.length + "]"));
+      ws();
+      if (text.charAt(i) === ","){ i++; continue; }
+      if (text.charAt(i) === "]"){ i++; return a; }
+      err(", か ] が来るはずです");
+    }
+  }
+  function str(){
+    i++; var out = "";
+    for (;;){
+      if (i >= text.length) err("文字列が閉じていません");
+      var c = text.charAt(i);
+      if (c === "\""){ i++; return out; }
+      if (c === "\\"){
+        i++;
+        var e = text.charAt(i);
+        if (e === "\""){ out += "\""; i++; }
+        else if (e === "\\"){ out += "\\"; i++; }
+        else if (e === "/"){ out += "/"; i++; }
+        else if (e === "b"){ out += "\b"; i++; }
+        else if (e === "f"){ out += "\f"; i++; }
+        else if (e === "n"){ out += "\n"; i++; }
+        else if (e === "r"){ out += "\r"; i++; }
+        else if (e === "t"){ out += "\t"; i++; }
+        else if (e === "u"){
+          var hex = text.slice(i + 1, i + 5);
+          if (!/^[0-9a-fA-F]{4}$/.test(hex)) err("\\u のあとは16進4桁です");
+          out += String.fromCharCode(parseInt(hex, 16));
+          i += 5;
+        } else err("使えない逃がし方です");
+        continue;
+      }
+      if (c.charCodeAt(0) < 0x20) err("文字列の中に制御文字を直接置くことはできません");
+      out += c; i++;
+    }
+  }
+  function num(){
+    var st = i;
+    if (text.charAt(i) === "-") i++;
+    if (text.charAt(i) === "0") i++;
+    else { if (!(text.charAt(i) >= "1" && text.charAt(i) <= "9")) err("数として読めません"); while (text.charAt(i) >= "0" && text.charAt(i) <= "9") i++; }
+    if (text.charAt(i) === "."){ i++; if (!(text.charAt(i) >= "0" && text.charAt(i) <= "9")) err("小数点のあとに数字がありません"); while (text.charAt(i) >= "0" && text.charAt(i) <= "9") i++; }
+    if (text.charAt(i) === "e" || text.charAt(i) === "E"){
+      i++;
+      if (text.charAt(i) === "+" || text.charAt(i) === "-") i++;
+      if (!(text.charAt(i) >= "0" && text.charAt(i) <= "9")) err("指数のあとに数字がありません");
+      while (text.charAt(i) >= "0" && text.charAt(i) <= "9") i++;
+    }
+    var raw = text.slice(st, i), v = Number(raw);
+    /* 整数として書いてあるのに倍精度で表せる範囲を超えているものは記録する。
+       受け手の言語によって値が変わるため。 */
+    if (raw.indexOf(".") < 0 && raw.indexOf("e") < 0 && raw.indexOf("E") < 0){
+      if (Math.abs(v) > 9007199254740991) bigInts.push(raw);
+    }
+    return v;
+  }
+  var v = value("");
+  ws();
+  if (i < text.length) err("JSON のあとに余分な文字があります");
+  return { value: v, dups: dups, bigInts: bigInts };
+}
+
+/* ------------------------------------------------------------------
+   JWT の分解
+   ------------------------------------------------------------------ */
+function el(id){ return document.getElementById(id); }
+
+function cleanInput(s){
+  var noise = { bearer:false, ws:false, quote:false };
+  var t = s.replace(/\r/g, "");
+  var t2 = t.replace(/^\s+|\s+$/g, "");
+  if (t2 !== t) noise.ws = true;
+  t = t2;
+  if (/^bearer\s+/i.test(t)){ noise.bearer = true; t = t.replace(/^bearer\s+/i, ""); }
+  if (t.length >= 2 && ((t.charAt(0) === "\"" && t.charAt(t.length - 1) === "\"") ||
+                        (t.charAt(0) === String.fromCharCode(39) && t.charAt(t.length - 1) === String.fromCharCode(39)))){
+    noise.quote = true; t = t.slice(1, t.length - 1);
+  }
+  if (/\s/.test(t)){ noise.ws = true; t = t.replace(/\s+/g, ""); }
+  return { token: t, noise: noise };
+}
+
+function parseJwt(raw){
+  var c = cleanInput(raw);
+  var P = { raw: raw, token: c.token, noise: c.noise, parts: [], kind: null, errors: [] };
+  if (!P.token.length){ P.kind = "empty"; return P; }
+  P.parts = P.token.split(".");
+  if (P.parts.length === 5){ P.kind = "jwe"; return P; }
+  if (P.parts.length === 2){ P.kind = "two"; }
+  else if (P.parts.length === 3){ P.kind = "jws"; }
+  else { P.kind = "bad"; return P; }
+
+  var hs = P.parts[0], ps = P.parts[1];
+  var hb = b64uToBytes(hs), pb = b64uToBytes(ps);
+  P.hb = hb; P.pb = pb;
+  if (hb.err){ P.errors.push("1つめの部分（ヘッダ）: " + hb.err); }
+  if (pb.err){ P.errors.push("2つめの部分（中身）: " + pb.err); }
+  if (P.errors.length) return P;
+
+  var ht = utf8Decode(hb.bytes), pt = utf8Decode(pb.bytes);
+  if (ht.err){ P.errors.push("1つめの部分（ヘッダ）: " + ht.err); }
+  if (pt.err){ P.errors.push("2つめの部分（中身）: " + pt.err); }
+  if (P.errors.length) return P;
+  P.headerText = ht.text; P.payloadText = pt.text;
+
+  try { var hj = jsonParse(ht.text); P.header = hj.value; P.headerDups = hj.dups; P.headerBig = hj.bigInts; }
+  catch (e){ P.errors.push("1つめの部分（ヘッダ）が JSON として読めません: " + e.message); }
+  try { var pj = jsonParse(pt.text); P.payload = pj.value; P.payloadDups = pj.dups; P.payloadBig = pj.bigInts; }
+  catch (e2){ P.errors.push("2つめの部分（中身）が JSON として読めません: " + e2.message); }
+  if (P.errors.length) return P;
+
+  if (P.header === null || typeof P.header !== "object" || Object.prototype.toString.call(P.header) === "[object Array]")
+    P.errors.push("ヘッダが JSON のオブジェクトになっていません。");
+  if (P.payload === null || typeof P.payload !== "object" || Object.prototype.toString.call(P.payload) === "[object Array]")
+    P.errors.push("中身が JSON のオブジェクトになっていません。");
+  if (P.errors.length) return P;
+
+  if (P.parts.length === 3){
+    var sb = b64uToBytes(P.parts[2]);
+    P.sb = sb;
+    if (sb.err) P.errors.push("3つめの部分（署名）: " + sb.err);
+    else P.sigBytes = sb.bytes;
+  }
+  return P;
+}
+
+/* ------------------------------------------------------------------
+   アルゴリズムの表
+   ------------------------------------------------------------------ */
+var ALGS = {
+  "HS256": { fam:"HMAC",  hash:"SHA-256", len:32, jp:"共有の秘密を使う HMAC（SHA-256）" },
+  "HS384": { fam:"HMAC",  hash:"SHA-384", len:48, jp:"共有の秘密を使う HMAC（SHA-384）" },
+  "HS512": { fam:"HMAC",  hash:"SHA-512", len:64, jp:"共有の秘密を使う HMAC（SHA-512）" },
+  "RS256": { fam:"RSA",   hash:"SHA-256", len:0,  jp:"RSA の署名（PKCS#1 v1.5・SHA-256）" },
+  "RS384": { fam:"RSA",   hash:"SHA-384", len:0,  jp:"RSA の署名（PKCS#1 v1.5・SHA-384）" },
+  "RS512": { fam:"RSA",   hash:"SHA-512", len:0,  jp:"RSA の署名（PKCS#1 v1.5・SHA-512）" },
+  "PS256": { fam:"RSAPSS",hash:"SHA-256", len:0,  jp:"RSA の署名（PSS・SHA-256）" },
+  "PS384": { fam:"RSAPSS",hash:"SHA-384", len:0,  jp:"RSA の署名（PSS・SHA-384）" },
+  "PS512": { fam:"RSAPSS",hash:"SHA-512", len:0,  jp:"RSA の署名（PSS・SHA-512）" },
+  "ES256": { fam:"EC",    hash:"SHA-256", len:64, crv:"P-256", jp:"楕円曲線の署名（P-256・SHA-256）" },
+  "ES384": { fam:"EC",    hash:"SHA-384", len:96, crv:"P-384", jp:"楕円曲線の署名（P-384・SHA-384）" },
+  "ES512": { fam:"EC",    hash:"SHA-512", len:132,crv:"P-521", jp:"楕円曲線の署名（P-521・SHA-512）" },
+  "none":  { fam:"none",  hash:null, len:0, jp:"署名しない" }
+};
+
+/* よく使われる秘密。総当たりではなく「うっかり例のまま出した」を拾うための一覧。 */
+var WEAK_SECRETS = [
+  "secret","Secret","SECRET","password","Password","passw0rd","123456","1234567890",
+  "changeme","change-me","changeit","test","testing","dev","development","local","demo",
+  "key","mykey","mysecret","my-secret","supersecret","super-secret","topsecret",
+  "your-256-bit-secret","your-384-bit-secret","your-512-bit-secret",
+  "secretkey","secret-key","secret_key","jwtsecret","jwt-secret","jwt_secret","jwtSecret",
+  "shhhhh","qwerty","admin","root","token","auth","hello","hello world","foo","bar",
+  "0000000000000000","aaaaaaaaaaaaaaaa","abcdefghijklmnop",
+  "a-string-secret-at-least-256-bits-long"
+];
+
+/* ------------------------------------------------------------------
+   時刻の読み下し
+   ------------------------------------------------------------------ */
+function two(n){ return (n < 10 ? "0" : "") + n; }
+function fmtUTC(ms){
+  var d = new Date(ms);
+  return d.getUTCFullYear() + "-" + two(d.getUTCMonth() + 1) + "-" + two(d.getUTCDate()) + " " +
+         two(d.getUTCHours()) + ":" + two(d.getUTCMinutes()) + ":" + two(d.getUTCSeconds()) + " UTC";
+}
+function fmtLocal(ms){
+  var d = new Date(ms);
+  return d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate()) + " " +
+         two(d.getHours()) + ":" + two(d.getMinutes()) + ":" + two(d.getSeconds());
+}
+function humanSpan(sec){
+  var s = Math.abs(Math.round(sec));
+  if (s < 60) return s + "秒";
+  if (s < 3600) return Math.floor(s / 60) + "分";
+  if (s < 86400) return Math.floor(s / 3600) + "時間" + (Math.floor((s % 3600) / 60) ? Math.floor((s % 3600) / 60) + "分" : "");
+  if (s < 86400 * 365) return Math.floor(s / 86400) + "日";
+  return Math.floor(s / 86400 / 365) + "年";
+}
+function relative(ms, nowMs){
+  var d = (ms - nowMs) / 1000;
+  if (d >= 0) return "あと " + humanSpan(d);
+  return humanSpan(d) + "前";
+}
+/* 秒として読めない大きさか（ミリ秒で入れた疑い）。
+   10^12 秒 = 西暦 33658 年。ここを超えたら秒ではありえない。 */
+function looksMillis(v){ return typeof v === "number" && v > 1e12; }
+
+/* ------------------------------------------------------------------
+   ヘッダ・クレームの読み下し
+   ------------------------------------------------------------------ */
+var HEADER_JP = {
+  "alg": "どうやって署名したか",
+  "typ": "このものの種類",
+  "cty": "中身の種類",
+  "kid": "どの鍵で署名したかの目印",
+  "jku": "鍵の一覧（JWK Set）が置いてあるURL",
+  "jwk": "署名に使った公開鍵そのもの",
+  "x5u": "証明書が置いてあるURL",
+  "x5c": "証明書そのもの（並び）",
+  "x5t": "証明書の指紋（SHA-1）",
+  "x5t#S256": "証明書の指紋（SHA-256）",
+  "crit": "受け手が必ず理解しなければならない項目",
+  "enc": "中身をどう暗号化したか（JWE のもの）",
+  "zip": "中身をどう圧縮したか（JWE のもの）"
+};
+
+var CLAIM_JP = {
+  "iss": "発行した人（issuer）",
+  "sub": "誰についてのものか（subject）",
+  "aud": "誰に向けたものか（audience）",
+  "exp": "いつまで使えるか（expiration time）",
+  "nbf": "いつから使えるか（not before）",
+  "iat": "いつ発行したか（issued at）",
+  "jti": "このトークン1枚の通し番号（JWT ID）"
+};
+
+function isPlain(v){ return v !== null && typeof v === "object" && Object.prototype.toString.call(v) !== "[object Array]"; }
+function isArr(v){ return Object.prototype.toString.call(v) === "[object Array]"; }
+
+function short(v, n){
+  var s = typeof v === "string" ? v : JSON.stringify(v);
+  if (s === undefined) s = String(v);
+  if (s.length > n) return s.slice(0, n) + "…";
+  return s;
+}
+
+/* 個人情報・秘密らしい名前。名指しに使う（値は画面に出すが、外へは出ない）。 */
+var SECRET_KEYS = ["password","passwd","pwd","secret","client_secret","api_key","apikey","access_key",
+  "private_key","privatekey","token","refresh_token","credit_card","card_number","cvv","pin","otp"];
+var PII_KEYS = ["email","mail","e_mail","phone","tel","telephone","mobile","address","addr","zip","postal",
+  "birth","birthday","birthdate","dob","ssn","my_number","mynumber","passport","license","name_kana"];
+
+function keyHits(obj, list){
+  var out = [], k;
+  for (k in obj){
+    if (!Object.prototype.hasOwnProperty.call(obj, k)) continue;
+    var lk = k.toLowerCase().replace(/-/g, "_");
+    for (var i = 0; i < list.length; i++){
+      if (lk === list[i] || lk.indexOf(list[i]) >= 0){ out.push(k); break; }
+    }
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------
+   落とし穴の検出（data-code で機械照合できるようにしてある）
+   ------------------------------------------------------------------ */
+function pitfalls(P, nowMs){
+  var out = [];
+  function add(code, sev, title, body){ out.push({ code:code, sev:sev, title:title, body:body }); }
+
+  if (P.noise.bearer)
+    add("input-bearer", "info", "先頭の Bearer を取り除いて読みました。",
+      "HTTPの Authorization ヘッダの形のまま貼られたようです。トークン本体は Bearer とスペースより後ろです。");
+  if (P.noise.ws)
+    add("input-space", "info", "前後や途中の空白・改行を取り除いて読みました。",
+      "JWT に空白は入りません。コピーのときに折り返しが混ざったものと見なして詰めました。");
+  if (P.noise.quote)
+    add("input-quote", "info", "前後の引用符を取り除いて読みました。",
+      "JSON の値としてコピーしたときに付いてくるものです。トークン本体に引用符は入りません。");
+
+  if (P.kind === "jwe"){
+    add("jwe", "info", "これは暗号化されたトークン（JWE）です。",
+      "5つの部分に分かれています。中身は鍵が無いと読めません。この道具は開きません。");
+    return out;
+  }
+  if (P.kind === "two")
+    add("two-parts", "high", "部分が2つしかありません。署名がありません。",
+      "RFC 7515 は署名なしのときも末尾のピリオドを残すと決めています。ここが欠けていると、ライブラリによっては読めません。");
+  if (P.kind === "bad" || P.kind === "empty" || P.errors.length) return out;
+
+  var H = P.header, C = P.payload;
+  var alg = H.alg, spec = (typeof alg === "string") ? ALGS[alg] : null;
+
+  /* --- ヘッダ --- */
+  if (!Object.prototype.hasOwnProperty.call(H, "alg"))
+    add("alg-missing", "high", "ヘッダに alg がありません。",
+      "RFC 7515 では必須です。受け手が既定値で補うと、その既定値が何かによって検証の強さが変わります。");
+  else if (typeof alg !== "string")
+    add("alg-not-string", "high", "alg が文字列ではありません。",
+      "アルゴリズムの名前は文字列です。数値や真偽値を入れると、比較のしかたによっては素通りします。");
+  else if (alg === "none")
+    add("alg-none", "high", "alg が none です。このトークンには署名がありません。",
+      "誰でも中身を書き換えられます。受け手がヘッダの alg を信じて検証方法を決める作りだと、攻撃者が alg を none にするだけで通ります。受け手は「期待するアルゴリズム」を先に決めておく必要があります。");
+  else if (!spec){
+    if (ALGS[String(alg).toUpperCase()] || String(alg).toLowerCase() === "none")
+      add("alg-case", "high", "alg の大文字小文字が規格と違います。",
+        "アルゴリズムの名前は大文字小文字を区別します。ここが違うと、多くのライブラリは知らない名前として拒みますが、大文字小文字を無視して比べる実装だと none が通ってしまいます。");
+    else
+      add("alg-unknown", "warn", "知らないアルゴリズムです: " + JSON.stringify(alg),
+        "RFC 7518 の一覧にありません。独自のものかもしれませんが、受け手が対応していなければ検証できません。");
+  }
+  if (spec && spec.fam === "HMAC")
+    add("alg-hmac", "info", "共有の秘密で署名しています（" + alg + "）。",
+      "検証する側も署名する側と同じ秘密を持ちます。つまり受け手も偽造できます。第三者に検証だけさせたいときは RS256 や ES256 のような公開鍵方式にします。");
+  if (spec && (spec.fam === "RSA" || spec.fam === "EC" || spec.fam === "RSAPSS"))
+    add("alg-confusion", "warn", "公開鍵方式です。受け手が alg を見て検証方法を切り替えていないか確かめてください。",
+      "公開鍵は誰でも手に入るので、攻撃者が alg を HS256 に書き換え、その公開鍵を「共有の秘密」として署名し直す手があります（アルゴリズム混同）。受け手は期待するアルゴリズムを固定するべきです。");
+
+  if (Object.prototype.hasOwnProperty.call(H, "typ")){
+    var typ = H.typ;
+    if (typeof typ === "string" && typ.toUpperCase() !== "JWT" && typ.toLowerCase().indexOf("jwt") < 0)
+      add("typ-other", "info", "typ が JWT ではありません: " + JSON.stringify(typ),
+        "用途を分ける書き方です（例: at+jwt はアクセストークン）。受け手が用途を見ずに受けると、別の用途のトークンを取り違えて受け入れます。");
+  } else {
+    add("typ-missing", "info", "ヘッダに typ がありません。",
+      "無くても規格には反しません。ただし RFC 8725 は、用途の違うトークンの取り違えを防ぐために typ を書くことを勧めています。");
+  }
+  if (Object.prototype.hasOwnProperty.call(H, "kid")){
+    var kid = H.kid;
+    if (typeof kid === "string"){
+      if (/(^|[\\\/])\.\.([\\\/]|$)/.test(kid) || kid.indexOf("/") >= 0 || kid.indexOf("\\") >= 0)
+        add("kid-path", "high", "kid にパスのような文字が入っています: " + JSON.stringify(short(kid, 60)),
+          "kid をそのままファイル名に使う実装だと、任意のファイルを鍵として読ませられます。中身の分かるファイルを指させれば署名を作れます。");
+      if (/[;&|`$]|--|\bunion\b|\bselect\b/i.test(kid))
+        add("kid-inject", "high", "kid に命令として解釈されうる文字が入っています。",
+          "kid を SQL やシェルに組み込む実装だと、そのまま注入になります。");
+    } else {
+      add("kid-not-string", "warn", "kid が文字列ではありません。", "鍵の目印は文字列です。");
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(H, "jwk"))
+    add("hdr-jwk", "high", "ヘッダに公開鍵そのもの（jwk）が埋め込まれています。",
+      "受け手がこの鍵で検証してしまうと、誰でも自分の鍵で署名した偽のトークンを通せます。埋め込まれた鍵は、あらかじめ信頼している鍵と一致するときだけ使えます。");
+  if (Object.prototype.hasOwnProperty.call(H, "jku"))
+    add("hdr-jku", "high", "ヘッダに鍵の置き場所のURL（jku）が入っています: " + short(String(H.jku), 60),
+      "受け手がこのURLを取りにいく作りだと、攻撃者が自分のURLを書いて自分の鍵で検証させられます。取りにいく先は、あらかじめ決めた場所に限る必要があります。この道具はURLを開きません。");
+  if (Object.prototype.hasOwnProperty.call(H, "x5u"))
+    add("hdr-x5u", "high", "ヘッダに証明書の置き場所のURL（x5u）が入っています。",
+      "jku と同じ問題があります。受け手が指定されたURLを取りにいくなら、その先を攻撃者が決められます。");
+  if (Object.prototype.hasOwnProperty.call(H, "crit")){
+    var crit = H.crit;
+    if (!isArr(crit) || !crit.length)
+      add("crit-shape", "warn", "crit が空でない配列になっていません。", "RFC 7515 は空でない文字列の配列と決めています。");
+    else {
+      var miss = [];
+      for (var ci = 0; ci < crit.length; ci++)
+        if (!Object.prototype.hasOwnProperty.call(H, crit[ci])) miss.push(String(crit[ci]));
+      if (miss.length)
+        add("crit-missing", "high", "crit に挙げた項目がヘッダにありません: " + miss.join(", "),
+          "crit は「これを理解できないなら受け取るな」という指定です。挙げた項目そのものが無いのは規格違反で、受け手は拒むべき形です。");
+      else
+        add("crit-present", "info", "crit があります。受け手がこの項目を理解できなければ拒む決まりです。",
+          "対応していない受け手はエラーになります。相手を選ぶトークンです。");
+    }
+  }
+  if (P.headerDups && P.headerDups.length)
+    add("hdr-dup", "high", "ヘッダに同じ名前が2回以上あります: " + P.headerDups.join(", "),
+      "JSON の読み手によって前勝ち・後ろ勝ちが割れます。検証する側と中身を見る側が違う値を読む余地が生まれます。");
+
+  /* --- 中身（クレーム） --- */
+  var now = Math.floor(nowMs / 1000);
+  function tnum(name){
+    if (!Object.prototype.hasOwnProperty.call(C, name)) return null;
+    return C[name];
+  }
+  var exp = tnum("exp"), nbf = tnum("nbf"), iat = tnum("iat");
+
+  ["exp","nbf","iat"].forEach(function(nm){
+    var v = C[nm];
+    if (v === undefined) return;
+    if (typeof v === "string" && /^-?\d+$/.test(v))
+      add("time-string-" + nm, "warn", nm + " が文字列で書かれています: " + JSON.stringify(v),
+        "RFC 7519 は数値（NumericDate）と決めています。文字列を数値に直してから比べる実装なら通りますが、厳しい実装は拒みます。");
+    else if (typeof v !== "number")
+      add("time-type-" + nm, "high", nm + " が数値ではありません。",
+        "1970年1月1日からの秒数を数値で書く決まりです。");
+    else if (looksMillis(v))
+      add("time-millis-" + nm, "high", nm + " がミリ秒で入っているようです（" + v + "）。",
+        "秒として読むと " + fmtUTC(v * 1000) + " になります。JWT の時刻は秒です。1000倍したまま入れると、期限切れが永久に来ません。");
+  });
+
+  if (exp === null)
+    add("exp-missing", "high", "exp がありません。このトークンは自分では期限切れになりません。",
+      "受け手が別の方法で期限を決めていない限り、盗まれたら永久に使えます。");
+  else if (typeof exp === "number" && !looksMillis(exp)){
+    if (exp * 1000 <= nowMs)
+      add("exp-past", "high", "期限が切れています（" + relative(exp * 1000, nowMs) + "）。",
+        "受け手は拒むはずです。それでも通るなら、受け手が exp を見ていません。");
+    if (typeof iat === "number" && !looksMillis(iat) && exp - iat > 86400 * 365)
+      add("exp-long", "warn", "発行から期限までが1年を超えています（" + humanSpan(exp - iat) + "）。",
+        "長いほど、盗まれたときに使える時間も長くなります。短くして更新する形が勧められています。");
+    else if (typeof iat === "number" && !looksMillis(iat) && exp - iat > 86400)
+      add("exp-longish", "info", "発行から期限までが1日を超えています（" + humanSpan(exp - iat) + "）。",
+        "用途によりますが、アクセストークンとしては長めです。");
+  }
+  if (typeof nbf === "number" && !looksMillis(nbf)){
+    if (nbf * 1000 > nowMs)
+      add("nbf-future", "warn", "まだ使えません（使えるのは " + relative(nbf * 1000, nowMs) + "）。",
+        "nbf はここから使えるという指定です。時計が少しずれているだけのこともあります。");
+    if (typeof exp === "number" && !looksMillis(exp) && nbf >= exp)
+      add("nbf-after-exp", "high", "nbf が exp 以降になっています。このトークンは一度も使えません。",
+        "使えるようになる前に期限が切れます。作った側の計算違いです。");
+  }
+  if (typeof iat === "number" && !looksMillis(iat) && iat * 1000 > nowMs + 60000)
+    add("iat-future", "warn", "発行時刻が未来になっています（" + relative(iat * 1000, nowMs) + "）。",
+      "発行した機械とこのブラウザの時計がずれているか、値が間違っています。");
+
+  if (!Object.prototype.hasOwnProperty.call(C, "iss"))
+    add("iss-missing", "info", "iss がありません。誰が発行したか書かれていません。",
+      "受け手が複数の発行元を扱うなら、発行元ごとに鍵を選べません。");
+  if (!Object.prototype.hasOwnProperty.call(C, "aud"))
+    add("aud-missing", "info", "aud がありません。誰に向けたものか書かれていません。",
+      "別のサービス向けに出したトークンを、そのまま自分のところで受けてしまう余地が残ります。");
+  else if (isArr(C.aud))
+    add("aud-array", "info", "aud が配列です。",
+      "規格上どちらも正しい書き方ですが、受け手が文字列としてしか比べていないと、配列のときに一致しません。");
+  if (!Object.prototype.hasOwnProperty.call(C, "jti"))
+    add("jti-missing", "info", "jti がありません。同じトークンの使い回しを見分けられません。",
+      "一度使ったら無効にする作りにするなら、1枚ごとの通し番号が要ります。");
+  if (Object.prototype.hasOwnProperty.call(C, "sub") && typeof C.sub === "number")
+    add("sub-number", "warn", "sub が数値です。",
+      "RFC 7519 は文字列（StringOrURI）と決めています。数値のまま比べる受け手と、文字列に直して比べる受け手で結果が割れます。");
+
+  var sec = keyHits(C, SECRET_KEYS);
+  if (sec.length)
+    add("payload-secret", "high", "中身に秘密らしい名前があります: " + sec.join(", "),
+      "JWT の中身は暗号化されていません。base64 を戻せば誰でも読めます。パスワードや鍵をここに入れてはいけません。");
+  var pii = keyHits(C, PII_KEYS);
+  if (pii.length)
+    add("payload-pii", "warn", "中身に個人情報らしい名前があります: " + pii.join(", "),
+      "同じく暗号化されていません。ブラウザの保存領域やログ、プロキシの記録に、そのまま平文で残ります。");
+  if (P.payloadDups && P.payloadDups.length)
+    add("payload-dup", "high", "中身に同じ名前が2回以上あります: " + P.payloadDups.join(", "),
+      "検証する側と権限を見る側で違う値を読む余地が生まれます。JSON の読み手しだいで前勝ち・後ろ勝ちが変わります。");
+  if ((P.headerBig && P.headerBig.length) || (P.payloadBig && P.payloadBig.length))
+    add("bigint", "warn", "倍精度で正確に表せない大きさの整数があります。",
+      "JavaScript で読むと値が変わります。受け手の言語によって別の数になるので、比較が成り立ちません。");
+
+  /* --- 符号化まわり --- */
+  var enc = [];
+  if (P.hb && P.hb.pad) enc.push("ヘッダの段");
+  if (P.pb && P.pb.pad) enc.push("中身の段");
+  if (P.sb && P.sb.pad) enc.push("署名の段");
+  if (enc.length)
+    add("b64-padding", "warn", "詰めの = が付いています（" + enc.join("・") + "）。",
+      "RFC 7515 は base64url の詰めを書かないと決めています。受ける実装と拒む実装があります。");
+  var std = [];
+  if (P.hb && P.hb.std) std.push("ヘッダの段");
+  if (P.pb && P.pb.std) std.push("中身の段");
+  if (P.sb && P.sb.std) std.push("署名の段");
+  if (std.length)
+    add("b64-standard", "high", "url-safe でない + と / が使われています（" + std.join("・") + "）。",
+      "JWT は base64url です。URLやフォームに載せると + が空白に化けて、署名が合わなくなります。");
+  var slk = [];
+  if (P.hb && P.hb.slack) slk.push("ヘッダの段");
+  if (P.pb && P.pb.slack) slk.push("中身の段");
+  if (P.sb && P.sb.slack) slk.push("署名の段");
+  if (slk.length)
+    add("b64-slack", "warn", "末尾の余ったビットが0になっていません（" + slk.join("・") + "）。",
+      "正規化されていない base64 です。別の文字を書いても同じバイト列に戻るので、署名の対象になった文字列と読み取った中身が食い違う余地が生まれます。");
+
+  /* --- 署名の長さ --- */
+  if (P.sigBytes && spec){
+    if (spec.fam === "none" && P.sigBytes.length)
+      add("sig-none-nonempty", "high", "alg が none なのに署名が入っています。",
+        "受け手は空でなければ拒むべきです。");
+    if (spec.len && P.sigBytes.length !== spec.len){
+      if (spec.fam === "EC" && P.sigBytes.length >= 2 && P.sigBytes[0] === 0x30)
+        add("sig-der", "high", alg + " の署名が DER の形になっています（" + P.sigBytes.length + "バイト）。",
+          "JOSE の楕円曲線署名は R と S を固定長で並べた " + spec.len + "バイトです。OpenSSL 系のライブラリはそのままだと DER を出すので、変換を忘れると相手が検証できません。");
+      else
+        add("sig-len", "high", alg + " の署名の長さが合いません（" + P.sigBytes.length + "バイト、正しくは " + spec.len + "バイト）。",
+          "この長さでは検証は必ず失敗します。");
+    }
+    if (spec.fam === "none" && P.parts.length === 3 && P.parts[2] === "")
+      add("sig-empty", "info", "署名は空です。", "alg が none のときの正しい形です。中身は誰でも書き換えられます。");
+  }
+  if (P.token.length > 4096)
+    add("size-big", "warn", "トークンが " + P.token.length + "文字あります。",
+      "Cookie の1個あたりの上限（およそ4KB）を超えます。HTTPヘッダの上限（サーバによっては8KB）に当たることもあります。");
+
+  return out;
+}
+
+/* ------------------------------------------------------------------
+   署名の検証（crypto.subtle）
+   ------------------------------------------------------------------ */
+function bytesToBuf(b){ var u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b[i]; return u.buffer; }
+function strToBytes(s){
+  var out = [], i;
+  for (i = 0; i < s.length; i++){
+    var c = s.charCodeAt(i);
+    if (c < 0x80) out.push(c);
+    else if (c < 0x800) out.push(0xC0 | (c >> 6), 0x80 | (c & 63));
+    else if (c >= 0xD800 && c <= 0xDBFF && i + 1 < s.length){
+      var c2 = s.charCodeAt(i + 1), cp = 0x10000 + ((c - 0xD800) << 10) + (c2 - 0xDC00);
+      out.push(0xF0 | (cp >> 18), 0x80 | ((cp >> 12) & 63), 0x80 | ((cp >> 6) & 63), 0x80 | (cp & 63));
+      i++;
+    }
+    else out.push(0xE0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+  }
+  return out;
+}
+function pemToBytes(pem){
+  var body = pem.replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  var r = b64uToBytes(body);
+  return r.err ? null : r.bytes;
+}
+
+function importVerifyKey(spec, keyText, asB64){
+  var sub = window.crypto && window.crypto.subtle;
+  if (!sub) return Promise.reject(new Error("このブラウザには crypto.subtle がありません。"));
+  if (spec.fam === "HMAC"){
+    var raw = asB64 ? (b64uToBytes(keyText.replace(/\s+/g, "")).bytes || []) : strToBytes(keyText);
+    return sub.importKey("raw", bytesToBuf(raw), { name:"HMAC", hash:{ name:spec.hash } }, false, ["verify"]);
+  }
+  var t = keyText.replace(/^\s+|\s+$/g, "");
+  if (t.charAt(0) === "{"){
+    var jwk;
+    try { jwk = JSON.parse(t); } catch (e){ return Promise.reject(new Error("JWK の JSON として読めません。")); }
+    var algo = spec.fam === "EC" ? { name:"ECDSA", namedCurve: spec.crv }
+             : spec.fam === "RSAPSS" ? { name:"RSA-PSS", hash:{ name:spec.hash } }
+             : { name:"RSASSA-PKCS1-v1_5", hash:{ name:spec.hash } };
+    return sub.importKey("jwk", jwk, algo, false, ["verify"]);
+  }
+  var der = pemToBytes(t);
+  if (!der) return Promise.reject(new Error("PEM として読めません。"));
+  var algo2 = spec.fam === "EC" ? { name:"ECDSA", namedCurve: spec.crv }
+            : spec.fam === "RSAPSS" ? { name:"RSA-PSS", hash:{ name:spec.hash } }
+            : { name:"RSASSA-PKCS1-v1_5", hash:{ name:spec.hash } };
+  return sub.importKey("spki", bytesToBuf(der), algo2, false, ["verify"]);
+}
+
+function verifySig(spec, key, sigBytes, signingInput){
+  var sub = window.crypto.subtle;
+  var params = spec.fam === "EC" ? { name:"ECDSA", hash:{ name:spec.hash } }
+             : spec.fam === "RSAPSS" ? { name:"RSA-PSS", saltLength: spec.hash === "SHA-256" ? 32 : spec.hash === "SHA-384" ? 48 : 64 }
+             : spec.fam === "HMAC" ? { name:"HMAC" }
+             : { name:"RSASSA-PKCS1-v1_5" };
+  return sub.verify(params, key, bytesToBuf(sigBytes), bytesToBuf(strToBytes(signingInput)));
+}
+
+var sigToken = 0;
+function runSignature(P){
+  var panel = el("sigPanel"), vd = el("sigVerdict"), tb = el("sigTable").getElementsByTagName("tbody")[0];
+  tb.innerHTML = "";
+  if (!P.header || P.errors.length || P.kind === "jwe"){ panel.className = "panel off"; return; }
+  panel.className = "panel";
+
+  var alg = P.header.alg, spec = (typeof alg === "string") ? ALGS[alg] : null;
+  function row(k, v){
+    var tr = document.createElement("tr");
+    var td1 = document.createElement("td"); td1.className = "k"; td1.textContent = k;
+    var td2 = document.createElement("td"); td2.className = "v"; td2.textContent = v;
+    tr.appendChild(td1); tr.appendChild(td2); tb.appendChild(tr);
+  }
+  row("アルゴリズム", (typeof alg === "string" ? alg : JSON.stringify(alg)) + (spec ? "（" + spec.jp + "）" : ""));
+  row("署名の長さ", (P.sigBytes ? P.sigBytes.length : 0) + " バイト" + (spec && spec.len ? "（" + alg + " は " + spec.len + " バイト）" : ""));
+  row("署名の対象", "1つめと2つめの部分を、ピリオドでつないだ文字列そのもの（" + (P.parts[0].length + 1 + P.parts[1].length) + " 文字）");
+
+  var my = ++sigToken;
+  function say(cls, text, note){
+    if (my !== sigToken) return;
+    vd.innerHTML = "";
+    var b = document.createElement("b"); b.className = cls; b.textContent = text;
+    vd.appendChild(b);
+    if (note) vd.appendChild(document.createTextNode(" " + note));
+  }
+
+  if (!spec || spec.fam === "none"){
+    say("unk", "署名はありません。", "alg が none のトークンは、中身が本物である保証をまったく持ちません。");
+    return;
+  }
+  var keyText = el("key").value;
+  var signingInput = P.parts[0] + "." + P.parts[1];
+  var sig = P.sigBytes || [];
+
+  if (!keyText.replace(/\s+/g, "").length){
+    if (spec.fam === "HMAC" && el("weak").checked){
+      say("unk", "鍵を入れていないので、署名は確かめていません。", "よく使われる秘密を試しています…");
+      tryWeak(spec, sig, signingInput, my, say);
+    } else {
+      say("unk", "鍵を入れていないので、署名は確かめていません。",
+        spec.fam === "HMAC" ? "上の欄に共有の秘密を入れると確かめます。" : "上の欄に公開鍵（JWK か PEM）を入れると確かめます。");
+    }
+    return;
+  }
+  say("unk", "確かめています…", "");
+  importVerifyKey(spec, keyText, el("b64key").checked).then(function(key){
+    return verifySig(spec, key, sig, signingInput);
+  }).then(function(ok){
+    if (ok) say("good", "署名は正しいです。", "この鍵で署名されたもので、1つめと2つめの部分は書き換えられていません。");
+    else say("bad", "署名が合いません。", "鍵が違うか、中身が書き換えられているか、アルゴリズムの取り違えです。");
+  })["catch"](function(e){
+    say("unk", "確かめられませんでした。", String(e && e.message ? e.message : e));
+  });
+}
+
+function tryWeak(spec, sig, signingInput, my, say){
+  var i = 0;
+  function next(){
+    if (my !== sigToken) return;
+    if (i >= WEAK_SECRETS.length){
+      say("unk", "鍵を入れていないので、署名は確かめていません。",
+        "よく使われる秘密 " + WEAK_SECRETS.length + " 個では検証できませんでした（それ自体は良いことです）。");
+      return;
+    }
+    var s = WEAK_SECRETS[i++];
+    importVerifyKey(spec, s, false).then(function(k){
+      return verifySig(spec, k, sig, signingInput);
+    }).then(function(ok){
+      if (my !== sigToken) return;
+      if (ok) say("bad", "秘密が当てられました: " + JSON.stringify(s),
+        "よく使われる秘密の一覧に入っていたものです。この鍵を知っている人は誰でも、好きな中身のトークンを作れます。すぐ変えてください。");
+      else next();
+    })["catch"](function(){ next(); });
+  }
+  next();
+}
+
+/* ------------------------------------------------------------------
+   画面に出す
+   ------------------------------------------------------------------ */
+function pretty(v){
+  try { return JSON.stringify(v, null, 2); } catch (e){ return String(v); }
+}
+
+function render(){
+  var raw = el("src").value;
+  var P = parseJwt(raw);
+  var nowMs = Date.now();
+
+  var eP = el("errPanel"), eM = el("errMsg");
+  var msgs = [];
+  if (P.kind === "bad") msgs.push("ピリオドで区切った部分が " + P.parts.length + " 個あります。JWT は署名つきなら3個、暗号化されていれば5個です。");
+  for (var i = 0; i < P.errors.length; i++) msgs.push(P.errors[i]);
+  if (P.kind === "empty" || !msgs.length) eP.className = "panel off";
+  else {
+    eP.className = "panel";
+    eM.innerHTML = "";
+    var ul = document.createElement("ul");
+    for (var j = 0; j < msgs.length; j++){ var li = document.createElement("li"); li.textContent = msgs[j]; ul.appendChild(li); }
+    eM.appendChild(document.createTextNode("読めませんでした。"));
+    eM.appendChild(ul);
+  }
+
+  /* 3つの部分 */
+  var pp = el("partsPanel"), pb = el("partsBox"), pl = el("partsLegend");
+  if (P.kind === "empty" || P.kind === "bad"){ pp.className = "panel off"; }
+  else {
+    pp.className = "panel";
+    pb.innerHTML = ""; pl.innerHTML = "";
+    var names = P.kind === "jwe"
+      ? ["ヘッダ", "暗号化した鍵", "初期化ベクトル", "暗号文", "認証タグ"]
+      : ["ヘッダ", "中身（クレーム）", "署名"];
+    for (var k = 0; k < P.parts.length; k++){
+      if (k) { var d = document.createElement("span"); d.className = "dot"; d.textContent = "."; pb.appendChild(d); }
+      var sp = document.createElement("span");
+      sp.className = "s" + (k < 3 ? (k + 1) : 3);
+      sp.textContent = P.parts[k];
+      pb.appendChild(sp);
+    }
+    for (var m = 0; m < P.parts.length && m < names.length; m++){
+      var lg = document.createElement("span");
+      var bb = document.createElement("b"); bb.className = "s" + (m < 3 ? (m + 1) : 3); bb.textContent = "■";
+      lg.appendChild(bb);
+      lg.appendChild(document.createTextNode(" " + names[m] + "（" + P.parts[m].length + "文字）"));
+      pl.appendChild(lg);
+    }
+  }
+
+  /* ヘッダ */
+  var hp = el("headerPanel");
+  if (!P.header || P.errors.length){ hp.className = "panel off"; }
+  else {
+    hp.className = "panel";
+    el("headerJson").textContent = pretty(P.header);
+    var hb = el("headerBox"); hb.innerHTML = "";
+    for (var hk in P.header){
+      if (!Object.prototype.hasOwnProperty.call(P.header, hk)) continue;
+      hb.appendChild(claimCard(hk, P.header[hk], HEADER_JP[hk], headerSummary(hk, P.header[hk])));
+    }
+  }
+
+  /* 中身 */
+  var yp = el("payloadPanel");
+  if (!P.payload || P.errors.length){ yp.className = "panel off"; }
+  else {
+    yp.className = "panel";
+    el("payloadJson").textContent = pretty(P.payload);
+    var yb = el("payloadBox"); yb.innerHTML = "";
+    for (var ck in P.payload){
+      if (!Object.prototype.hasOwnProperty.call(P.payload, ck)) continue;
+      yb.appendChild(claimCard(ck, P.payload[ck], CLAIM_JP[ck], claimSummary(ck, P.payload[ck], nowMs)));
+    }
+  }
+
+  runSignature(P);
+
+  /* 指摘 */
+  var notes = pitfalls(P, nowMs);
+  var nl = el("notesList");
+  nl.innerHTML = "";
+  for (var n = 0; n < notes.length; n++){
+    var nli = document.createElement("li");
+    nli.className = "sev-" + notes[n].sev;
+    nli.setAttribute("data-code", notes[n].code);
+    var b = document.createElement("b"); b.textContent = notes[n].title;
+    nli.appendChild(b);
+    nli.appendChild(document.createTextNode(notes[n].body));
+    nl.appendChild(nli);
+  }
+  el("notesNone").style.display = notes.length ? "none" : "";
+}
+
+function claimCard(name, value, jp, summary){
+  var d = document.createElement("div"); d.className = "ccard";
+  var n = document.createElement("div"); n.className = "cname";
+  n.textContent = name + (jp ? "　" + jp : "");
+  var v = document.createElement("div"); v.className = "cval";
+  v.textContent = typeof value === "string" ? JSON.stringify(value) : pretty(value).replace(/\n\s*/g, " ");
+  d.appendChild(n); d.appendChild(v);
+  if (summary){
+    var s = document.createElement("div"); s.className = "csum";
+    if (typeof summary === "string") s.textContent = summary;
+    else { s.appendChild(summary); }
+    d.appendChild(s);
+  }
+  return d;
+}
+
+function headerSummary(k, v){
+  if (k === "alg"){
+    var sp = ALGS[v];
+    if (sp) return sp.jp + "です。" + (sp.fam === "HMAC" ? "検証する側も同じ秘密を持ちます。" :
+      sp.fam === "none" ? "署名が無いという指定です。" : "公開鍵で検証できます。");
+    return "RFC 7518 の一覧にない名前です。";
+  }
+  if (k === "typ") return "この文字列を見て、用途の違うトークンを取り違えないようにします。";
+  if (k === "kid") return "受け手はこの目印で鍵を選びます。目印であって、鍵そのものではありません。";
+  if (k === "jku" || k === "x5u") return "受け手がここを取りにいく作りだと、取りにいく先を書いた人が決めることになります。";
+  if (k === "jwk") return "署名に使ったと主張している公開鍵です。主張であって、信頼の根拠にはなりません。";
+  if (k === "crit") return "受け手がこの項目を理解できないなら、受け取らない決まりです。";
+  if (k === "cty") return "中身がさらに別の形式（入れ子の JWT など）のときに書きます。";
+  return null;
+}
+
+function claimSummary(k, v, nowMs){
+  if (k === "exp" || k === "nbf" || k === "iat"){
+    if (typeof v !== "number") return "数値ではないので時刻として読めません。";
+    if (looksMillis(v)){
+      return "秒として読むと " + fmtUTC(v * 1000) + "。ミリ秒を入れたものと思われます（1000で割ると " + fmtUTC(v) + "）。";
+    }
+    var ms = v * 1000;
+    var word = k === "exp" ? "ここまで使えます" : k === "nbf" ? "ここから使えます" : "ここで発行されました";
+    return fmtUTC(ms) + "（このブラウザの時計で " + fmtLocal(ms) + "）。" + word + "（" + relative(ms, nowMs) + "）。";
+  }
+  if (k === "aud" && isArr(v)) return "配列で書かれています。受け手は自分の名前がこの中にあるかを見ます。";
+  if (k === "sub") return "誰についてのトークンかです。受け手のシステムでの利用者IDが入るのがふつうです。";
+  if (k === "iss") return "発行元です。受け手はこれを見て、どの鍵で検証するかを決められます。";
+  if (k === "jti") return "1枚ごとの通し番号です。使い回しを弾くのに使えます。";
+  return null;
+}
+
+/* ------------------------------------------------------------------
+   自己検査（自前の復号・JSON読み取りを、ブラウザのものと突き合わせる）
+   ------------------------------------------------------------------ */
+var SELF_B64 = [
+  "", "QQ", "QUE", "QUJD", "e30", "eyJhIjoxfQ",
+  "-_-_", "AAAA", "AQAB", "SGVsbG8sIHdvcmxkIQ",
+  "44GT44KT44Gr44Gh44Gv", "8J-Ygg", "AA", "AAE", "f_8", "_w"
+];
+var SELF_JSON = [
+  "{}", "{\"a\":1}", "{\"a\":\"b\",\"c\":[1,2,3]}", "{\"n\":null,\"t\":true,\"f\":false}",
+  "{\"s\":\"\\u3042\\n\\t\\\\\"}", "{\"x\":-1.5e3}", "[1,2,3]", "\"abc\"", "0",
+  "{\"a\":{\"b\":{\"c\":[{}]}}}", "{\"e\":\"\"}", "{\"u\":\"\\ud83d\\ude02\"}"
+];
+
+function selfCheck(){
+  var out = [], i;
+
+  /* 1. base64url の復号を atob と比べる */
+  var b64ok = 0, b64n = 0, b64bad = null;
+  for (i = 0; i < SELF_B64.length; i++){
+    var s = SELF_B64[i], mine = b64uToBytes(s);
+    var pad = s.length % 4 === 2 ? "==" : s.length % 4 === 3 ? "=" : "";
+    var std = s.replace(/-/g, "+").replace(/_/g, "/") + pad;
+    var theirs = null;
+    try {
+      var bin = atob(std), arr = [];
+      for (var q = 0; q < bin.length; q++) arr.push(bin.charCodeAt(q));
+      theirs = arr;
+    } catch (e){ theirs = null; }
+    b64n++;
+    if (theirs && mine.bytes && theirs.join(",") === mine.bytes.join(",")) b64ok++;
+    else if (!theirs && !mine.bytes) b64ok++;
+    else if (b64bad === null) b64bad = s;
+  }
+  out.push({ ok: b64ok === b64n, t: "base64url の復号が atob と一致する",
+             detail: b64ok + " / " + b64n + (b64bad === null ? "" : "、外れた例 " + JSON.stringify(b64bad)) });
+
+  /* 2. 書き戻して同じ文字列になるか（往復） */
+  var rtok = 0, rtn = 0;
+  for (i = 0; i < SELF_B64.length; i++){
+    var t = SELF_B64[i], d = b64uToBytes(t);
+    if (!d.bytes || d.slack) continue;
+    rtn++;
+    if (bytesToB64u(d.bytes) === t) rtok++;
+  }
+  out.push({ ok: rtok === rtn, t: "復号してから書き戻すと元の文字列に戻る", detail: rtok + " / " + rtn });
+
+  /* 3. UTF-8 の復号を TextDecoder と比べる */
+  var uok = 0, un = 0;
+  var samples = [];
+  for (i = 0; i < SELF_B64.length; i++){ var b = b64uToBytes(SELF_B64[i]); if (b.bytes) samples.push(b.bytes); }
+  /* 正しい形だけ並べると、厳しさを外しても気づけない。壊れた形も入れる。 */
+  samples.push([0xE3,0x81,0x82], [0xF0,0x9F,0x98,0x82], [0x41,0x42], [0xC3,0xA9],
+               [0xC0,0x80],                /* 必要以上に長い書き方 */
+               [0xE0,0x80,0x80],           /* 同じく */
+               [0xED,0xA0,0x80],           /* サロゲートの符号位置 */
+               [0xF5,0x80,0x80,0x80],      /* U+10FFFF より上 */
+               [0xE3,0x81],                /* 途中で切れている */
+               [0x80]);                    /* いきなり続きバイト */
+  var TD = (typeof TextDecoder !== "undefined") ? new TextDecoder("utf-8", { fatal:true }) : null;
+  for (i = 0; i < samples.length; i++){
+    if (!TD) break;
+    un++;
+    var mineT = utf8Decode(samples[i]), theirsT = null;
+    try { theirsT = TD.decode(new Uint8Array(samples[i])); } catch (e2){ theirsT = null; }
+    if (theirsT === null && mineT.err) uok++;
+    else if (theirsT !== null && mineT.text === theirsT) uok++;
+  }
+  out.push({ ok: un > 0 && uok === un, t: "UTF-8 の復号が TextDecoder と一致する", detail: uok + " / " + un });
+
+  /* 4. JSON の読み取りを JSON.parse と比べる */
+  var jok = 0, jn = 0, jbad = null;
+  for (i = 0; i < SELF_JSON.length; i++){
+    jn++;
+    var mineJ = null, theirsJ = null, me = false, te = false;
+    try { mineJ = jsonParse(SELF_JSON[i]).value; } catch (e3){ me = true; }
+    try { theirsJ = JSON.parse(SELF_JSON[i]); } catch (e4){ te = true; }
+    if (me && te) jok++;
+    else if (!me && !te && JSON.stringify(mineJ) === JSON.stringify(theirsJ)) jok++;
+    else if (jbad === null) jbad = SELF_JSON[i];
+  }
+  out.push({ ok: jok === jn, t: "JSON の読み取りが JSON.parse と一致する",
+             detail: jok + " / " + jn + (jbad === null ? "" : "、外れた例 " + jbad) });
+
+  /* 5. JSON.parse が教えてくれない重複を、こちらは拾えているか */
+  var dupSrc = "{\"a\":1,\"b\":2,\"a\":3}";
+  var dupFound = false;
+  try { dupFound = jsonParse(dupSrc).dups.join(",") === "a"; } catch (e5){}
+  var parseHides = false;
+  try { parseHides = Object.keys(JSON.parse(dupSrc)).length === 2; } catch (e6){}
+  out.push({ ok: dupFound && parseHides, t: "同じ名前が2回あることを拾える（JSON.parse は黙って潰す）",
+             detail: dupFound ? "拾えた" : "拾えなかった" });
+
+  /* 6. 通信していないこと（このページが出したリクエストの数） */
+  var reqs = null;
+  try {
+    if (window.performance && performance.getEntriesByType){
+      var es = performance.getEntriesByType("resource");
+      reqs = es.length;
+    }
+  } catch (e7){ reqs = null; }
+  if (reqs !== null)
+    out.push({ ok: reqs === 0, t: "読み込み後にこのページが出した通信は0件",
+               detail: reqs + " 件" });
+
+  return out;
+}
+
+/* ------------------------------------------------------------------
+   例（署名つきのものは、いまこの場でブラウザに署名させて作る）
+   ------------------------------------------------------------------ */
+var PRESET_SECRET = "hirulab-example-secret-2026-08-24";
+
+function makeLive(header, payload, secret){
+  var sub = window.crypto && window.crypto.subtle;
+  var hs = bytesToB64u(strToBytes(JSON.stringify(header)));
+  var ps = bytesToB64u(strToBytes(JSON.stringify(payload)));
+  var input = hs + "." + ps;
+  if (!sub) return Promise.resolve(input + ".");
+  return sub.importKey("raw", bytesToBuf(strToBytes(secret)), { name:"HMAC", hash:{ name:"SHA-256" } }, false, ["sign"])
+    .then(function(k){ return sub.sign({ name:"HMAC" }, k, bytesToBuf(strToBytes(input))); })
+    .then(function(sig){
+      var u = new Uint8Array(sig), arr = [];
+      for (var i = 0; i < u.length; i++) arr.push(u[i]);
+      return input + "." + bytesToB64u(arr);
+    })["catch"](function(){ return input + "."; });
+}
+
+var PRESETS = [
+  { n:"ふつうのトークン", live:function(){
+      var now = Math.floor(Date.now() / 1000);
+      return makeLive({ alg:"HS256", typ:"JWT" },
+        { iss:"https://auth.example.com", sub:"1234567890", aud:"https://api.example.com",
+          name:"Taro Yamada", iat:now - 300, nbf:now - 300, exp:now + 3300,
+          jti:"0f6a1c1e-2f5b-4d3a-9d1a-2b8e5c7a91d4", scope:"read:profile" }, PRESET_SECRET);
+    }},
+  { n:"期限が切れている", live:function(){
+      var now = Math.floor(Date.now() / 1000);
+      return makeLive({ alg:"HS256", typ:"JWT" },
+        { iss:"https://auth.example.com", sub:"7", iat:now - 86400 * 30, exp:now - 86400 * 16 }, PRESET_SECRET);
+    }},
+  { n:"exp をミリ秒で入れた", live:function(){
+      var now = Math.floor(Date.now() / 1000);
+      return makeLive({ alg:"HS256", typ:"JWT", kid:"../../etc/passwd" },
+        { sub:"42", email:"taro@example.com", password:"hunter2", tel:"090-1234-5678",
+          iat:now - 100, exp:(now + 3600) * 1000 }, PRESET_SECRET);
+    }},
+  { n:"弱い秘密で署名されている", live:function(){
+      var now = Math.floor(Date.now() / 1000);
+      return makeLive({ alg:"HS256", typ:"JWT" }, { sub:"admin", role:"administrator", iat:now - 60, exp:now + 600 }, "secret");
+    }},
+  { n:"alg が none", v:"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhZG1pbiIsInJvbGUiOiJhZG1pbmlzdHJhdG9yIiwiaWF0IjoxNzg3NTMwMDkwfQ." },
+  { n:"詰めの = が付いている", v:"eyJhbGciOiJIUzI1NiJ9==.eyJzdWIiOiJhIn0=.QUJD" },
+  { n:"ヘッダに同じ名前が2回", v:"eyJhbGciOiJIUzI1NiIsImFsZyI6Im5vbmUifQ.eyJzdWIiOiJhIn0.QUJD" },
+  { n:"暗号化されたトークン（JWE）", v:"eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.OKOawDo13gRp2ojaHV7LFpZcgV7T6DVZKTyKOMTYUmKoTCVJRgckCL9kiMT03JGe.48V1_ALb6US04U3b.5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4vpzs9tX_EFShS8iB7j6ji.XFBoMYUZodetZdvTiFvSkQ" }
+];
+
+(function buildPresets(){
+  var box = el("presets");
+  for (var i = 0; i < PRESETS.length; i++){
+    (function(p){
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = p.n;
+      b.addEventListener("click", function(){
+        if (p.v){ el("src").value = p.v; render(); }
+        else p.live().then(function(t){ el("src").value = t; render(); });
+      });
+      box.appendChild(b);
+    })(PRESETS[i]);
+  }
+  el("presetNote").textContent =
+    "上の4つは、いまこの場でブラウザに署名させて作っています（秘密は " + PRESET_SECRET +
+    "）。だから期限の表示がいつ見ても意味のある値になりますし、通信していないことの証明も兼ねています。" +
+    "署名の欄にこの秘密を入れると、正しいと出るのが確かめられます。";
+})();
+
+(function runSelf(){
+  var res = selfCheck(), okN = 0;
+  var box = el("selfBox");
+  box.innerHTML = "";
+  for (var i = 0; i < res.length; i++){
+    if (res[i].ok) okN++;
+    var row = document.createElement("div"); row.className = "row";
+    var mk = document.createElement("span");
+    mk.className = "mark " + (res[i].ok ? "ok" : "ng");
+    mk.textContent = res[i].ok ? "✓" : "✗";
+    var tx = document.createElement("span");
+    tx.textContent = res[i].t + (res[i].detail ? "（" + res[i].detail + "）" : "");
+    row.appendChild(mk); row.appendChild(tx);
+    box.appendChild(row);
+  }
+  var head = el("selfHead");
+  head.innerHTML = "";
+  head.appendChild(document.createTextNode("自前の復号と読み取りを、いまこのブラウザのものと突き合わせました: "));
+  var strong = document.createElement("b");
+  strong.className = okN === res.length ? "ok" : "ng";
+  strong.textContent = okN + " / " + res.length + " 一致";
+  head.appendChild(strong);
+  head.appendChild(document.createTextNode(okN === res.length ? "。" : "。食い違ったところはブラウザのほうが正しいです。"));
+})();
+
+el("src").addEventListener("input", render);
+el("key").addEventListener("input", render);
+el("b64key").addEventListener("change", render);
+el("weak").addEventListener("change", render);
+PRESETS[0].live().then(function(t){ el("src").value = t; render(); });
+render();
+</script>
+</body>
+</html>
