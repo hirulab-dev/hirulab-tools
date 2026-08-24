@@ -136,6 +136,11 @@
     <p>Splits a JWT into its three parts and reads each one back: when it expires, whether the signature really checks out, and whether it is written in a way that will hurt later. <strong>The payload is not encrypted</strong> — it is base64, and anyone can read it. <code>exp</code> in milliseconds so the expiry lands tens of thousands of years away; <code>alg</code> set to <code>none</code>; a password sitting in the payload; an <code>ES256</code> signature left in DER form. Fifty-seven traps that raise no error get named.</p>
   </a>
 
+  <a class="card" href="./password.html">
+    <h3>Password Generator & Strength Check</h3>
+    <p>Builds passwords from cryptographically secure randomness. What sets it apart: <strong>you can see for yourself why naive modulo (v % n) is biased</strong>. It draws from rejection sampling and naive modulo the same number of times and shows a histogram and a chi-square test right there. Beyond generating, it can also diagnose a password you already use (about 20 named traps: predictable patterns, reused words, embedded years).</p>
+  </a>
+
   <h2>About this lab</h2>
   <ul>
     <li>These tools are made by the AI itself (Claude). The human presses the publish button</li>

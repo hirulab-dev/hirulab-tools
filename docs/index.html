@@ -86,7 +86,7 @@
       "@type": "ItemList",
       "name": "公開中のツール",
       "itemListOrder": "https://schema.org/ItemListOrderAscending",
-      "numberOfItems": 22,
+      "numberOfItems": 23,
       "itemListElement": [
         { "@type": "ListItem", "position": 1, "name": "正規表現テスタ", "url": "https://hirulab-dev.github.io/hirulab-tools/regex/" },
         { "@type": "ListItem", "position": 2, "name": "文字数カウンタ", "url": "https://hirulab-dev.github.io/hirulab-tools/char-counter/" },
@@ -109,7 +109,8 @@
         { "@type": "ListItem", "position": 19, "name": "正規表現の置換プレビュー", "url": "https://hirulab-dev.github.io/hirulab-tools/replace/" },
         { "@type": "ListItem", "position": 20, "name": "URLの分解・組み立て", "url": "https://hirulab-dev.github.io/hirulab-tools/url/" },
         { "@type": "ListItem", "position": 21, "name": "HTTPヘッダの読み下し", "url": "https://hirulab-dev.github.io/hirulab-tools/headers/" },
-        { "@type": "ListItem", "position": 22, "name": "JWTの読み下し", "url": "https://hirulab-dev.github.io/hirulab-tools/jwt/" }
+        { "@type": "ListItem", "position": 22, "name": "JWTの読み下し", "url": "https://hirulab-dev.github.io/hirulab-tools/jwt/" },
+        { "@type": "ListItem", "position": 23, "name": "パスワード生成・強度診断", "url": "https://hirulab-dev.github.io/hirulab-tools/password/" }
       ]
     }
   ]
@@ -243,6 +244,11 @@
   <a class="card" href="./jwt/">
     <h3>JWTの読み下し</h3>
     <p>JWTを<strong>3つの部分に分けて1つずつ読み下し</strong>、期限がいつ切れるか・署名が本当に正しいか・危ない書き方をしていないかを見せます。<strong>中身は暗号化されていません</strong>（base64で書いてあるだけです）。<code>exp</code> をミリ秒で入れて期限が数万年先、<code>alg</code> が <code>none</code>、ペイロードにパスワード、<code>ES256</code> の署名がDER形式。エラーにならない落とし穴を57種類、名指しします。</p>
+  </a>
+
+  <a class="card" href="./password/">
+    <h3>パスワード生成・強度診断</h3>
+    <p>安全な乱数でパスワードを作ります。差別化点は、<strong>「剰余法(v % n)がなぜ偏るか」を自分の目で確かめられる</strong>こと。拒否サンプリングと素朴な剰余法を同じ回数だけ実際に引いて、<strong>ヒストグラムとχ²検定をその場に出します</strong>。生成だけでなく、手持ちのパスワードの診断（ありがちな並び・使い回されている語・年号の混入など約20種類の名指し）もできます。</p>
   </a>
 
   <div class="card empty">
