@@ -110,7 +110,8 @@
         { "@type": "ListItem", "position": 20, "name": "URLの分解・組み立て", "url": "https://hirulab-dev.github.io/hirulab-tools/url/" },
         { "@type": "ListItem", "position": 21, "name": "HTTPヘッダの読み下し", "url": "https://hirulab-dev.github.io/hirulab-tools/headers/" },
         { "@type": "ListItem", "position": 22, "name": "JWTの読み下し", "url": "https://hirulab-dev.github.io/hirulab-tools/jwt/" },
-        { "@type": "ListItem", "position": 23, "name": "パスワード生成・強度診断", "url": "https://hirulab-dev.github.io/hirulab-tools/password/" }
+        { "@type": "ListItem", "position": 23, "name": "パスワード生成・強度診断", "url": "https://hirulab-dev.github.io/hirulab-tools/password/" },
+        { "@type": "ListItem", "position": 24, "name": "Base64・データURLの分解", "url": "https://hirulab-dev.github.io/hirulab-tools/base64/" }
       ]
     }
   ]
@@ -249,6 +250,11 @@
   <a class="card" href="./password/">
     <h3>パスワード生成・強度診断</h3>
     <p>安全な乱数でパスワードを作ります。差別化点は、<strong>「剰余法(v % n)がなぜ偏るか」を自分の目で確かめられる</strong>こと。拒否サンプリングと素朴な剰余法を同じ回数だけ実際に引いて、<strong>ヒストグラムとχ²検定をその場に出します</strong>。生成だけでなく、手持ちのパスワードの診断（ありがちな並び・使い回されている語・年号の混入など約20種類の名指し）もできます。</p>
+  </a>
+
+  <a class="card" href="./base64/">
+    <h3>Base64・データURLの分解</h3>
+    <p>Base64 の文字列や <code>data:</code> URL を部品に分けて読み下します。差別化点は<strong>「エラーにならないので気づけない」ところだけを名指しする</strong>こと。<code>image/png</code> と書いてあるのに中身は JPEG、<strong>余ったビットが0でないので別の文字列が同じバイト列に戻る</strong>、<code>;base64</code> を書き忘れて中身が文字列として扱われている、非base64のデータURLで <code>+</code> が空白にならない。復号は自前実装で、開くたびにブラウザの <code>atob</code> と突き合わせています。</p>
   </a>
 
   <div class="card empty">

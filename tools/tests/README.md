@@ -13,6 +13,7 @@
 | `test_url.py` | [URLの分解・組み立て](https://hirulab-dev.github.io/hirulab-tools/url/) と ブラウザの `URL`。分解した10項目を 965 件、**punycode は Python の `str.encode("punycode")`**、**クエリの読み分けは Python の `parse_qsl`** と別々に突き合わせる。分解して組み立て直すと元に戻るかも見る。仕込んだ落とし穴 29 件の名指しも確認 |
 | `test_jwt.py` | [JWTの読み下し](https://hirulab-dev.github.io/hirulab-tools/jwt/) と **PyJWT（第三者実装）**・Python の `base64`/`json`・`hmac`/`cryptography`。分解を 400 件、クレームの期限判定を PyJWT と 400 件、**署名の検証をブラウザの `crypto.subtle` vs Python で 23 件**（HS/RS/PS/ES と DER 形式）、壊れた符号化の扱いを 37 件。仕込んだ落とし穴 57 件の名指しも確認 |
 | `test_password.py` | [パスワード生成・強度診断](https://hirulab-dev.github.io/hirulab-tools/password/) の拒否サンプリングを、**理論値そのもの（非心χ²分布）**と突き合わせる。実際に `crypto.getRandomValues` で数万回ずつ引かせ、剰余法の偏り・拒否サンプリングの無偏りの両方を、固定しきい値ではなく統計的な検定力で判定。エントロピー計算を Python の `log2` と56件、χ²のp値近似(Wilson–Hilferty)をSciPyの正確値と144件、落とし穴の名指しを13件で確認 |
+| `test_base64.py` | [Base64・データURLの分解](https://hirulab-dev.github.io/hirulab-tools/base64/) の**参照を3つの出どころに分ける**。(1) 符号化・復号を Python の `base64`（`validate=True`）と 400 件 (2) **データURLの分解を Python 標準の `urllib.request`（`DataHandler`）と 400 件** — 別の言語のデータURL専用パーサに当てる (3) **中身の判定は「本物のファイル」に当てる** — Pillow に実際に PNG/JPEG/GIF/BMP/TIFF/WebP を保存させ、その生バイトを食わせる（マジックナンバーの表を手で書き写した値を参照にしない）。仕込んだ落とし穴 27 件の名指しも確認。`--sabotage` つき |
 
 ## 使い方
 
@@ -26,6 +27,7 @@ python tools/tests/test_regex_why.py --n 2500
 python tools/tests/test_replace.py --n 1200
 python tools/tests/test_url.py --n 600
 python tools/tests/test_jwt.py --n 400
+python tools/tests/test_base64.py --n 400
 python tools/tests/test_password.py --n 40000 --trials 25
 ```
 

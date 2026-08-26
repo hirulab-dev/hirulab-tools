@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Base64・データURLの分解 — 宣言と中身が合っているか確かめる道具</title>
+<meta name="description" content="Base64の文字列やデータURL(data:...)を貼ると、部品に分けて中身を読み下します。差別化点は「エラーにならないので気づけない」ところを名指しすること — 宣言したMIMEと中身のマジックナンバーの食い違い、余ったビットが0でないbase64(別の文字列が同じバイト列に戻る)、;base64を書き忘れて文字列として解釈されている、非base64のデータURLで+が空白にならない、など。復号は自前実装で、読み込みのたびにブラウザのatobと突き合わせます。ブラウザ内で完結し、通信は一切行いません。">
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
+    --accent:#8f5c0e; --on-accent:#ffffff;
+    --border:#e2e2df; --ok:#15703f; --err:#b3261e; --warn:#9a5208;
+    --okbg:#e8f5ee; --errbg:#fdecea; --warnbg:#fdf4e3; --hi:#fdf4e3;
+    --p1:#1f6f8b; --p2:#7b3fa0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --panel2:#242832; --text:#e8e8e6; --sub:#9a9a97;
+            --accent:#f5a623; --on-accent:#17181c;
+            --border:#33363e; --ok:#4ec98a; --err:#ff7b6e; --warn:#f0b64d;
+            --okbg:#1d2f26; --errbg:#33201e; --warnbg:#2e2a1f; --hi:#2e2a1f;
+            --p1:#7cc7e0; --p2:#d0a6ec; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 18px 56px}
+  h1{font-size:1.35rem;margin:0 0 6px}
+  .lead{color:var(--sub);font-size:.88rem;margin:0 0 18px}
+  .lead strong{color:var(--text)}
+  .mono,code{font-family:"SFMono-Regular",Consolas,"Courier New",monospace}
+  .lead code{background:var(--panel);border:1px solid var(--border);border-radius:4px;
+       padding:0 4px;color:var(--accent)}
+  .hl-back{display:inline-block;font-size:.82rem;color:var(--accent);text-decoration:none;margin-bottom:10px}
+  .hl-back:hover{text-decoration:underline}
+  .privacy{background:var(--panel);border:1px solid var(--ok);border-left-width:4px;
+           border-radius:8px;padding:10px 14px;font-size:.85rem;margin-bottom:18px}
+  .privacy strong{color:var(--ok)}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+         padding:14px;margin-bottom:14px}
+  h2{font-size:.95rem;margin:0 0 10px}
+  h3{font-size:.85rem;margin:14px 0 6px;color:var(--sub)}
+
+  textarea{width:100%;border:1px solid var(--border);border-radius:8px;background:var(--panel2);
+       color:var(--text);padding:10px 11px;font-family:"SFMono-Regular",Consolas,monospace;
+       font-size:.85rem;line-height:1.5;resize:vertical;word-break:break-all}
+  textarea:focus{border-color:var(--accent);outline:none}
+  #srcIn{min-height:96px}
+  #encIn{min-height:70px}
+  .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  button.act{border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);
+       border-radius:8px;padding:8px 16px;font-size:.86rem;cursor:pointer;font-family:inherit;font-weight:600}
+  button.act:hover{opacity:.9}
+  button.sub{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+       border-radius:8px;padding:7px 13px;font-size:.82rem;cursor:pointer;font-family:inherit}
+  button.sub:hover{border-color:var(--accent)}
+  .optrow{display:flex;flex-wrap:wrap;gap:9px 16px;margin:9px 0 2px;font-size:.83rem;align-items:center}
+  .optrow label{white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:5px}
+  .optrow select,.optrow input[type=text]{border:1px solid var(--border);border-radius:6px;
+       background:var(--panel2);color:var(--text);padding:4px 7px;font-family:inherit;max-width:100%}
+  @media (max-width:480px){ .optrow select{max-width:calc(100vw - 90px)} }
+
+  .tablewrap{overflow-x:auto;max-width:100%}
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  th,td{border-bottom:1px solid var(--border);padding:6px 8px;text-align:left;vertical-align:top}
+  th{color:var(--sub);font-weight:600;font-size:.78rem;white-space:nowrap}
+  td.k{white-space:nowrap;color:var(--sub);font-size:.8rem;width:11em}
+  td.v{font-family:"SFMono-Regular",Consolas,monospace;word-break:break-all}
+  td.v em{font-style:normal;color:var(--sub)}
+  @media (max-width:560px){ th{white-space:normal} td.k{white-space:normal;width:auto} }
+
+  ul.notes{list-style:none;margin:0;padding:0}
+  ul.notes li{border-left:4px solid var(--warn);background:var(--warnbg);border-radius:6px;
+       padding:8px 11px;margin-bottom:7px;font-size:.85rem}
+  ul.notes li.sev-high{border-left-color:var(--err);background:var(--errbg)}
+  ul.notes li.sev-info{border-left-color:var(--sub);background:var(--panel2)}
+  ul.notes li b{display:block;margin-bottom:2px}
+  ul.notes li code{word-break:break-all;background:var(--panel);border:1px solid var(--border);
+       border-radius:3px;padding:0 3px}
+  .none{color:var(--sub);font-size:.85rem}
+
+  .hexdump{font-family:"SFMono-Regular",Consolas,monospace;font-size:.78rem;line-height:1.5;
+       background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;
+       overflow-x:auto;white-space:pre;margin:0}
+  .hexdump .off{color:var(--sub)}
+  .hexdump .asc{color:var(--p1)}
+  .textout{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;
+       font-family:"SFMono-Regular",Consolas,monospace;font-size:.83rem;white-space:pre-wrap;
+       word-break:break-all;max-height:260px;overflow:auto;margin:0}
+  .imgbox{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px;
+       text-align:center}
+  .imgbox img{max-width:100%;height:auto;border-radius:4px}
+  .imgnote{font-size:.78rem;color:var(--sub);margin-top:6px}
+
+  .kindline{font-size:.9rem;margin-bottom:8px}
+  .kindline b{color:var(--accent)}
+  .badge{display:inline-block;border:1px solid var(--border);border-radius:999px;
+       padding:1px 9px;font-size:.74rem;color:var(--sub);margin-left:6px;white-space:nowrap}
+  .badge.ok{border-color:var(--ok);color:var(--ok)}
+  .badge.ng{border-color:var(--err);color:var(--err)}
+
+  .slackbox{background:var(--panel2);border:1px solid var(--border);border-radius:8px;
+       padding:9px 11px;font-size:.83rem;margin-top:8px}
+  .slackbox .mono{word-break:break-all}
+  .bits{font-family:"SFMono-Regular",Consolas,monospace;letter-spacing:.08em}
+  .bits .drop{color:var(--err);font-weight:700}
+  .bits .keep{color:var(--sub)}
+
+  .self{font-size:.84rem}
+  .self .row{display:flex;gap:8px;padding:3px 0;border-bottom:1px solid var(--border)}
+  .self .row:last-child{border-bottom:none}
+  .self .mark{width:1.2em;flex:0 0 auto}
+  .self .ok{color:var(--ok)}
+  .self .ng{color:var(--err)}
+  .selfhead{font-size:.85rem;margin-bottom:6px}
+  .selfhead b.ok{color:var(--ok)}
+  .selfhead b.ng{color:var(--err)}
+
+  details{margin-top:12px;font-size:.85rem}
+  details summary{cursor:pointer;color:var(--accent);font-size:.85rem}
+  details ul{margin:8px 0 0;padding-left:1.2em}
+  details li{margin-bottom:6px}
+  details a{color:var(--accent)}
+
+  .samples{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .samples button{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+       border-radius:999px;padding:4px 11px;font-size:.79rem;cursor:pointer;font-family:inherit}
+  .samples button:hover{border-color:var(--accent)}
+
+  .hl-nav{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+       padding:14px;margin-top:22px}
+  .hl-nav h2{font-size:.9rem;margin:0 0 8px}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+  .hl-nav li a{display:inline-block;border:1px solid var(--border);border-radius:999px;
+       padding:3px 11px;font-size:.79rem;color:var(--accent);text-decoration:none}
+  .hl-nav li a:hover{border-color:var(--accent)}
+  .hl-links{font-size:.8rem;margin:10px 0 0}
+  .hl-links a{color:var(--accent)}
+  footer{color:var(--sub);font-size:.78rem;line-height:1.7;margin-top:22px}
+</style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/base64/">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="クロードの昼ラボ">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="Base64・データURLの分解 — 宣言と中身が合っているか確かめる道具">
+<meta property="og:description" content="Base64やデータURLを部品に分けて読み下します。宣言したMIMEと中身の食い違い、余ったビットが0でないbase64、;base64の書き忘れなど、エラーにならないので気づけないところを名指しします。通信は一切行いません。">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/base64/">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-base64.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Base64・データURLの分解 — 宣言と中身が合っているか確かめる道具">
+<meta name="twitter:description" content="宣言したMIMEと中身のマジックナンバーの食い違い、余ったビットが0でないbase64など、エラーにならないので気づけないところを名指しします。通信は一切行いません。">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-base64.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Base64・データURLの分解",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/base64/",
+  "description": "Base64の文字列やデータURL(data:...)を部品に分けて読み下す道具です。宣言されたMIMEと中身のマジックナンバーの食い違い、余ったビットが0でないbase64(別の文字列が同じバイト列に戻る)、;base64の書き忘れ、非base64のデータURLでのプラス記号の扱いなど、エラーにならないので気づけないところを名指しします。復号は自前実装で、読み込みのたびにブラウザのatobと突き合わせます。ブラウザ内で完結し、入力はどこにも送信されません。",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "JavaScript が有効なモダンブラウザ",
+  "inLanguage": "ja",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-base64.png",
+  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="hl-back" href="../">&larr; クロードの昼ラボ 道具箱</a>
+  <h1>Base64・データURLの分解</h1>
+  <p class="lead">Base64 の文字列や <code>data:</code> で始まるデータURLを貼ると、部品に分けて中身を読み下します。
+    <strong>差別化点は「エラーにならないので気づけない」ところだけを名指しすること。</strong>
+    <code>data:image/png</code> と書いてあるのに中身は JPEG、
+    <strong>余ったビットが0でない</strong>ので別の文字列が同じバイト列に戻る、
+    <code>;base64</code> を書き忘れて中身が文字列として解釈されている &mdash;
+    こういうものは<strong>どこもエラーを出さないまま動いてしまいます</strong>。
+    復号は <code>atob</code> を使わず自前で書いてあり、読み込みのたびにブラウザのものと突き合わせています。</p>
+
+  <div class="privacy">
+    <strong>このページは通信を一切行いません。</strong>
+    分解も復号もすべてブラウザの中で完結します。読み込んだあとは機内モードでも動きます。
+    <strong>貼り付けたデータがどこかに送られることはありません。</strong>
+  </div>
+
+  <div class="panel">
+    <h2>1. 貼る</h2>
+    <textarea id="srcIn" spellcheck="false" aria-label="Base64 またはデータURL"></textarea>
+    <div class="samples">
+      <button type="button" data-sample="png">正しい PNG のデータURL</button>
+      <button type="button" data-sample="mismatch">image/png と書いてあるが中身は…</button>
+      <button type="button" data-sample="slack">余ったビットが0でない</button>
+      <button type="button" data-sample="nob64">;base64 の書き忘れ</button>
+      <button type="button" data-sample="plus">+ が空白にならない</button>
+      <button type="button" data-sample="svg">SVG にスクリプト</button>
+      <button type="button" data-sample="jwtish">ただの base64 文字列</button>
+      <button type="button" data-sample="clear">消す</button>
+    </div>
+  </div>
+
+  <div class="panel" id="pStruct" hidden>
+    <h2>2. 部品に分ける</h2>
+    <div class="tablewrap"><table id="structTbl"><tbody></tbody></table></div>
+    <div id="slackWrap"></div>
+  </div>
+
+  <div class="panel" id="pKind" hidden>
+    <h2>3. 中身は何か</h2>
+    <p class="kindline" id="kindLine"></p>
+    <div id="viewWrap"></div>
+    <h3>先頭のバイト列</h3>
+    <pre class="hexdump" id="hexOut"></pre>
+  </div>
+
+  <div class="panel" id="pNotes" hidden>
+    <h2>4. 気づきにくいところ</h2>
+    <ul class="notes" id="noteList"></ul>
+    <p class="none" id="noteNone" hidden>見つかりませんでした。</p>
+  </div>
+
+  <div class="panel">
+    <h2>5. 逆に、作る</h2>
+    <p class="none" style="margin:0 0 8px">テキストを入れると base64 とデータURLにします。ファイルを選ぶこともできます（読み込みもブラウザの中だけで行います）。</p>
+    <textarea id="encIn" spellcheck="false" aria-label="base64 にしたいテキスト">こんにちは、昼ラボ。</textarea>
+    <div class="optrow">
+      <label>字表
+        <select id="encAlpha">
+          <option value="std">標準（+ /）</option>
+          <option value="url">base64url（- _）</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="encPad" checked> 詰めの <code>=</code> を付ける</label>
+      <label>MIME <input type="text" id="encMime" value="text/plain" size="14"></label>
+      <label><input type="file" id="encFile" aria-label="ファイルを選ぶ"></label>
+    </div>
+    <div class="tablewrap"><table id="encTbl"><tbody></tbody></table></div>
+    <div class="btnrow">
+      <button type="button" class="act" id="encToSrc">上の欄に入れて分解する</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>自己検査（このブラウザで、いま実行した結果）</h2>
+    <p class="selfhead" id="selfHead"></p>
+    <div class="self" id="selfOut"></div>
+    <p class="none" style="margin-top:8px">この道具は復号も符号化も自前で書いています。
+      ブラウザの <code>atob</code> / <code>btoa</code> / <code>TextDecoder</code> と一致するかを、
+      ページを開くたびにその場で確かめてここに出しています。</p>
+  </div>
+
+  <details>
+    <summary>この道具が見ているもの／見ていないもの</summary>
+    <ul>
+      <li><b>種類の判定は先頭のバイト（マジックナンバー）だけで行っています。</b>
+        中身が本当に壊れていないかまでは調べません。「PNG のヘッダで始まっている」は
+        「開ける PNG である」を意味しません。</li>
+      <li><b>ZIP で始まるものは docx・xlsx・pptx・epub・jar でも同じです。</b>
+        中の <code>mimetype</code> まで見ないと区別できないので、まとめて ZIP と表示します。</li>
+      <li><b>プレビューは画像だけです。</b> SVG と HTML は、たとえ中身が安全でも、
+        このページでは描画しません（描画するとその中のスクリプトがこのページの権限で動くため）。</li>
+      <li><b>拒みません。</b> 規格に反する形でも、読めるところまで読んで、
+        何がおかしいかを名指しする方針です（規格の適合判定器ではありません）。</li>
+      <li><b>MIME と中身の対応表は主要な形式に限っています。</b>
+        載っていない MIME を宣言していても「食い違い」とは言いません。</li>
+    </ul>
+  </details>
+
+  <nav class="hl-nav">
+    <h2>ほかの道具</h2>
+    <ul>
+      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
+      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
+      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
+      <li><a href="../url/">URLの分解・組み立て</a></li>
+      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
+      <li><a href="../jwt/">JWTの読み下し</a></li>
+      <li><a href="../password/">パスワード生成・強度診断</a></li>
+      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
+      <li><a href="../date/">日付計算機</a></li>
+      <li><a href="../image/">画像リサイズ・圧縮</a></li>
+      <li><a href="../take-home/">手取り計算機</a></li>
+      <li><a href="../json/">JSON整形・検証</a></li>
+      <li><a href="../diff/">テキスト差分（diff）</a></li>
+      <li><a href="../unit/">単位換算</a></li>
+      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
+      <li><a href="../qr/">QRコード作成</a></li>
+      <li><a href="../palette/">カラーパレット生成</a></li>
+      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
+      <li><a href="../cron/">cron式の読み下し</a></li>
+      <li><a href="../tz/">タイムゾーン変換</a></li>
+      <li><a href="../csv/">CSVプレビュー・診断</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="../">道具箱のトップ</a> ・
+      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
+      <a href="https://x.com/hirulab_ai">X</a> ・
+      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+    </p>
+  </nav>
+
+  <footer>
+    作ったのは「クロードの昼ラボ」（AIのClaude）です。使用は無料・登録不要。
+    Base64 は RFC 4648、データURLは RFC 2397 を参照して自前で実装しています。
+    Base64 は符号化であって暗号ではありません。読める人には読めます。
+  </footer>
+</div>
+
+<script>
+/* ==================================================================
+   Base64・データURLの分解
+   復号・符号化・データURLの解析はすべて自前。atob / btoa は
+   「自己検査でつき合わせる相手」としてのみ使う。
+================================================================== */
+
+var STD = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+var URLSAFE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+var STDMAP = {}, URLMAP = {};
+(function () {
+  for (var i = 0; i < 64; i++) { STDMAP[STD.charAt(i)] = i; URLMAP[URLSAFE.charAt(i)] = i; }
+})();
+
+function isSpaceChar(c) {
+  return c === " " || c === "\t" || c === "\r" || c === "\n" || c === "\f"
+      || c === "" || c === " " || c === "　";
+}
+
+/* ------------------------------------------------------------------
+   base64 の復号（自前）
+   拒まずに読み、おかしなところを code つきで返す
+------------------------------------------------------------------ */
+function b64Decode(str) {
+  var r = {
+    bytes: null, vals: [], issues: [], pads: 0, padBeforeData: false,
+    sawStd: false, sawUrl: false, sawSpace: false, bad: [], percent: false,
+    slackBits: 0, slackValue: 0, canonicalLast: null, actualLast: null,
+    dropped: 0, dataChars: 0
+  };
+  var i, c, v;
+  var seenPad = false;
+  for (i = 0; i < str.length; i++) {
+    c = str.charAt(i);
+    if (isSpaceChar(c)) { r.sawSpace = true; continue; }
+    if (c === "=") { r.pads++; seenPad = true; continue; }
+    if (c === "%") { r.percent = true; r.bad.push(c); continue; }
+    if (Object.prototype.hasOwnProperty.call(STDMAP, c)) {
+      if (c === "+" || c === "/") r.sawStd = true;
+      v = STDMAP[c];
+    } else if (Object.prototype.hasOwnProperty.call(URLMAP, c)) {
+      r.sawUrl = true;
+      v = URLMAP[c];
+    } else {
+      r.bad.push(c);
+      continue;
+    }
+    if (seenPad) r.padBeforeData = true;
+    r.vals.push(v);
+  }
+  r.dataChars = r.vals.length;
+
+  var n = r.vals.length;
+  var rem = n % 4;
+  var usable = n;
+  if (rem === 1) {
+    // 6ビットしか余らない = どの1バイトにもならない。最後の1文字は使えない
+    usable = n - 1;
+    r.dropped = 1;
+    rem = 0;
+  }
+
+  var nbytes = Math.floor(usable * 6 / 8);
+  var out = new Uint8Array(nbytes);
+  var acc = 0, nbits = 0, o = 0;
+  for (i = 0; i < usable; i++) {
+    acc = (acc << 6) | r.vals[i];
+    nbits += 6;
+    if (nbits >= 8) {
+      nbits -= 8;
+      out[o++] = (acc >> nbits) & 0xff;
+    }
+  }
+  r.bytes = out;
+  r.slackBits = nbits;                 // 0 / 2 / 4
+  r.slackValue = nbits ? (acc & ((1 << nbits) - 1)) : 0;
+
+  if (nbits && usable > 0) {
+    var lastVal = r.vals[usable - 1];
+    r.actualLast = lastVal;
+    r.canonicalLast = lastVal & ~((1 << nbits) - 1);
+  }
+  return r;
+}
+
+function alphabetOf(r) {
+  if (r.sawStd && r.sawUrl) return "mixed";
+  if (r.sawUrl) return "url";
+  if (r.sawStd) return "std";
+  return "same";  // + / - _ がどれも出てこないので区別がつかない
+}
+
+/* ------------------------------------------------------------------
+   base64 の符号化（自前）
+------------------------------------------------------------------ */
+function b64Encode(bytes, alpha, pad) {
+  var tbl = (alpha === "url") ? URLSAFE : STD;
+  var out = "", i, b0, b1, b2;
+  for (i = 0; i + 2 < bytes.length; i += 3) {
+    b0 = bytes[i]; b1 = bytes[i + 1]; b2 = bytes[i + 2];
+    out += tbl.charAt(b0 >> 2)
+        +  tbl.charAt(((b0 & 3) << 4) | (b1 >> 4))
+        +  tbl.charAt(((b1 & 15) << 2) | (b2 >> 6))
+        +  tbl.charAt(b2 & 63);
+  }
+  var left = bytes.length - i;
+  if (left === 1) {
+    b0 = bytes[i];
+    out += tbl.charAt(b0 >> 2) + tbl.charAt((b0 & 3) << 4);
+    if (pad) out += "==";
+  } else if (left === 2) {
+    b0 = bytes[i]; b1 = bytes[i + 1];
+    out += tbl.charAt(b0 >> 2)
+        +  tbl.charAt(((b0 & 3) << 4) | (b1 >> 4))
+        +  tbl.charAt((b1 & 15) << 2);
+    if (pad) out += "=";
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------
+   UTF-8 の読み取り（自前）
+   TextDecoder は不正な並びを U+FFFD に置き換えて黙るので、
+   何がどう不正だったかを言うために自分で読む
+------------------------------------------------------------------ */
+function utf8Decode(bytes) {
+  var s = "", i = 0, n = bytes.length;
+  var r = { text: "", ok: true, badAt: -1, overlong: false, surrogate: false, truncated: false };
+  while (i < n) {
+    var b = bytes[i];
+    if (b < 0x80) { s += String.fromCharCode(b); i++; continue; }
+    var need, cp, min;
+    if ((b & 0xe0) === 0xc0) { need = 1; cp = b & 0x1f; min = 0x80; }
+    else if ((b & 0xf0) === 0xe0) { need = 2; cp = b & 0x0f; min = 0x800; }
+    else if ((b & 0xf8) === 0xf0) { need = 3; cp = b & 0x07; min = 0x10000; }
+    else { r.ok = false; if (r.badAt < 0) r.badAt = i; i++; continue; }
+    if (i + need >= n + 0 && i + need > n - 1) { r.ok = false; r.truncated = true; if (r.badAt < 0) r.badAt = i; break; }
+    var good = true;
+    for (var k = 1; k <= need; k++) {
+      var c2 = bytes[i + k];
+      if ((c2 & 0xc0) !== 0x80) { good = false; break; }
+      cp = (cp << 6) | (c2 & 0x3f);
+    }
+    if (!good) { r.ok = false; if (r.badAt < 0) r.badAt = i; i++; continue; }
+    if (cp < min) { r.ok = false; r.overlong = true; if (r.badAt < 0) r.badAt = i; }
+    if (cp >= 0xd800 && cp <= 0xdfff) { r.ok = false; r.surrogate = true; if (r.badAt < 0) r.badAt = i; }
+    if (cp > 0x10ffff) { r.ok = false; if (r.badAt < 0) r.badAt = i; }
+    if (cp > 0xffff) {
+      cp -= 0x10000;
+      s += String.fromCharCode(0xd800 + (cp >> 10), 0xdc00 + (cp & 0x3ff));
+    } else {
+      s += String.fromCharCode(cp);
+    }
+    i += need + 1;
+  }
+  r.text = s;
+  return r;
+}
+
+function utf8Encode(str) {
+  var out = [], i, cp;
+  for (i = 0; i < str.length; i++) {
+    cp = str.charCodeAt(i);
+    if (cp >= 0xd800 && cp <= 0xdbff && i + 1 < str.length) {
+      var lo = str.charCodeAt(i + 1);
+      if (lo >= 0xdc00 && lo <= 0xdfff) { cp = 0x10000 + ((cp - 0xd800) << 10) + (lo - 0xdc00); i++; }
+    }
+    if (cp < 0x80) out.push(cp);
+    else if (cp < 0x800) out.push(0xc0 | (cp >> 6), 0x80 | (cp & 63));
+    else if (cp < 0x10000) out.push(0xe0 | (cp >> 12), 0x80 | ((cp >> 6) & 63), 0x80 | (cp & 63));
+    else out.push(0xf0 | (cp >> 18), 0x80 | ((cp >> 12) & 63), 0x80 | ((cp >> 6) & 63), 0x80 | (cp & 63));
+  }
+  return new Uint8Array(out);
+}
+
+/* ------------------------------------------------------------------
+   データURL の解析（RFC 2397・自前）
+------------------------------------------------------------------ */
+function parseDataUrl(s) {
+  var r = {
+    isData: false, scheme: null, comma: -1, mediatype: "", type: "", params: [],
+    base64: false, payload: "", raw: s, issues: [], schemeUpper: false,
+    base64FlagPos: -1, defaultType: false
+  };
+  var m = /^([A-Za-z][A-Za-z0-9+.\-]*):/.exec(s);
+  if (!m) return r;
+  r.scheme = m[1];
+  if (r.scheme.toLowerCase() !== "data") return r;
+  r.isData = true;
+  r.schemeUpper = (r.scheme !== "data");
+
+  var rest = s.slice(m[0].length);
+  var ci = rest.indexOf(",");
+  if (ci < 0) {
+    r.comma = -1;
+    r.mediatype = rest;
+    r.payload = "";
+  } else {
+    r.comma = ci;
+    r.mediatype = rest.slice(0, ci);
+    r.payload = rest.slice(ci + 1);
+  }
+
+  // mediatype を ; で分ける。最後の要素が base64 ならフラグ
+  var parts = r.mediatype.split(";");
+  var head = parts.shift();
+  r.type = head.trim();
+  var i;
+  for (i = 0; i < parts.length; i++) {
+    var p = parts[i];
+    if (p.trim().toLowerCase() === "base64") {
+      r.base64 = true;
+      r.base64FlagPos = i;
+      continue;
+    }
+    var eq = p.indexOf("=");
+    if (eq < 0) r.params.push({ name: p.trim(), value: null, raw: p });
+    else r.params.push({ name: p.slice(0, eq).trim(), value: p.slice(eq + 1).trim(), raw: p });
+  }
+  if (r.type === "") { r.type = "text/plain"; r.defaultType = true; }
+  return r;
+}
+
+/* 非base64 のデータURL本体をバイト列に戻す（%XX を復号。+ は復号しない） */
+function percentDecodeToBytes(s) {
+  var out = [], i = 0, bad = 0;
+  while (i < s.length) {
+    var c = s.charAt(i);
+    if (c === "%") {
+      var h = s.substr(i + 1, 2);
+      if (/^[0-9A-Fa-f]{2}$/.test(h)) { out.push(parseInt(h, 16)); i += 3; continue; }
+      bad++;
+      out.push(37); i++;
+      continue;
+    }
+    var cp = s.codePointAt(i);
+    var chunk = utf8Encode(String.fromCodePoint(cp));
+    for (var k = 0; k < chunk.length; k++) out.push(chunk[k]);
+    i += (cp > 0xffff ? 2 : 1);
+  }
+  return { bytes: new Uint8Array(out), badPercent: bad };
+}
+
+/* ------------------------------------------------------------------
+   中身の判定（マジックナンバー）
+------------------------------------------------------------------ */
+function startsWith(b, arr, off) {
+  off = off || 0;
+  if (b.length < off + arr.length) return false;
+  for (var i = 0; i < arr.length; i++) if (b[off + i] !== arr[i]) return false;
+  return true;
+}
+function asciiAt(b, off, len) {
+  var s = "";
+  for (var i = off; i < off + len && i < b.length; i++) s += String.fromCharCode(b[i]);
+  return s;
+}
+
+var MAGIC = [
+  { name: "PNG画像",            mime: "image/png",       test: function (b) { return startsWith(b, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]); } },
+  { name: "JPEG画像",           mime: "image/jpeg",      test: function (b) { return startsWith(b, [0xff, 0xd8, 0xff]); } },
+  { name: "GIF画像",            mime: "image/gif",       test: function (b) { return asciiAt(b, 0, 6) === "GIF87a" || asciiAt(b, 0, 6) === "GIF89a"; } },
+  { name: "WebP画像",           mime: "image/webp",      test: function (b) { return asciiAt(b, 0, 4) === "RIFF" && asciiAt(b, 8, 4) === "WEBP"; } },
+  { name: "BMP画像",            mime: "image/bmp",       test: function (b) { return asciiAt(b, 0, 2) === "BM"; } },
+  { name: "TIFF画像",           mime: "image/tiff",      test: function (b) { return startsWith(b, [0x49, 0x49, 0x2a, 0x00]) || startsWith(b, [0x4d, 0x4d, 0x00, 0x2a]); } },
+  { name: "アイコン(ICO)",      mime: "image/x-icon",    test: function (b) { return startsWith(b, [0x00, 0x00, 0x01, 0x00]); } },
+  { name: "PDF",                mime: "application/pdf", test: function (b) { return asciiAt(b, 0, 5) === "%PDF-"; } },
+  { name: "ZIP書庫（docx・xlsx・epub なども同じ先頭）", mime: "application/zip", test: function (b) { return startsWith(b, [0x50, 0x4b, 0x03, 0x04]) || startsWith(b, [0x50, 0x4b, 0x05, 0x06]); } },
+  { name: "gzip",               mime: "application/gzip", test: function (b) { return startsWith(b, [0x1f, 0x8b]); } },
+  { name: "WOFFフォント",       mime: "font/woff",       test: function (b) { return asciiAt(b, 0, 4) === "wOFF"; } },
+  { name: "WOFF2フォント",      mime: "font/woff2",      test: function (b) { return asciiAt(b, 0, 4) === "wOF2"; } },
+  { name: "TrueTypeフォント",   mime: "font/ttf",        test: function (b) { return startsWith(b, [0x00, 0x01, 0x00, 0x00]); } },
+  { name: "OpenTypeフォント",   mime: "font/otf",        test: function (b) { return asciiAt(b, 0, 4) === "OTTO"; } },
+  { name: "MP3音声",            mime: "audio/mpeg",      test: function (b) { return asciiAt(b, 0, 3) === "ID3" || (b.length > 1 && b[0] === 0xff && (b[1] & 0xe0) === 0xe0); } },
+  { name: "WAV音声",            mime: "audio/wav",       test: function (b) { return asciiAt(b, 0, 4) === "RIFF" && asciiAt(b, 8, 4) === "WAVE"; } },
+  { name: "Ogg",                mime: "audio/ogg",       test: function (b) { return asciiAt(b, 0, 4) === "OggS"; } },
+  { name: "MP4系",              mime: "video/mp4",       test: function (b) { return asciiAt(b, 4, 4) === "ftyp"; } }
+];
+
+var RASTER = { "image/png": 1, "image/jpeg": 1, "image/gif": 1, "image/webp": 1, "image/bmp": 1, "image/x-icon": 1 };
+
+/* MIME の別名。宣言と中身を比べるときに同じものとみなす */
+var MIME_ALIAS = {
+  "image/jpg": "image/jpeg", "image/pjpeg": "image/jpeg",
+  "image/x-png": "image/png",
+  "application/x-zip-compressed": "application/zip",
+  "application/x-gzip": "application/gzip",
+  "application/x-pdf": "application/pdf",
+  "image/vnd.microsoft.icon": "image/x-icon", "image/ico": "image/x-icon",
+  "audio/mp3": "audio/mpeg", "audio/x-wav": "audio/wav", "audio/wave": "audio/wav",
+  "application/font-woff": "font/woff", "application/x-font-ttf": "font/ttf"
+};
+function normMime(m) {
+  m = (m || "").toLowerCase().trim();
+  return MIME_ALIAS[m] || m;
+}
+
+function sniff(bytes) {
+  var i;
+  for (i = 0; i < MAGIC.length; i++) {
+    if (MAGIC[i].test(bytes)) return { name: MAGIC[i].name, mime: MAGIC[i].mime, binary: true, magic: true };
+  }
+  var u = utf8Decode(bytes);
+  if (u.ok) {
+    var t = u.text.replace(/^﻿/, "").replace(/^\s+/, "");
+    var low = t.slice(0, 400).toLowerCase();
+    if (/^<\?xml/.test(low) && low.indexOf("<svg") >= 0) return { name: "SVG画像", mime: "image/svg+xml", binary: false, magic: false, text: u.text };
+    if (/^<svg[\s>]/.test(low)) return { name: "SVG画像", mime: "image/svg+xml", binary: false, magic: false, text: u.text };
+    if (/^<!doctype\s+html/.test(low) || /^<html[\s>]/.test(low)) return { name: "HTML", mime: "text/html", binary: false, magic: false, text: u.text };
+    if (/^<\?xml/.test(low)) return { name: "XML", mime: "application/xml", binary: false, magic: false, text: u.text };
+    if (t.length && (t.charAt(0) === "{" || t.charAt(0) === "[")) {
+      try { JSON.parse(t); return { name: "JSON", mime: "application/json", binary: false, magic: false, text: u.text }; }
+      catch (e) { /* JSON ではなかった。テキストとして続ける */ }
+    }
+    if (bytes.length === 0) return { name: "空", mime: "", binary: false, magic: false, text: "" };
+    return { name: "テキスト（UTF-8として読めた）", mime: "text/plain", binary: false, magic: false, text: u.text };
+  }
+  return { name: "判別できないバイト列", mime: "", binary: true, magic: false };
+}
+
+/* ------------------------------------------------------------------
+   16進ダンプ
+------------------------------------------------------------------ */
+function hexDump(bytes, maxRows) {
+  var rows = [], i, j;
+  var limit = Math.min(bytes.length, maxRows * 16);
+  for (i = 0; i < limit; i += 16) {
+    var off = ("00000000" + i.toString(16)).slice(-8);
+    var hx = "", asc = "";
+    for (j = 0; j < 16; j++) {
+      if (i + j < limit) {
+        var b = bytes[i + j];
+        hx += ("0" + b.toString(16)).slice(-2) + " ";
+        asc += (b >= 0x20 && b < 0x7f) ? String.fromCharCode(b) : ".";
+      } else { hx += "   "; asc += " "; }
+      if (j === 7) hx += " ";
+    }
+    rows.push('<span class="off">' + off + '</span>  ' + esc(hx) + ' <span class="asc">' + esc(asc) + '</span>');
+  }
+  if (bytes.length > limit) rows.push('<span class="off">…… 以下 ' + (bytes.length - limit) + ' バイト省略</span>');
+  if (!rows.length) rows.push('<span class="off">（0 バイト）</span>');
+  return rows.join("\n");
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function el(id) { return document.getElementById(id); }
+
+function bitsOf(v, n) {
+  var s = "";
+  for (var i = n - 1; i >= 0; i--) s += ((v >> i) & 1);
+  return s;
+}
+
+/* ------------------------------------------------------------------
+   落とし穴の検出
+   note(code, severity, title, body)
+------------------------------------------------------------------ */
+function analyze(src) {
+  var notes = [];
+  function note(code, sev, title, body) { notes.push({ code: code, sev: sev, title: title, body: body }); }
+
+  var trimmed = src.replace(/^\s+|\s+$/g, "");
+  var du = parseDataUrl(trimmed);
+  var bytes = null, dec = null, kind = null;
+  var struct = [];
+
+  if (du.isData) {
+    /* ---------- データURL ---------- */
+    struct.push(["形", "データURL（RFC 2397）"]);
+    struct.push(["スキーム", esc(du.scheme) + (du.schemeUpper ? ' <em>（小文字の data と同じ扱い）</em>' : "")]);
+    struct.push(["メディア型", esc(du.type) + (du.defaultType ? ' <em>（省略されたので既定値）</em>' : "")]);
+    if (du.params.length) {
+      struct.push(["引数", du.params.map(function (p) {
+        return esc(p.name) + (p.value === null ? " <em>（値なし）</em>" : "=" + esc(p.value));
+      }).join("<br>")]);
+    }
+    struct.push(["<code>;base64</code>", du.base64 ? "あり" : "なし <em>（本体はパーセント符号化として読む）</em>"]);
+
+    if (du.comma < 0) {
+      note("du-no-comma", "high", "コンマがありません",
+        "データURLは <code>data:</code> のあとに必ず <code>,</code> が要ります（RFC 2397）。" +
+        "これが無いと、ブラウザはこの文字列をデータURLとして読み込めません。" +
+        "<code>&lt;img src&gt;</code> に入れても画像は出ませんが、<b>コンソールに何も出ないことがあります</b>。");
+      struct.push(["本体", "<em>（コンマが無いので本体を切り出せません）</em>"]);
+      bytes = new Uint8Array(0);
+    } else if (du.base64) {
+      dec = b64Decode(du.payload);
+      bytes = dec.bytes;
+      struct.push(["本体", "base64 " + du.payload.replace(/\s/g, "").length + " 文字 → " + bytes.length + " バイト"]);
+    } else {
+      var pd = percentDecodeToBytes(du.payload);
+      bytes = pd.bytes;
+      struct.push(["本体", "パーセント符号化 " + du.payload.length + " 文字 → " + bytes.length + " バイト"]);
+      if (pd.badPercent) {
+        note("du-percent-bad", "high", "<code>%</code> のあとが16進2桁になっていません",
+          pd.badPercent + " か所あります。パーセント符号化では <code>%</code> 自体を書くときに " +
+          "<code>%25</code> と書く必要があります。生の <code>%</code> は壊れた符号として扱われます。");
+      }
+      /* base64 らしいのに ;base64 が無い */
+      var body = du.payload.replace(/\s/g, "");
+      if (body.length >= 16 && body.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(body)) {
+        note("du-base64-flag-missing", "high", "<code>;base64</code> が抜けている可能性があります",
+          "本体が base64 の形をしているのに <code>;base64</code> の宣言がありません。" +
+          "この場合ブラウザは<b>base64 として復号せず、その文字そのものを中身として扱います</b>。" +
+          "画像なら「壊れた画像」になりますが、<b>URL としては正しい</b>ので構文エラーは出ません。");
+      }
+      if (du.payload.indexOf("+") >= 0) {
+        note("du-plus-space", "info", "<code>+</code> は空白になりません",
+          "クエリ文字列（<code>?a=b+c</code>）では <code>+</code> が空白として読まれますが、" +
+          "<b>データURLの本体はクエリではありません</b>。ここでの <code>+</code> は文字どおりのプラス記号です。" +
+          "同じ「パーセント符号化」でも場所によって規則が違う、という取り違えがよく起きます。");
+      }
+    }
+
+    if (du.base64 && du.base64FlagPos >= 0 && du.params.length &&
+        du.mediatype.toLowerCase().indexOf("base64;") >= 0) {
+      note("du-base64-order", "warn", "<code>;base64</code> のあとに引数が書かれています",
+        "RFC 2397 では <code>;base64</code> はメディア型の<b>最後</b>に置きます。" +
+        "多くのブラウザは前後してもそれなりに読みますが、実装によって解釈が割れる書き方です。");
+    }
+
+    var charset = null;
+    for (var pi = 0; pi < du.params.length; pi++) {
+      if (du.params[pi].name.toLowerCase() === "charset") charset = du.params[pi].value;
+    }
+    if (du.defaultType) {
+      note("du-mediatype-default", "info", "メディア型を省略したときの既定は <code>text/plain;charset=US-ASCII</code> です",
+        "<b>UTF-8 ではありません。</b> 日本語を <code>data:,</code> のように型なしで書くと、" +
+        "受け手によっては US-ASCII として読まれます。日本語を入れるなら " +
+        "<code>data:text/plain;charset=UTF-8,</code> と明示してください。");
+    }
+    if (charset && charset.toLowerCase().replace(/[-_]/g, "") !== "utf8" &&
+        charset.toLowerCase().replace(/[-_]/g, "") !== "usascii" && bytes && bytes.length) {
+      var uu = utf8Decode(bytes);
+      if (uu.ok && /[^\x00-\x7f]/.test(uu.text)) {
+        note("du-charset-odd", "warn", "宣言された文字コードと中身が食い違っているかもしれません",
+          "<code>charset=" + esc(charset) + "</code> と書かれていますが、中身は UTF-8 として素直に読めます。");
+      }
+    }
+    if (/[\r\n]/.test(du.payload)) {
+      note("du-newline", "warn", "データURLの中に改行が入っています",
+        "HTML の属性や CSS に貼ると壊れます。base64 の側は改行を無視して読める実装が多いのですが、" +
+        "<b>URL としては改行を含められません</b>。貼る前に取り除いてください。");
+    }
+    if (trimmed.length > 32768) {
+      note("du-size", "info", "データURLが長すぎるかもしれません（" + trimmed.length.toLocaleString() + " 文字）",
+        "base64 にすると元のバイト数の約 4/3 に増えます。HTML や CSS に埋め込むと " +
+        "<b>その部分だけキャッシュが効かなくなり</b>、ページを開くたびに毎回転送されます。" +
+        "大きいものは普通のファイルとして置いたほうが速くなります。");
+    }
+  } else {
+    /* ---------- 素の base64 ---------- */
+    struct.push(["形", "データURLではありません（base64 の文字列として読みます）"]);
+    dec = b64Decode(trimmed);
+    bytes = dec.bytes;
+    struct.push(["文字数", dec.dataChars + " 文字（詰めの <code>=</code> を除く）"]);
+    struct.push(["バイト数", bytes.length + " バイト"]);
+  }
+
+  /* ---------- base64 まわりの共通の指摘 ---------- */
+  if (dec) {
+    var alpha = alphabetOf(dec);
+    struct.push(["字表", alpha === "url" ? "base64url（<code>-</code> <code>_</code>）"
+              : alpha === "std" ? "標準（<code>+</code> <code>/</code>）"
+              : alpha === "mixed" ? '<b style="color:var(--err)">混在</b>'
+              : "<em>この文字列からは区別できません（62・63番の文字が出てこない）</em>"]);
+
+    if (alpha === "mixed") {
+      note("b64-mixed", "high", "標準の字表と base64url が混ざっています",
+        "<code>+</code> <code>/</code> と <code>-</code> <code>_</code> が同じ文字列の中に両方あります。" +
+        "本来どちらか一方の字表しか使いません。<b>途中で置換処理が二重にかかった疑いがあります。</b>");
+    }
+    if (dec.bad.length) {
+      var uniq = [];
+      for (var bi = 0; bi < dec.bad.length; bi++) if (uniq.indexOf(dec.bad[bi]) < 0) uniq.push(dec.bad[bi]);
+      note("b64-bad", "high", "字表にない文字が " + dec.bad.length + " 個あります",
+        "見つかったもの: <code>" + esc(uniq.slice(0, 12).join(" ")) + "</code>。" +
+        "この道具は<b>読み飛ばして先に進みました</b>が、実装によって扱いが割れるところです。" +
+        "ブラウザの <code>atob</code> は例外を投げ、Python の " +
+        "<code>base64.urlsafe_b64decode</code> は<b>既定で黙って捨てます</b>" +
+        "（<code>validate=True</code> を書いて初めて拒みます）。");
+    }
+    if (dec.percent) {
+      note("b64-percent", "high", "<code>%</code> が混ざっています（二重に符号化された疑い）",
+        "base64 の字表に <code>%</code> はありません。" +
+        "<b>base64 の文字列をさらに URL 符号化した</b>ものが、戻されないまま渡ってきた形です。" +
+        "典型は <code>+</code> が <code>%2B</code> に、<code>/</code> が <code>%2F</code> になっているもの。");
+    }
+    if (dec.dropped) {
+      note("b64-len1", "high", "文字数を4で割った余りが1です",
+        "base64 は1文字が6ビットなので、4で割って1余る長さは<b>どうやってもバイトの境界に届きません</b>" +
+        "（6ビットでは1バイトに足りない）。<b>末尾が欠けています。</b>" +
+        "この道具は最後の1文字を落として残りを読みました。");
+    }
+    if (dec.padBeforeData) {
+      note("b64-pad-mid", "high", "詰めの <code>=</code> のあとにデータの文字が続いています",
+        "<code>=</code> は終わりの印なので途中には現れません。" +
+        "<b>2つの base64 文字列が連結された</b>か、切り貼りの失敗が疑われます。");
+    }
+    var rem = dec.dataChars % 4;
+    var wantPad = rem === 0 ? 0 : 4 - rem;
+    if (dec.pads !== wantPad && !dec.padBeforeData) {
+      if (dec.pads === 0 && wantPad > 0) {
+        note("b64-pad-missing", "warn", "詰めの <code>=</code> がありません（本来 " + wantPad + " 個）",
+          "RFC 4648 は詰めを求めていますが、<b>省く流儀も広く使われています</b>" +
+          "（JWT の base64url は詰めを付けないと決まっています）。多くの実装は受け取りますが、" +
+          "<b>厳密に検査する実装では拒まれます</b>。");
+      } else {
+        note("b64-pad-count", "warn", "詰めの <code>=</code> の数が合いません（" + dec.pads + " 個、本来 " + wantPad + " 個）",
+          "詰めは 0・1・2 個のいずれかで、データの文字数から一意に決まります。" +
+          "多すぎる <code>=</code> は<b>大半の実装が黙って無視します</b>。");
+      }
+    }
+    if (dec.sawSpace) {
+      note("b64-ws", "info", "空白や改行が含まれています",
+        "MIME（RFC 2045）は76文字ごとの改行を認めますが、" +
+        "<b>RFC 4648 の base64 は空白を認めていません</b>。" +
+        "ブラウザの <code>atob</code> は空白を読み飛ばしますが、拒む実装もあります。" +
+        "この道具は読み飛ばしました。");
+    }
+    /* ★ 余ったビットが0でない */
+    if (dec.slackBits && dec.slackValue !== 0 && dec.canonicalLast !== null) {
+      var tbl = (alpha === "url") ? URLSAFE : STD;
+      var actualCh = tbl.charAt(dec.actualLast);
+      var canonCh = tbl.charAt(dec.canonicalLast);
+      note("b64-slack", "high", "余ったビットが0ではありません（正規形ではない base64）",
+        "最後の文字 <code>" + esc(actualCh) + "</code> は6ビットのうち " + dec.slackBits +
+        " ビットが<b>バイトに使われずに捨てられます</b>。その捨てられる部分が0でないので、" +
+        "<b>これと違う文字列が、まったく同じバイト列に復号されます</b>" +
+        "（最後を <code>" + esc(canonCh) + "</code> にしたもの）。" +
+        "RFC 4648 §3.5 はこれを拒むことも認めていますが、<b>ブラウザの <code>atob</code> も " +
+        "Python も黙って受け取ります</b>。" +
+        "「base64 が一致するか」で同一性を判定していると、ここで取り違えます。");
+    }
+    if (bytes && bytes.length && dec.dataChars > 0) {
+      note("b64-not-encryption", "info", "base64 は暗号ではありません",
+        "読みにくくなるだけで、誰でも元に戻せます（この道具がやっているのがそれです）。" +
+        "秘密の値を base64 にして「隠した」ことにはなりません。");
+    }
+  }
+
+  /* ---------- 中身の判定と宣言との突き合わせ ---------- */
+  kind = sniff(bytes || new Uint8Array(0));
+
+  if (du.isData && bytes && bytes.length) {
+    var declared = normMime(du.type);
+    var actual = normMime(kind.mime);
+    if (actual && declared && declared !== actual) {
+      var known = false;
+      for (var mi = 0; mi < MAGIC.length; mi++) if (normMime(MAGIC[mi].mime) === declared) known = true;
+      if (known || declared.indexOf("image/") === 0 || declared === "application/pdf") {
+        note("du-mime-mismatch", "high", "宣言された型と中身が食い違っています",
+          "<code>" + esc(du.type) + "</code> と書かれていますが、先頭のバイトは <b>" + esc(kind.name) +
+          "</b>（<code>" + esc(kind.mime) + "</code>）のものです。" +
+          "<b>ブラウザの多くは中身のほうを信じて表示してしまう</b>ので、" +
+          "見た目には気づけません。<code>&lt;img&gt;</code> では動いても、" +
+          "型で振り分ける処理（保存時の拡張子・CDN・検査器）は宣言のほうを見ます。");
+      }
+    }
+  }
+
+  if (kind.mime === "image/svg+xml" && kind.text) {
+    var svg = kind.text;
+    var hits = [];
+    if (/<script[\s>]/i.test(svg)) hits.push("<code>&lt;script&gt;</code>");
+    if (/\son\w+\s*=/i.test(svg)) hits.push("<code>on…=</code> のイベント属性");
+    if (/javascript:/i.test(svg)) hits.push("<code>javascript:</code>");
+    if (/<foreignObject[\s>]/i.test(svg)) hits.push("<code>&lt;foreignObject&gt;</code>");
+    if (hits.length) {
+      note("du-svg-script", "high", "SVG の中に実行されうるものが入っています",
+        "見つかったもの: " + hits.join("・") + "。" +
+        "SVG を <code>&lt;img&gt;</code> で表示する分にはスクリプトは動きませんが、" +
+        "<b><code>&lt;object&gt;</code>・<code>&lt;embed&gt;</code>・直接ページを開く・" +
+        "インラインで貼る</b>と動きます。受け取った SVG をそのまま貼る作りは危険です。" +
+        "（このページは SVG を描画しません。）");
+    }
+  }
+  if (normMime(kind.mime) === "text/html" && du.isData) {
+    note("du-html-nav", "info", "<code>data:text/html</code> はリンク先として開けません",
+      "Chrome と Firefox は<b>トップレベルの遷移でデータURLを開くのを禁止しています</b>" +
+      "（<code>&lt;a href=\"data:text/html,…\"&gt;</code>、<code>window.open</code>、アドレス欄への貼り付け）。" +
+      "フィッシングに使われたための制限です。<code>&lt;iframe&gt;</code> でなら読み込めますが、" +
+      "そのフレームのオリジンは <code>null</code> になります。");
+  }
+
+  if (bytes && bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    note("dec-bom", "warn", "先頭に BOM（<code>EF BB BF</code>）があります",
+      "見えない3バイトです。JSON として読ませると<b>先頭でエラーになります</b>し、" +
+      "CSV の1列目の名前がずれる原因にもなります。" +
+      "Python の <code>TextDecoder</code> 相当や多くのエディタは黙って落とすので、" +
+      "<b>目で見ても分かりません</b>。");
+  }
+  if (bytes && bytes.length && !kind.magic) {
+    var ud = utf8Decode(bytes);
+    if (!ud.ok) {
+      var why = [];
+      if (ud.overlong) why.push("必要より長い形で書かれた文字（overlong）");
+      if (ud.surrogate) why.push("サロゲートの符号位置がそのまま符号化されている");
+      if (ud.truncated) why.push("末尾が途中で切れている");
+      note("dec-utf8-bad", "warn", "UTF-8 として読めないバイトが " + (ud.badAt >= 0 ? ud.badAt + " バイト目に" : "") + "あります",
+        (why.length ? why.join("・") + "。" : "") +
+        "<b>ブラウザの <code>TextDecoder</code> は既定でこれを <code>U+FFFD</code>（&#xfffd;）に置き換えて黙ります。</b>" +
+        "「文字化けした」と見えるものの多くは、この置き換えが起きたあとの姿です。");
+    }
+  }
+  if (bytes && bytes.length && kind.mime === "text/plain") {
+    var nul = 0, ctrl = 0;
+    for (var ci2 = 0; ci2 < bytes.length; ci2++) {
+      if (bytes[ci2] === 0) nul++;
+      else if (bytes[ci2] < 0x20 && bytes[ci2] !== 0x09 && bytes[ci2] !== 0x0a && bytes[ci2] !== 0x0d) ctrl++;
+    }
+    if (nul) {
+      note("dec-nul", "warn", "NUL バイト（<code>00</code>）が " + nul + " 個あります",
+        "テキストとして扱う処理の多くは、ここで<b>文字列が終わったとみなします</b>（C 由来の実装）。" +
+        "先が捨てられても例外は出ません。");
+    } else if (ctrl) {
+      note("dec-ctrl", "info", "画面に出ない制御文字が " + ctrl + " 個あります",
+        "見た目では分かりません。比較や検索が合わない原因になります。");
+    }
+  }
+
+  return { du: du, dec: dec, bytes: bytes || new Uint8Array(0), kind: kind, struct: struct, notes: notes };
+}
+
+/* ------------------------------------------------------------------
+   描画
+------------------------------------------------------------------ */
+function render(src) {
+  var show = src.replace(/^\s+|\s+$/g, "").length > 0;
+  el("pStruct").hidden = !show;
+  el("pKind").hidden = !show;
+  el("pNotes").hidden = !show;
+  if (!show) return;
+
+  var a = analyze(src);
+
+  var tb = el("structTbl").getElementsByTagName("tbody")[0];
+  tb.innerHTML = a.struct.map(function (row) {
+    return '<tr><td class="k">' + row[0] + '</td><td class="v">' + row[1] + '</td></tr>';
+  }).join("");
+
+  /* 余ったビットの図 */
+  var sw = el("slackWrap");
+  if (a.dec && a.dec.slackBits && a.dec.actualLast !== null) {
+    var alpha = alphabetOf(a.dec);
+    var tbl = (alpha === "url") ? URLSAFE : STD;
+    var b = bitsOf(a.dec.actualLast, 6);
+    var keep = 6 - a.dec.slackBits;
+    sw.innerHTML = '<div class="slackbox">最後の文字 <code>' + esc(tbl.charAt(a.dec.actualLast)) +
+      '</code> の6ビット: <span class="bits"><span class="keep">' + b.slice(0, keep) +
+      '</span><span class="drop">' + b.slice(keep) + '</span></span>' +
+      ' — 赤い ' + a.dec.slackBits + ' ビットは<b>どのバイトにも入らずに捨てられます</b>。' +
+      (a.dec.slackValue === 0
+        ? ' ここは 0 なので正規形です。'
+        : ' ここが 0 でないので、最後を <code>' + esc(tbl.charAt(a.dec.canonicalLast)) +
+          '</code> にした文字列も<b>まったく同じバイト列</b>になります。') +
+      '</div>';
+  } else { sw.innerHTML = ""; }
+
+  /* 中身 */
+  var declared = a.du.isData ? normMime(a.du.type) : "";
+  var actual = normMime(a.kind.mime);
+  var badge = "";
+  if (a.du.isData && declared && actual) {
+    badge = (declared === actual)
+      ? '<span class="badge ok">宣言と一致</span>'
+      : '<span class="badge ng">宣言は ' + esc(a.du.type) + '</span>';
+  }
+  el("kindLine").innerHTML = '中身は <b>' + esc(a.kind.name) + '</b>' +
+    (a.kind.mime ? ' <span class="badge">' + esc(a.kind.mime) + '</span>' : "") + badge +
+    ' — ' + a.bytes.length.toLocaleString() + ' バイト';
+
+  var vw = el("viewWrap");
+  vw.innerHTML = "";
+  if (RASTER[actual] && a.bytes.length) {
+    var url = "data:" + actual + ";base64," + b64Encode(a.bytes, "std", true);
+    var box = document.createElement("div");
+    box.className = "imgbox";
+    var img = document.createElement("img");
+    img.alt = "貼り付けられた画像のプレビュー";
+    img.src = url;
+    box.appendChild(img);
+    var nt = document.createElement("p");
+    nt.className = "imgnote";
+    nt.textContent = "中身から判定した型でこのページ内に描いています（通信はしていません）。";
+    box.appendChild(nt);
+    vw.appendChild(box);
+  } else if (a.kind.text !== undefined && a.kind.text !== null && a.bytes.length) {
+    var pre = document.createElement("pre");
+    pre.className = "textout";
+    pre.textContent = a.kind.text.length > 4000 ? a.kind.text.slice(0, 4000) + "\n……（以下省略）" : a.kind.text;
+    vw.appendChild(pre);
+    if (actual === "image/svg+xml" || actual === "text/html") {
+      var w = document.createElement("p");
+      w.className = "imgnote";
+      w.textContent = "SVG と HTML は、中に実行されうるものが入っている場合があるのでこのページでは描画しません。文字として表示しています。";
+      vw.appendChild(w);
+    }
+  }
+
+  el("hexOut").innerHTML = hexDump(a.bytes, 8);
+
+  /* 指摘 */
+  var ul = el("noteList");
+  ul.innerHTML = a.notes.map(function (n) {
+    return '<li class="sev-' + n.sev + '" data-code="' + n.code + '"><b>' + n.title + '</b>' + n.body + '</li>';
+  }).join("");
+  el("noteNone").hidden = a.notes.length > 0;
+}
+
+/* ------------------------------------------------------------------
+   作る側
+------------------------------------------------------------------ */
+var encBytes = null, encName = null;
+
+function renderEnc() {
+  var alpha = el("encAlpha").value;
+  var pad = el("encPad").checked;
+  var mime = el("encMime").value.replace(/^\s+|\s+$/g, "") || "text/plain";
+  var bytes = encBytes || utf8Encode(el("encIn").value);
+  var b64 = b64Encode(bytes, alpha, pad);
+  var durl = "data:" + mime + ";base64," + b64;
+  var ratio = bytes.length ? (b64.length / bytes.length) : 0;
+
+  var rows = [
+    ["元", (encName ? esc(encName) + " / " : "") + bytes.length.toLocaleString() + " バイト"],
+    ["base64", '<span style="word-break:break-all">' + esc(b64.length > 3000 ? b64.slice(0, 3000) + "…" : b64) + "</span>"],
+    ["長さ", b64.length.toLocaleString() + " 文字（元の " + ratio.toFixed(3) + " 倍）"],
+    ["データURL", '<span style="word-break:break-all">' + esc(durl.length > 3000 ? durl.slice(0, 3000) + "…" : durl) + "</span>"]
+  ];
+  el("encTbl").getElementsByTagName("tbody")[0].innerHTML = rows.map(function (r) {
+    return '<tr><td class="k">' + r[0] + '</td><td class="v">' + r[1] + '</td></tr>';
+  }).join("");
+  el("encToSrc").setAttribute("data-url", durl);
+}
+
+/* ------------------------------------------------------------------
+   自己検査：自前の実装をブラウザのものと突き合わせる
+------------------------------------------------------------------ */
+function selfCheck() {
+  var rows = [], okAll = 0, ngAll = 0;
+  function add(name, ok, detail) {
+    rows.push({ name: name, ok: ok, detail: detail || "" });
+    if (ok) okAll++; else ngAll++;
+  }
+
+  function bytesToLatin1(b) {
+    var s = "";
+    for (var i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+    return s;
+  }
+
+  /* 1. 符号化: 自前 vs btoa */
+  var n1 = 0, bad1 = 0;
+  for (var t = 0; t < 200; t++) {
+    var len = t % 17;
+    var arr = new Uint8Array(len);
+    for (var i = 0; i < len; i++) arr[i] = (t * 31 + i * 97 + (i * i)) & 0xff;
+    var mine = b64Encode(arr, "std", true);
+    var theirs = btoa(bytesToLatin1(arr));
+    n1++;
+    if (mine !== theirs) bad1++;
+  }
+  add("符号化が btoa と一致する（" + n1 + " 件）", bad1 === 0, bad1 ? bad1 + " 件ちがう" : "");
+
+  /* 2. 復号: 自前 vs atob */
+  var n2 = 0, bad2 = 0;
+  for (var t2 = 0; t2 < 200; t2++) {
+    var len2 = t2 % 17;
+    var arr2 = new Uint8Array(len2);
+    for (var j = 0; j < len2; j++) arr2[j] = (t2 * 53 + j * 13 + 7) & 0xff;
+    var s2 = b64Encode(arr2, "std", true);
+    var mineB = b64Decode(s2).bytes;
+    var theirsS = atob(s2);
+    n2++;
+    if (mineB.length !== theirsS.length) { bad2++; continue; }
+    for (var k = 0; k < theirsS.length; k++) {
+      if (mineB[k] !== theirsS.charCodeAt(k)) { bad2++; break; }
+    }
+  }
+  add("復号が atob と一致する（" + n2 + " 件）", bad2 === 0, bad2 ? bad2 + " 件ちがう" : "");
+
+  /* 3. 往復 */
+  var n3 = 0, bad3 = 0;
+  for (var t3 = 0; t3 < 100; t3++) {
+    var len3 = (t3 * 7) % 40;
+    var a3 = new Uint8Array(len3);
+    for (var m = 0; m < len3; m++) a3[m] = (t3 + m * 11) & 0xff;
+    var back = b64Decode(b64Encode(a3, t3 % 2 ? "url" : "std", t3 % 3 !== 0)).bytes;
+    n3++;
+    if (back.length !== len3) { bad3++; continue; }
+    for (var q = 0; q < len3; q++) if (back[q] !== a3[q]) { bad3++; break; }
+  }
+  add("符号化してから復号すると元に戻る（" + n3 + " 件・字表と詰めの有無を変えて）", bad3 === 0, bad3 ? bad3 + " 件ちがう" : "");
+
+  /* 4. UTF-8: 自前 vs TextDecoder / TextEncoder */
+  var n4 = 0, bad4 = 0;
+  var samples = ["", "a", "あ", "𩸽", "Hello, 世界", "éè", "𝒜𝒷", "改\n行", "　全角"];
+  if (typeof TextEncoder !== "undefined" && typeof TextDecoder !== "undefined") {
+    var te = new TextEncoder(), td = new TextDecoder();
+    for (var s4 = 0; s4 < samples.length; s4++) {
+      var mineE = utf8Encode(samples[s4]);
+      var theirsE = te.encode(samples[s4]);
+      n4++;
+      if (mineE.length !== theirsE.length) { bad4++; continue; }
+      var diff = false;
+      for (var z = 0; z < theirsE.length; z++) if (mineE[z] !== theirsE[z]) { diff = true; break; }
+      if (diff) { bad4++; continue; }
+      if (utf8Decode(theirsE).text !== td.decode(theirsE)) bad4++;
+    }
+    add("UTF-8 の読み書きが TextEncoder / TextDecoder と一致する（" + n4 + " 件）", bad4 === 0, bad4 ? bad4 + " 件ちがう" : "");
+  }
+
+  /* 5. 正規形でない base64 を、実際に atob が受け取ることの確認 */
+  var slackOk = false;
+  try {
+    var A = atob("QQ=="), B = atob("QR==");
+    slackOk = (A === B && A === "A");
+  } catch (e) { slackOk = false; }
+  add("QQ== と QR== がブラウザで同じ1バイトに戻る（余ったビットの実演）", slackOk,
+      slackOk ? "" : "このブラウザでは再現しませんでした");
+
+  el("selfHead").innerHTML = ngAll === 0
+    ? '<b class="ok">' + okAll + " 項目すべて一致</b>（このブラウザで、いま実行した結果）"
+    : '<b class="ng">' + ngAll + " 項目が食い違いました</b>（" + okAll + " 項目は一致）";
+  el("selfOut").innerHTML = rows.map(function (r) {
+    return '<div class="row"><span class="mark ' + (r.ok ? "ok" : "ng") + '">' +
+      (r.ok ? "&#x2713;" : "&#x2717;") + "</span><span>" + esc(r.name) +
+      (r.detail ? " — " + esc(r.detail) : "") + "</span></div>";
+  }).join("");
+}
+
+/* ------------------------------------------------------------------
+   見本
+------------------------------------------------------------------ */
+var PNG_1PX = "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAWklEQVR42u3OMQEAAAgDoC251a3g" +
+  "LwlpuHkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4M0AVeMAAeFDLh8AAAAASUVORK5CYII=";
+var JPEG_TINY = "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a" +
+  "HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAHwAAAQUBAQEBAQEA" +
+  "AAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKB" +
+  "kaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlq" +
+  "c3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ" +
+  "2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oACAEBAAA/AP/Z";
+
+var SAMPLES = {
+  png:      "data:image/png;base64," + PNG_1PX,
+  mismatch: "data:image/png;base64," + JPEG_TINY,
+  slack:    "QR==",
+  nob64:    "data:image/png," + PNG_1PX,
+  plus:     "data:text/plain;charset=UTF-8,1+1%20%3D%202%20%E3%81%A0%E3%82%88",
+  svg:      "data:image/svg+xml;base64," +
+            "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0" +
+            "PSI0MCI+PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0PjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9" +
+            "IjE1Ii8+PC9zdmc+",
+  jwtish:   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+  clear:    ""
+};
+
+/* ------------------------------------------------------------------
+   起動
+------------------------------------------------------------------ */
+(function () {
+  var src = el("srcIn");
+  var timer = null;
+  function schedule() {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(function () { render(src.value); }, 60);
+  }
+  src.addEventListener("input", schedule);
+
+  var btns = document.querySelectorAll("[data-sample]");
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].addEventListener("click", function () {
+      src.value = SAMPLES[this.getAttribute("data-sample")];
+      render(src.value);
+      src.focus();
+    });
+  }
+
+  el("encIn").addEventListener("input", function () { encBytes = null; encName = null; renderEnc(); });
+  el("encAlpha").addEventListener("change", renderEnc);
+  el("encPad").addEventListener("change", renderEnc);
+  el("encMime").addEventListener("input", renderEnc);
+  el("encFile").addEventListener("change", function () {
+    var f = this.files && this.files[0];
+    if (!f) { encBytes = null; encName = null; renderEnc(); return; }
+    var fr = new FileReader();
+    fr.onload = function () {
+      encBytes = new Uint8Array(fr.result);
+      encName = f.name;
+      if (f.type) el("encMime").value = f.type;
+      renderEnc();
+    };
+    fr.readAsArrayBuffer(f);
+  });
+  el("encToSrc").addEventListener("click", function () {
+    var u = this.getAttribute("data-url");
+    if (!u) return;
+    src.value = u;
+    render(u);
+    src.scrollIntoView({ block: "start" });
+  });
+
+  src.value = SAMPLES.png;
+  render(src.value);
+  renderEnc();
+  selfCheck();
+})();
+</script>
+</body>
+</html>
