@@ -14,6 +14,13 @@
 | `test_jwt.py` | [JWTの読み下し](https://hirulab-dev.github.io/hirulab-tools/jwt/) と **PyJWT（第三者実装）**・Python の `base64`/`json`・`hmac`/`cryptography`。分解を 400 件、クレームの期限判定を PyJWT と 400 件、**署名の検証をブラウザの `crypto.subtle` vs Python で 23 件**（HS/RS/PS/ES と DER 形式）、壊れた符号化の扱いを 37 件。仕込んだ落とし穴 57 件の名指しも確認 |
 | `test_password.py` | [パスワード生成・強度診断](https://hirulab-dev.github.io/hirulab-tools/password/) の拒否サンプリングを、**理論値そのもの（非心χ²分布）**と突き合わせる。実際に `crypto.getRandomValues` で数万回ずつ引かせ、剰余法の偏り・拒否サンプリングの無偏りの両方を、固定しきい値ではなく統計的な検定力で判定。エントロピー計算を Python の `log2` と56件、χ²のp値近似(Wilson–Hilferty)をSciPyの正確値と144件、落とし穴の名指しを13件で確認 |
 | `test_base64.py` | [Base64・データURLの分解](https://hirulab-dev.github.io/hirulab-tools/base64/) の**参照を3つの出どころに分ける**。(1) 符号化・復号を Python の `base64`（`validate=True`）と 400 件 (2) **データURLの分解を Python 標準の `urllib.request`（`DataHandler`）と 400 件** — 別の言語のデータURL専用パーサに当てる (3) **中身の判定は「本物のファイル」に当てる** — Pillow に実際に PNG/JPEG/GIF/BMP/TIFF/WebP を保存させ、その生バイトを食わせる（マジックナンバーの表を手で書き写した値を参照にしない）。仕込んだ落とし穴 27 件の名指しも確認。`--sabotage` つき |
+| `test_qr.py` | [QRコード作成](https://hirulab-dev.github.io/hirulab-tools/qr/) の符号化器と、独立実装 **segno** の出力を**1モジュールずつ**。111 ケース・**587,455 モジュール**を完全一致で照合（型番1〜40のうち30種、誤り訂正 L/M/Q/H の全レベル）。参照データは `make_qr_reference.py` で作る（大きいので git には入れない） |
+| `test_cron.py` | [cron式の読み下し](https://hirulab-dev.github.io/hirulab-tools/cron/) と Python の **croniter**。ランダム生成した式の「次の実行時刻」を突き合わせる。★ **croniter との解釈差3種は Vixie cron 側に合わせてあり、差が出ること自体を検査**している（幅ゼロの範囲 `5-5` / 日・曜日が `*/n` のときの OR 判定 / 存在しない日付を含む月の扱い） |
+
+⚠ `test_qr.py` は Chromium ではなく **dukpy（Duktape）** で JS を走らせます。
+参照データを作るときの segno は、**詰めビットの処理を1か所だけ規格どおりに直してから**使っています
+（`make_qr_reference.py` の冒頭に理由を書いてあります。segno の `write_padding_bits` は
+すでに語の境界で終わっているときに 0 を1語ぶん余計に足すため、直さないと行列がずれて比較になりません）。
 
 ## 使い方
 
@@ -29,6 +36,11 @@ python tools/tests/test_url.py --n 600
 python tools/tests/test_jwt.py --n 400
 python tools/tests/test_base64.py --n 400
 python tools/tests/test_password.py --n 40000 --trials 25
+
+pip install croniter dukpy segno
+python tools/tests/test_cron.py docs/cron/index.html --n 800
+python tools/tests/make_qr_reference.py   # 先に参照データを作る
+python tools/tests/test_qr.py
 ```
 
 ## 出力の読み方
