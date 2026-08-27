@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>cron式の読み下し — 日本語の意味・次の実行時刻・落とし穴の検出</title>
-<meta name="description" content="cron式（* * * * *）を日本語に読み下し、次の実行時刻を20件並べ、1年あたりの実行回数と最短・最長の間隔まで出します。「日と曜日を両方書くとORになる」「*/7 は折り返しで間隔が飛ぶ」といった定番の落とし穴を自動で検出します。ブラウザ内で完結し、データはどこにも送信されません。">
+<title>Cron Expression Explainer — what it means, when it runs next, what will bite you</title>
+<meta name="description" content="Reads a cron expression (* * * * *) back to you as a sentence, lists the next 20 run times, and works out how many times a year it fires and what the shortest and longest gaps are. It also flags the classic traps automatically — day-of-month and day-of-week being OR, not AND, and */7 skipping at the wrap-around. Everything happens in the browser and nothing is ever sent anywhere.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
-    /* リンク色は白地で 4.5:1 を超える濃さにしている（明るい #c47f16 だと 3.28:1 しか出ない）。
-       --on-accent はアクセント色を背景に敷いたときの文字色。 */
+    /* The link colour is dark enough to clear 4.5:1 on white; the lighter #c47f16
+       only reaches 3.28:1. --on-accent is the text colour on top of the accent. */
     --accent:#8f5c0e; --on-accent:#ffffff;
     --border:#e2e2df; --ok:#15703f; --err:#b3261e; --warn:#9a5208;
     --okbg:#e8f5ee; --errbg:#fdecea; --warnbg:#fdf4e3; --hi:#fdf4e3;
@@ -92,7 +92,7 @@
   .statnote{font-size:.78rem;color:var(--sub);margin:10px 0 0;line-height:1.6}
   details{margin-top:16px;font-size:.83rem;color:var(--sub)}
   details summary{cursor:pointer;color:var(--accent)}
-  /* 色を指定しないとブラウザ既定の青になり、ダークモードで 1.89:1 まで落ちる */
+  /* Without a colour this falls back to the browser default blue, which drops to 1.89:1 in dark mode */
   details a{color:var(--accent)}
   details ul{padding-left:1.2em;margin:8px 0 0}
   details li{margin-bottom:5px;line-height:1.6}
@@ -120,62 +120,65 @@
   footer{color:var(--sub);font-size:.78rem;margin-top:28px;border-top:1px solid var(--border);padding-top:12px}
   footer a{color:var(--accent)}
 </style>
-<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/cron/">
-<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/cron/">
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/cron.html">
 <link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/cron.html">
+<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/cron/">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="クロードの昼ラボ">
-<meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="cron式の読み下し — 日本語の意味・次の実行時刻・落とし穴の検出">
-<meta property="og:description" content="cron式を日本語に読み下し、次の実行時刻を20件、1年あたりの実行回数と最短・最長の間隔まで出します。「日と曜日はORになる」等の定番の罠を自動検出。ブラウザ内で完結します。">
-<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/cron/">
-<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-cron.png">
+<meta property="og:site_name" content="Claude&#39;s Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Cron Expression Explainer">
+<meta property="og:description" content="Reads a cron expression back as a sentence, lists the next 20 run times, and gives the runs per year and the shortest and longest gaps. Classic traps such as day-of-month and day-of-week being OR are flagged automatically. Runs entirely in the browser.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/cron.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-cron-en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="cron式の読み下し — 日本語の意味・次の実行時刻・落とし穴の検出">
-<meta name="twitter:description" content="cron式を日本語に読み下し、次の実行時刻と1年あたりの実行回数・最短最長の間隔まで出します。定番の罠を自動検出。ブラウザ内で完結します。">
-<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-cron.png">
+<meta name="twitter:title" content="Cron Expression Explainer">
+<meta name="twitter:description" content="Reads a cron expression back as a sentence, with the next run times, runs per year and the shortest and longest gaps. Classic traps flagged automatically.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-cron-en.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "cron式の読み下し",
-  "url": "https://hirulab-dev.github.io/hirulab-tools/cron/",
-  "description": "cron式を日本語に読み下し、次の実行時刻を20件並べ、1年あたりの実行回数と最短・最長の間隔を出します。日と曜日の同時指定がORになる件や、範囲の幅で割り切れないステップで間隔が飛ぶ件などを自動で検出します。ブラウザ内で完結します。",
+  "name": "Cron Expression Explainer",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/cron.html",
+  "description": "Reads a cron expression back to you as a sentence, lists the next 20 run times, and gives the number of runs per year along with the shortest and longest gaps. It automatically flags traps such as day-of-month and day-of-week being combined with OR, and steps that do not divide the range evenly leaving a jump at the wrap-around. Runs entirely in the browser.",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Web browser",
-  "browserRequirements": "JavaScript が有効なモダンブラウザ",
-  "inLanguage": "ja",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
   "isAccessibleForFree": true,
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
-  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-cron.png",
-  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
-  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-cron-en.png",
+  "author": { "@type": "Organization", "name": "Claude&#39;s Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude&#39;s Daytime Lab &mdash; Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
 }
 </script>
 </head>
 <body>
 <div class="wrap">
 
-  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
-  <h1>cron式の読み下し</h1>
-  <p class="lead"><code>0 9 * * 1-5</code> のような式を<strong>日本語の文</strong>にして、
-    <strong>次の実行時刻</strong>と<strong>1年で何回動くか・間隔は最短何分か</strong>まで出します。
-    「日と曜日を両方書くと <strong>かつ</strong> ではなく <strong>または</strong> になる」といった
-    定番の落とし穴も、当てはまっていたら自動で指摘します。</p>
+  <a class="hl-back" href="./">&larr; Claude&#39;s Daytime Lab &mdash; tools</a>
+  <h1>Cron Expression Explainer</h1>
+  <p class="lead">Turns an expression like <code>0 9 * * 1-5</code> into <strong>a sentence</strong>,
+    and gives you <strong>the next run times</strong> plus
+    <strong>how many times a year it fires and how short the gaps get</strong>.
+    The classic traps &mdash; such as writing both day-of-month and day-of-week meaning
+    <strong>OR</strong>, not <strong>AND</strong> &mdash; are pointed out automatically
+    whenever they apply.</p>
 
   <div class="privacy">
-    <strong>このページは通信を一切行いません。</strong>
-    解析も時刻の計算もすべてブラウザの中でやっています。読み込んだあとは機内モードでも動きます。
-    入力した式がどこかに送られることはありません。
+    <strong>This page makes no network requests at all.</strong>
+    Parsing and every time calculation happen inside the browser. Once the page has loaded
+    it still works in aeroplane mode.
+    The expression you type is never sent anywhere.
   </div>
 
   <div class="panel">
-    <label for="expr" class="hide">cron式</label>
+    <label for="expr" class="hide">Cron expression</label>
     <input type="text" id="expr" spellcheck="false" autocapitalize="off" autocorrect="off"
-           value="0 9 * * 1-5" placeholder="例: 0 9 * * 1-5">
+           value="0 9 * * 1-5" placeholder="e.g. 0 9 * * 1-5">
     <div class="presets" id="presets"></div>
   </div>
 
@@ -189,16 +192,16 @@
     </div>
 
     <div class="panel" id="notesPanel">
-      <h2>気をつけるところ</h2>
+      <h2>Things to watch out for</h2>
       <ul class="notes" id="notes"></ul>
     </div>
 
     <div class="panel">
-      <h2>フィールドの中身</h2>
+      <h2>What each field holds</h2>
       <div class="tablewrap">
         <table>
           <thead><tr>
-            <th>書いた値</th><th>意味するもの</th><th>当てはまる値</th><th class="c-cnt">個数</th>
+            <th>As written</th><th>Field</th><th>Values it matches</th><th class="c-cnt">Count</th>
           </tr></thead>
           <tbody id="fields"></tbody>
         </table>
@@ -206,9 +209,9 @@
     </div>
 
     <div class="panel">
-      <h2>次の実行時刻</h2>
+      <h2>Next run times</h2>
       <div class="tzrow">
-        <label for="tz">タイムゾーン</label>
+        <label for="tz">Time zone</label>
         <select id="tz"></select>
         <span id="tznote"></span>
       </div>
@@ -217,87 +220,82 @@
     </div>
 
     <div class="panel">
-      <h2>どれくらいの頻度か</h2>
+      <h2>How often it fires</h2>
       <div class="stats" id="stats"></div>
       <p class="statnote" id="statnote"></p>
     </div>
   </div>
 
   <details>
-    <summary>書ける記法と、このページの解釈のしかた</summary>
+    <summary>What you can write, and how this page reads it</summary>
     <ul>
-      <li><b>フィールドの数</b>: 5個（分 時 日 月 曜日）が標準です。6個書いた場合は
-        <b>先頭を秒</b>として解釈します（Spring・Quartz・一部のジョブ実行基盤の書き方）。
-        7個目（年）には対応していません。</li>
-      <li><b>使える記号</b>: <code>*</code>（全部） <code>,</code>（並べる）
-        <code>-</code>（範囲） <code>/</code>（間隔）。
-        <code>*/15</code>、<code>1-5</code>、<code>0,30</code>、<code>9-17/2</code>、
-        <code>5/10</code>（5から最後まで10おき）が書けます。</li>
-      <li><b>名前</b>: 月は <code>JAN</code>〜<code>DEC</code>、曜日は <code>SUN</code>〜<code>SAT</code>。
-        大文字小文字は問いません。<code>MON-FRI</code> のような範囲も書けます。</li>
-      <li><b>曜日の 0 と 7 はどちらも日曜</b>です。<code>0-7</code> は全曜日と同じ意味になります。</li>
-      <li><b>@から始まる別名</b>: <code>@yearly</code> <code>@annually</code> <code>@monthly</code>
-        <code>@weekly</code> <code>@daily</code> <code>@midnight</code> <code>@hourly</code>
-        に対応しています。<code>@reboot</code> は時刻を持たないので扱えません。</li>
-      <li><b>対応していない記法</b>: <code>L</code>（月末・最終曜日） <code>W</code>（直近の平日）
-        <code>#</code>（第n何曜日）は Quartz などの拡張で、標準の cron では動きません。
-        書かれていたらエラーにして、その旨をお伝えします。<code>?</code> は
-        <code>*</code> と同じものとして扱います。</li>
-      <li><b>日と曜日の組み合わせ</b>: 両方に <code>*</code> 以外を書いた場合、
-        標準の cron は「<b>どちらかに当てはまれば実行</b>」（OR）です。
-        片方だけを絞った場合は、絞ったほうだけを見ます。このページもその規則に従っています。</li>
-      <li><b>ステップの起点</b>: <code>*/n</code> はそのフィールドの<b>最小値から</b>数えます。
-        分なら 0 から。<code>5/10</code> のように書いた場合は 5 が起点です。</li>
-      <li><b>タイムゾーンと夏時間</b>: cron は「壁時計」を見て動きます。
-        このページも壁時計で一致を判定しているので、夏時間の切り替え日には
-        飛ばされる時刻・二度来る時刻が理屈のうえで発生します。
-        日本標準時には夏時間がないため、既定の <code>Asia/Tokyo</code> ではこの問題は起きません。</li>
-      <li><b>確かめかた</b>: 次の実行時刻の計算は、Python の <code>croniter</code> を基準にして
-        ランダムな式で突き合わせ検証をしています。結果は
-        <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>側に置いてあります。</li>
+      <li><b>Number of fields</b>: five (minute hour day-of-month month day-of-week) is the
+        standard. If you write six, <b>the first one is read as seconds</b> (the form used by
+        Spring, Quartz and some job runners). A seventh field (year) is not supported.</li>
+      <li><b>Symbols</b>: <code>*</code> (all) <code>,</code> (list)
+        <code>-</code> (range) <code>/</code> (step).
+        <code>*/15</code>, <code>1-5</code>, <code>0,30</code>, <code>9-17/2</code> and
+        <code>5/10</code> (from 5 to the end, every 10) all work.</li>
+      <li><b>Names</b>: months are <code>JAN</code>&ndash;<code>DEC</code>, weekdays are
+        <code>SUN</code>&ndash;<code>SAT</code>. Case does not matter, and ranges such as
+        <code>MON-FRI</code> are fine.</li>
+      <li><b>Both 0 and 7 mean Sunday</b> in the day-of-week field. <code>0-7</code> therefore
+        means the same as every day of the week.</li>
+      <li><b>Aliases beginning with @</b>: <code>@yearly</code> <code>@annually</code>
+        <code>@monthly</code> <code>@weekly</code> <code>@daily</code> <code>@midnight</code>
+        <code>@hourly</code> are supported. <code>@reboot</code> has no clock time, so it cannot
+        be handled.</li>
+      <li><b>Not supported</b>: <code>L</code> (last day, last weekday) <code>W</code> (nearest
+        weekday) and <code>#</code> (nth weekday) are Quartz-style extensions and do not work in
+        standard cron. If they appear, this page reports an error saying so. <code>?</code> is
+        treated as the same thing as <code>*</code>.</li>
+      <li><b>Day-of-month with day-of-week</b>: when both hold something other than
+        <code>*</code>, standard cron <b>runs if either one matches</b> (OR). When only one of
+        them is narrowed, only that one is consulted. This page follows the same rule.</li>
+      <li><b>Where a step starts</b>: <code>*/n</code> counts <b>from the minimum</b> of that
+        field &mdash; 0 for minutes. Written as <code>5/10</code>, the start is 5.</li>
+      <li><b>Time zones and daylight saving</b>: cron watches the wall clock. This page matches
+        against the wall clock too, so on a daylight-saving changeover there are, in principle,
+        times that get skipped and times that come round twice.
+        Japan Standard Time has no daylight saving, so the default <code>Asia/Tokyo</code>
+        never runs into this.</li>
+      <li><b>How it was checked</b>: the next-run calculation is verified against Python
+        <code>croniter</code> over randomly generated expressions. The script lives with the
+        <a href="https://github.com/hirulab-dev/hirulab-tools">source</a>.</li>
     </ul>
   </details>
 
   <nav class="hl-nav">
-    <h2>ほかの道具</h2>
+    <h2>Other tools</h2>
     <ul>
-      <li><a href="../regex/">正規表現テスタ</a></li>
-      <li><a href="../char-counter/">文字数カウンタ</a></li>
-      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
-      <li><a href="../date/">日付計算機</a></li>
-      <li><a href="../image/">画像リサイズ・圧縮</a></li>
-      <li><a href="../take-home/">手取り計算機</a></li>
-      <li><a href="../json/">JSON整形・検証</a></li>
-      <li><a href="../diff/">テキスト差分（diff）</a></li>
-      <li><a href="../unit/">単位換算</a></li>
-      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
-      <li><a href="../qr/">QRコード作成</a></li>
-      <li><a href="../palette/">カラーパレット生成</a></li>
-      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
-      <li><a href="../tz/">タイムゾーン変換</a></li>
-      <li><a href="../csv/">CSVプレビュー・診断</a></li>
-      <li><a href="../url/">URLの分解・組み立て</a></li>
-      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
-      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
-      <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
-      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
-      <li><a href="../jwt/">JWTの読み下し</a></li>
-      
-      <li><a href="../password/">パスワード生成・強度診断</a></li>
-      <li><a href="../base64/">Base64・データURLの分解</a></li>
-      <li><a href="../en/cron.html">English version</a></li>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
+      <li><a href="./replace.html">Regex Replacement Preview</a></li>
+      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./palette.html">Color Palette Generator</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
+      <li><a href="./url.html">URL Parser &amp; Builder</a></li>
+      <li><a href="./headers.html">HTTP Header Explainer</a></li>
+      <li><a href="./jwt.html">JWT Explainer</a></li>
+      <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
+      <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
+      <li><a href="./qr.html">QR Code Generator</a></li>
+      <li><a href="../cron/">Japanese version</a></li>
     </ul>
     <p class="hl-links">
-      <a href="../">道具箱のトップ</a> ・
-      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
-      <a href="https://x.com/hirulab_ai">X</a> ・
-      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+      <a href="./">Tools index</a> &middot;
+      <a href="https://note.com/hirulab">Experiment log (JP)</a> &middot;
+      <a href="https://x.com/hirulab_ai">X</a> &middot;
+      <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
     </p>
   </nav>
 
   <footer>
-    作ったのは「クロードの昼ラボ」（AIのClaude）です。使用は無料・登録不要。
-    実行時刻の計算は目安として使ってください。実際に動くかどうかは、必ず動かす環境で確かめてください。
+    Built by <strong>Claude&#39;s Daytime Lab</strong> (written by Claude, an AI). Free to use,
+    no sign-up. Treat the calculated run times as a guide: always confirm the behaviour on the
+    machine that will actually run the job.
   </footer>
 </div>
 
@@ -319,14 +317,14 @@ var DOW_NAMES   = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
    短いリテラルのまま置くと、英語版を作るときに「同じ文字列は同じ訳」に
    引きずられて割れなくなるので、先に枠で分けてある。
    （表示は1文字も変わらない。英語版はこの数行の中身だけが差し替わる） */
-var DOW_JA = '日,月,火,水,木,金,土'.split(',');
-var LBL    = '秒,分,時,日,月,曜日'.split(',');          // フィールド名
-var GAP    = '秒,分,時間,日,か月'.split(',');           // 経過時間の単位
-var MON_LB = '1月,2月,3月,4月,5月,6月,7月,8月,9月,10月,11月,12月'.split(',');
+var DOW_JA = 'Sun,Mon,Tue,Wed,Thu,Fri,Sat'.split(',');
+var LBL    = 'seconds,minutes,hours,day of month,month,day of week'.split(',');          // フィールド名
+var GAP    = ' s, min, h, d, mo'.split(',');           // 経過時間の単位
+var MON_LB = 'January,February,March,April,May,June,July,August,September,October,November,December'.split(',');
 
 /* 文をつなぐ語。日本語では空になる枠があるので、まとめて1つの表にしてある */
 var W = {};
-'runPre=|monPre=|monthOf=の|dowPre=|domPre=|at='.split('|').forEach(function(kv){
+'runPre=Runs |monPre=in |monthOf=, |dowPre=on |domPre=on day |at=at '.split('|').forEach(function(kv){
   var i = kv.indexOf('='); W[kv.slice(0, i)] = kv.slice(i + 1);
 });
 
@@ -361,7 +359,7 @@ function parseField(raw, kind, idx) {
   var spec = SPECS[kind];
   var text = raw;
   if (text === '?') text = '*';            // Quartz の ? は * と同じ扱いにする
-  if (text === '') throw new CronError(spec.label + 'のフィールドが空です。', idx, raw);
+  if (text === '') throw new CronError(spec.label + ' field is empty.', idx, raw);
 
   // L / W / # は Quartz の拡張。ただし JUL・WED のように名前の中にも L と W が
   // 出てくるので、先に名前を数字へ置き換えてから探す。
@@ -374,8 +372,8 @@ function parseField(raw, kind, idx) {
   if (/[LW#]/i.test(scan)) {
     var bad = scan.match(/[LW#]/i)[0].toUpperCase();
     throw new CronError(
-      '「' + bad + '」は Quartz などの拡張記法で、標準の cron では使えません。' +
-      'このページも対応していません。', idx, raw);
+      '“' + bad + '” is a Quartz-style extension and is not part of standard cron. ' +
+      'This page does not support it either.', idx, raw);
   }
 
   var set = {};
@@ -383,7 +381,7 @@ function parseField(raw, kind, idx) {
   for (var pi = 0; pi < parts.length; pi++) {
     var p = parts[pi];
     if (p === '') throw new CronError(
-      spec.label + 'に空の項目があります（カンマが余っていませんか）。', idx, raw);
+      spec.label + ' has an empty item (is there a stray comma?).', idx, raw);
 
     var step = 1, body = p;
     var slash = p.indexOf('/');
@@ -391,12 +389,12 @@ function parseField(raw, kind, idx) {
       body = p.slice(0, slash);
       var stepText = p.slice(slash + 1);
       if (!/^\d+$/.test(stepText)) throw new CronError(
-        spec.label + 'の「/」のうしろは数字で書いてください（' + p + '）。', idx, raw);
+        spec.label + ': what follows the “/” has to be a number (' + p + ').', idx, raw);
       step = parseInt(stepText, 10);
       if (step === 0) throw new CronError(
-        spec.label + 'の間隔に 0 は指定できません（' + p + '）。', idx, raw);
+        spec.label + ': the step cannot be 0 (' + p + ').', idx, raw);
       if (body === '') throw new CronError(
-        spec.label + 'の「/」の前が空です（' + p + '）。「*/' + step + '」と書きます。', idx, raw);
+        spec.label + ': there is nothing before the “/” (' + p + '). Write it as “*/' + step + '”.', idx, raw);
     }
 
     var lo, hi;
@@ -414,7 +412,7 @@ function parseField(raw, kind, idx) {
       }
     }
     if (lo > hi) throw new CronError(
-      spec.label + 'の範囲が逆さまです（' + body + '）。小さいほうを先に書いてください。', idx, raw);
+      spec.label + ': the range runs backwards (' + body + '). Put the smaller value first.', idx, raw);
 
     for (var v = lo; v <= hi; v += step) set[v] = true;
   }
@@ -427,7 +425,7 @@ function parseField(raw, kind, idx) {
     values = Object.keys(norm).map(Number).sort(function(a,b){ return a-b; });
   }
   if (values.length === 0) throw new CronError(
-    spec.label + 'に当てはまる値がありません（' + raw + '）。', idx, raw);
+    spec.label + ': no value matches (' + raw + ').', idx, raw);
 
   return {
     raw: raw,
@@ -442,7 +440,7 @@ function toNumber(token, spec, idx, raw) {
   if (/^\d+$/.test(token)) {
     var n = parseInt(token, 10);
     if (n < spec.min || n > spec.max) throw new CronError(
-      spec.label + 'に ' + n + ' は指定できません（' + spec.min + '〜' + spec.max + 'の範囲で書きます）。',
+      spec.label + ' cannot take ' + n + ' (the allowed range is ' + spec.min + '–' + spec.max + ').',
       idx, raw);
     return n;
   }
@@ -452,23 +450,23 @@ function toNumber(token, spec, idx, raw) {
     if (at >= 0) return at + spec.nameBase;
   }
   throw new CronError(
-    spec.label + 'に「' + token + '」は書けません。' +
-    (spec.names ? '数字か ' + spec.names[0] + '〜' + spec.names[spec.names.length-1] + ' の名前で書きます。'
-                : spec.min + '〜' + spec.max + ' の数字で書きます。'), idx, raw);
+    spec.label + ': “' + token + '” is not something you can write here. ' +
+    (spec.names ? 'Use a number, or a name from ' + spec.names[0] + '–' + spec.names[spec.names.length-1] + '.'
+                : spec.min + '–' + spec.max + '.'), idx, raw);
 }
 
 /* cron式全体を解析する */
 function parseCron(input) {
   var src = String(input).trim().replace(/\s+/g, ' ');
-  if (src === '') throw new CronError('式が空です。', -1, null);
+  if (src === '') throw new CronError('The expression is empty.', -1, null);
 
   var alias = null;
   if (src.charAt(0) === '@') {
     var key = src.toLowerCase();
     if (key === '@reboot') throw new CronError(
-      '@reboot は「起動したとき」という意味で、時刻を持ちません。次の実行時刻は計算できません。', -1, null);
+      '@reboot means “when the machine boots” and carries no clock time, so there is no next run time to calculate.', -1, null);
     if (!ALIASES.hasOwnProperty(key)) throw new CronError(
-      '「' + src + '」という別名は知りません。@yearly / @monthly / @weekly / @daily / @hourly が使えます。',
+      '“' + src + '” is not an alias this page knows. @yearly / @monthly / @weekly / @daily / @hourly are available.',
       -1, null);
     alias = key;
     src = ALIASES[key];
@@ -479,8 +477,8 @@ function parseCron(input) {
   if (toks.length === 5)      { kinds = ['minute','hour','dom','month','dow']; hasSecond = false; }
   else if (toks.length === 6) { kinds = ['second','minute','hour','dom','month','dow']; hasSecond = true; }
   else throw new CronError(
-    'フィールドが ' + toks.length + '個あります。5個（分 時 日 月 曜日）' +
-    'または6個（秒 分 時 日 月 曜日）で書いてください。', -1, null);
+    'This expression has ' + toks.length + ' fields. Write either 5 (minute hour day-of-month month day-of-week) ' +
+    'or 6 (second minute hour day-of-month month day-of-week).', -1, null);
 
   var fields = {}, order = [];
   for (var i = 0; i < kinds.length; i++) {
@@ -624,9 +622,9 @@ function nowWall(tz) {                    // 指定タイムゾーンの「い�
 /* ---- 表示用のことば ---- */
 function listJa(values, kind) {
   var spec = SPECS[kind];
-  if (kind === 'dow') return values.map(function(v){ return DOW_JA[v] + '曜'; }).join('・');
-  if (kind === 'month') return values.map(function(v){ return MON_LB[v - 1]; }).join('・');
-  return values.join('・');
+  if (kind === 'dow') return values.map(function(v){ return DOW_JA[v] + ''; }).join(', ');
+  if (kind === 'month') return values.map(function(v){ return MON_LB[v - 1]; }).join(', ');
+  return values.join(', ');
 }
 function isFull(f, kind) {
   var spec = SPECS[kind];
@@ -656,18 +654,18 @@ function describeTime(cron) {
       sFull = hasSec ? isFull(f.second,'second') : false;
 
   // 秒あり・毎秒
-  if (hasSec && sFull && miFull && hFull) return '<span class="em">毎秒</span>実行します。';
-  if (!hasSec && miFull && hFull) return '<span class="em">毎分</span>実行します。';
+  if (hasSec && sFull && miFull && hFull) return '<span class="em">every second</span>.';
+  if (!hasSec && miFull && hFull) return '<span class="em">every minute</span>.';
 
   var secTxt = '';
   if (hasSec) {
-    if (sFull) secTxt = '毎秒';
+    if (sFull) secTxt = 'every second';
     else {
       var ss = stepInfo(f.second,'second');
       if (ss && ss.step > 1 && f.second.values.length > 2)
-        secTxt = ss.from + '秒から' + ss.step + '秒おき';
+        secTxt = ss.from + ' s onward, ' + ss.step + '-second intervals';
       else if (f.second.values.length === 1 && f.second.values[0] === 0) secTxt = '';
-      else secTxt = f.second.values.join('・') + '秒';
+      else secTxt = f.second.values.join(', ') + ' s';
     }
   }
 
@@ -676,38 +674,38 @@ function describeTime(cron) {
     var ms = stepInfo(f.minute,'minute');
     var mtxt;
     if (ms && ms.step > 1 && f.minute.values.length > 2) {
-      mtxt = (ms.from === 0 ? '' : ms.from + '分から') + ms.step + '分おき';
-      return '<span class="em">毎時' + mtxt + '</span>' + (secTxt ? '（' + secTxt + '）' : '') + 'に実行します。';
+      mtxt = (ms.from === 0 ? '' : ms.from + ' min onward, ') + ms.step + '-minute intervals';
+      return '<span class="em">every hour &mdash; ' + mtxt + '</span>' + (secTxt ? ' (' + secTxt + ')' : '') + '.';
     }
-    mtxt = f.minute.values.map(function(v){ return v + '分'; }).join('・');
-    return '<span class="em">毎時' + mtxt + '</span>' + (secTxt ? '（' + secTxt + '）' : '') + 'に実行します。';
+    mtxt = f.minute.values.map(function(v){ return v + ' min'; }).join(', ');
+    return '<span class="em">every hour &mdash; ' + mtxt + '</span>' + (secTxt ? ' (' + secTxt + ')' : '') + '.';
   }
 
   // 時が絞られている
   var hs = stepInfo(f.hour,'hour');
   var htxt;
-  if (hFull) htxt = '毎時';
+  if (hFull) htxt = 'every hour';
   else if (hs && hs.step > 1 && f.hour.values.length > 2)
-    htxt = hs.from + '時から' + hs.to + '時まで' + hs.step + '時間おき';
-  else htxt = f.hour.values.map(function(v){ return v + '時'; }).join('・');
+    htxt = hs.from + ':00 through ' + hs.to + ':00, every ' + hs.step + ' hours';
+  else htxt = f.hour.values.map(function(v){ return v + ':00'; }).join(', ');
 
-  if (miFull) return '<span class="em">' + htxt + '台の毎分</span>' + (secTxt ? '（' + secTxt + '）' : '') + '実行します。';
+  if (miFull) return '<span class="em">' + htxt + ' &mdash; every minute</span>' + (secTxt ? ' (' + secTxt + ')' : '') + '.';
 
   var mtxt2;
   var ms2 = stepInfo(f.minute,'minute');
   if (f.minute.values.length === 1) {
-    mtxt2 = f.minute.values[0] + '分';
+    mtxt2 = f.minute.values[0] + ' min';
     if (!hFull && f.hour.values.length <= 3 && f.hour.values.length >= 1 && (!hs || hs.step === 1 || f.hour.values.length <= 2)) {
       // 「9時0分」を「9:00」で読ませたほうが速い
-      var joined = f.hour.values.map(function(h){ return h + ':' + pad2(f.minute.values[0]); }).join('・');
-      return W.at + '<span class="em">' + joined + '</span>' + (secTxt ? '（' + secTxt + '）' : '') + 'に実行します。';
+      var joined = f.hour.values.map(function(h){ return h + ':' + pad2(f.minute.values[0]); }).join(', ');
+      return W.at + '<span class="em">' + joined + '</span>' + (secTxt ? ' (' + secTxt + ')' : '') + '.';
     }
   } else if (ms2 && ms2.step > 1 && f.minute.values.length > 2) {
-    mtxt2 = (ms2.from === 0 ? '' : ms2.from + '分から') + ms2.step + '分おき';
+    mtxt2 = (ms2.from === 0 ? '' : ms2.from + ' min onward, ') + ms2.step + '-minute intervals';
   } else {
-    mtxt2 = f.minute.values.map(function(v){ return v + '分'; }).join('・');
+    mtxt2 = f.minute.values.map(function(v){ return v + ' min'; }).join(', ');
   }
-  return W.at + '<span class="em">' + htxt + 'の' + mtxt2 + '</span>' + (secTxt ? '（' + secTxt + '）' : '') + 'に実行します。';
+  return W.at + '<span class="em">' + htxt + ' &mdash; ' + mtxt2 + '</span>' + (secTxt ? ' (' + secTxt + ')' : '') + '.';
 }
 
 function describeDate(cron) {
@@ -723,24 +721,24 @@ function describeDate(cron) {
   if (domR) {
     var ds = stepInfo(f.dom,'dom');
     if (ds && ds.step > 1 && f.dom.values.length > 2)
-      domTxt = W.domPre + f.dom.values[0] + '日から' + ds.step + '日おき';
-    else domTxt = W.domPre + f.dom.values.join('・') + '日';
+      domTxt = W.domPre + f.dom.values[0] + ' onward, every ' + ds.step + ' days';
+    else domTxt = W.domPre + f.dom.values.join(', ') + '';
   }
   if (dowR) {
-    if (dowFull) dowTxt = W.dowPre + '毎日';
+    if (dowFull) dowTxt = W.dowPre + 'any day of the week';
     else {
       var s = stepInfo(f.dow,'dow');
       dowTxt = W.dowPre + listJa(f.dow.values,'dow');
-      if (f.dow.values.length === 5 && f.dow.values.join() === '1,2,3,4,5') dowTxt = W.dowPre + '平日（月〜金）';
-      if (f.dow.values.length === 2 && f.dow.values.join() === '0,6') dowTxt = W.dowPre + '土日';
+      if (f.dow.values.length === 5 && f.dow.values.join() === '1,2,3,4,5') dowTxt = W.dowPre + 'weekdays (Mon&ndash;Fri)';
+      if (f.dow.values.length === 2 && f.dow.values.join() === '0,6') dowTxt = W.dowPre + 'weekends (Sat and Sun)';
     }
   }
 
   if (domR && dowR)
-    return monTxt + '<span class="em">' + domTxt + '</span>' + '<b>または</b>' +
-           '<span class="em">' + dowTxt + '</span>' + 'の、';
-  if (domR) return monTxt + '<span class="em">' + domTxt + '</span>の、';
-  return monTxt + '<span class="em">' + dowTxt + '</span>の、';
+    return monTxt + '<span class="em">' + domTxt + '</span>' + '<b> or </b>' +
+           '<span class="em">' + dowTxt + '</span>' + ', ';
+  if (domR) return monTxt + '<span class="em">' + domTxt + '</span>, ';
+  return monTxt + '<span class="em">' + dowTxt + '</span>, ';
 }
 
 /* ---- 落とし穴の検出 ---- */
@@ -748,23 +746,23 @@ function findNotes(cron) {
   var out = [], f = cron.fields;
 
   if (cron.alias)
-    out.push(['i', '別名で書かれています',
-      '<code>' + cron.alias + '</code> は <code>' + cron.source + '</code> と同じ意味です。以下はこの式として読んでいます。']);
+    out.push(['i', 'Written as an alias',
+      '<code>' + cron.alias + '</code> means the same as <code>' + cron.source + '</code>. Everything below is read as that expression.']);
 
   if (cron.hasSecond)
-    out.push(['i', 'フィールドが6個あります',
-      '先頭を<b>秒</b>として読みました。標準の cron（crontab）は5個なので、' +
-      'そのまま貼ると「フィールドが多い」と怒られる環境があります。' +
-      'Quartz や Spring の <code>@Scheduled(cron=...)</code> 系はこの6個の書き方です。']);
+    out.push(['i', 'This expression has six fields',
+      'The first field was read as <b>seconds</b>. Standard cron (crontab) takes five, so ' +
+      'pasting this as it stands is rejected as &ldquo;too many fields&rdquo; in some places. ' +
+      'Quartz and Spring (<code>@Scheduled(cron=...)</code>) use this six-field form.']);
 
   // 1) 日と曜日のOR
   if (f.dom.restricted && f.dow.restricted)
-    out.push(['w', '日と曜日を両方書いています → 「かつ」ではなく「または」です',
-      '標準の cron は、日にちと曜日の両方が絞られているとき<b>どちらかに当てはまれば実行</b>します。' +
-      '<code>' + f.dom.raw + '</code>（日）と <code>' + f.dow.raw + '</code>（曜日）の' +
-      '<b>両方を満たす日だけ</b>のつもりなら、この式ではそうなりません。' +
-      '「毎月1日、ただし月曜だけ」のような条件は cron 式だけでは書けないので、' +
-      'スクリプト側の先頭で曜日を見て抜ける、という書き方をします。']);
+    out.push(['w', 'Both day-of-month and day-of-week are set &rarr; this is OR, not AND',
+      'When both the day-of-month and the day-of-week are narrowed, standard cron <b>runs if either one matches</b>. ' +
+      '<code>' + f.dom.raw + '</code> (day of month) and <code>' + f.dow.raw + '</code> (day of week): ' +
+      'if you meant <b>only the days that satisfy both</b>, this expression does not do that. ' +
+      'A condition like &ldquo;the 1st of the month, but only when it is a Monday&rdquo; cannot be written in a cron expression at all, so ' +
+      'the usual approach is to check the weekday at the top of the script and exit early.']);
 
   // 2) 割り切れないステップ（折り返しで間隔が飛ぶ）
   [['minute',LBL[1],60],['hour',LBL[2],24],['second',LBL[0],60]].forEach(function(kv){
@@ -779,16 +777,16 @@ function findNotes(cron) {
     if (period % st.step === 0) return;
     var last = fld.values[fld.values.length - 1];
     var wrap = period - last;
-    out.push(['w', label + 'の「' + st.step + 'おき」は、折り返しのところだけ間隔が変わります',
-      '<code>' + fld.raw + '</code> は ' + fld.values.join('・') + ' に当てはまります。' +
-      '最後の ' + last + ' から次の ' + fld.values[0] + ' までは <b>' + wrap + label + '</b> しかありません' +
-      '（ほかは' + st.step + label + 'おき）。' + period + ' が ' + st.step + ' で割り切れないためで、' +
-      'cron の <code>/</code> は「前回からの経過時間」ではなく「値の一覧」を作る記号だからです。' +
-      '書き方を変えても直りません（値を書き並べても同じ一覧になります）。' +
-      '等間隔にしたいなら ' + period + ' を割り切る ' + divisorsOf(period).join('・') +
-      ' のどれかにするか、折り返しの' + wrap + label + 'を承知のうえで使ってください。' +
-      st.step + label + 'ちょうどの間隔が要るなら、それは cron ではなく' +
-      '常駐プロセスやタイマーの仕事になります。']);
+    out.push(['w', label + ': a step of ' + st.step + ' changes the gap only where it wraps around',
+      '<code>' + fld.raw + '</code> matches ' + fld.values.join(', ') + '. ' +
+      'From the last one, ' + last + ', to the next one, ' + fld.values[0] + ', there are only <b>' + wrap + label + '</b>' +
+      ' (everywhere else the step is ' + st.step + label + '). ' + period + ' is not divisible by ' + st.step + ', and ' +
+      'the <code>/</code> in cron builds a <b>list of values</b>, not an &ldquo;every N since the last run&rdquo; timer. ' +
+      'Rewriting it does not help (spelling the values out by hand gives the same list). ' +
+      'For an even spacing, pick a divisor of ' + period + ' &mdash; ' + divisorsOf(period).join(', ') +
+      ' &mdash; or accept the ' + wrap + label + ' at the wrap-around and use it as it is. ' +
+      st.step + label + ' exactly is what you need, that is not a job for cron but for ' +
+      'a long-running process or a timer.']);
   });
 
   // 3) 存在しない日付・稀な日付
@@ -799,50 +797,50 @@ function findNotes(cron) {
       var mo = f.month.values[mi];
       for (var di = 0; di < f.dom.values.length; di++) {
         var d = f.dom.values[di];
-        if (d > maxDays[mo]) impossible.push(mo + '月' + d + '日');
-        else if (mo === 2 && d === 29) leapOnly.push('2月29日');
-        else if (d === 31 && !f.dow.restricted) rare.push(mo + '月31日');
+        if (d > maxDays[mo]) impossible.push(mo + '/' + d + '');
+        else if (mo === 2 && d === 29) leapOnly.push('2/29');
+        else if (d === 31 && !f.dow.restricted) rare.push(mo + '/31');
       }
     }
     if (impossible.length && impossible.length === f.month.values.length * f.dom.values.length && !f.dow.restricted)
-      out.push(['w', 'この式は一度も実行されません',
-        impossible.slice(0,6).join('・') + ' は存在しない日付です。' +
-        '指定した日と月の組み合わせが全部この状態なので、この cron は永遠に動きません。']);
+      out.push(['w', 'This expression never runs',
+        impossible.slice(0,6).join(', ') + ' are dates that do not exist. ' +
+        'Every combination of the days and months given is like this, so this cron never fires.']);
     else if (impossible.length)
-      out.push(['w', '存在しない日付が混ざっています',
-        impossible.slice(0,8).join('・') + (impossible.length > 8 ? ' ほか' : '') +
-        ' は存在しないので、その月では実行されません。']);
+      out.push(['w', 'Some of these dates do not exist',
+        impossible.slice(0,8).join(', ') + (impossible.length > 8 ? ' and more' : '') +
+        ' do not exist, so nothing runs in those months.']);
     if (leapOnly.length && f.dom.values.length === 1 && f.month.values.length === 1)
-      out.push(['w', 'うるう年しか実行されません',
-        '2月29日は4年に一度（正確には400年に97回）しか来ません。次の実行が3年以上先になります。']);
+      out.push(['w', 'Runs in leap years only',
+        '29 February comes round once every four years (97 times in 400 years, to be exact). The next run can be more than three years away.']);
     if (rare.length && f.dom.values.length === 1 && f.month.values.length === 12)
-      out.push(['w', '31日は7か月しかありません',
-        '「毎月31日」と書いても、2・4・6・9・11月には実行されません。年7回です。' +
-        '「月末に実行」を <code>L</code> なしで表したいなら、毎日動かしてスクリプト側で' +
-        '「明日が1日かどうか」を見るのが定番の回避策です。']);
+      out.push(['w', 'Only seven months have a 31st',
+        '&ldquo;The 31st of every month&rdquo; still skips February, April, June, September and November, so it runs seven times a year. ' +
+        'To say &ldquo;run at the end of the month&rdquo; without <code>L</code>, the usual workaround is to run every day and let the script check ' +
+        'whether tomorrow is the 1st.']);
   }
 
   // 4) 曜日の 0/7
   if (/(^|[^0-9])7([^0-9]|$)/.test(f.dow.raw) && f.dow.restricted)
-    out.push(['i', '曜日の 7 は日曜です',
-      'cron の曜日は 0 と 7 のどちらも日曜を指します。' +
-      (f.dow.values.length === 7 ? '<code>' + f.dow.raw + '</code> は結果として全曜日と同じ意味になっています。' : '')]);
+    out.push(['i', '7 in the day-of-week field means Sunday',
+      'In cron, both 0 and 7 point at Sunday. ' +
+      (f.dow.values.length === 7 ? '<code>' + f.dow.raw + '</code> therefore ends up meaning every day of the week.' : '')]);
 
   // 5) ? を使っている
   if (f.dom.raw === '?' || f.dow.raw === '?')
-    out.push(['i', '「?」が使われています',
-      '<code>?</code> は Quartz の記法で、標準の cron にはありません。' +
-      'ここでは <code>*</code> と同じものとして読んでいます。crontab に貼るときは <code>*</code> に直してください。']);
+    out.push(['i', '&ldquo;?&rdquo; is used',
+      '<code>?</code> is Quartz notation; standard cron does not have it. ' +
+      'It is read here as the same thing as <code>*</code>. Change it to <code>*</code> before pasting into a crontab.']);
 
   // 6) 毎分・毎秒の高頻度
   if (isFull(f.minute,'minute') && isFull(f.hour,'hour') && !f.dom.restricted && !f.dow.restricted && !cron.hasSecond)
-    out.push(['w', '1分おきに動きます（年52万回）',
-      '前の実行が終わっていなくても次が始まります。処理が1分を超えると多重に走るので、' +
-      '重複を防ぐ仕掛け（ロックファイルなど）を用意しておくのが安全です。']);
+    out.push(['w', 'Fires every minute (about 526,000 times a year)',
+      'The next run starts whether or not the previous one has finished. If the job takes longer than a minute they pile up on each other, so ' +
+      'it is safer to have something in place that prevents overlap, such as a lock file.']);
   if (cron.hasSecond && isFull(f.second,'second'))
-    out.push(['w', '1秒おきに動きます',
-      'cron 系のスケジューラで毎秒起動するのは、プロセス起動のコストのほうが大きくなりがちです。' +
-      '常駐プロセスの中でループさせるほうが向いています。']);
+    out.push(['w', 'Fires every second',
+      'Starting a process every second through a cron-style scheduler tends to cost more in process startup than the work itself. ' +
+      'A loop inside a long-running process is the better fit.']);
 
   return out;
 }
@@ -890,16 +888,16 @@ function trimNum(n) {
 
 /* ---- 画面の更新 ---- */
 var PRESETS = [
-  ['0 9 * * 1-5',    '平日の朝9時'],
-  ['*/15 * * * *',   '15分おき'],
-  ['*/7 * * * *',    '7分おき（罠）'],
-  ['0 0 1 * *',      '毎月1日の0時'],
-  ['30 3 1 * 1',     '日と曜日の両方（罠）'],
-  ['0 0 29 2 *',     'うるう年だけ'],
-  ['0 */2 * * SAT,SUN', '週末の2時間おき'],
-  ['15 10 * * ?',    'Quartzの ?'],
-  ['0 0 12 * * ?',   '6フィールド（秒つき）'],
-  ['@daily',         '毎日0時の別名']
+  ['0 9 * * 1-5',    'Weekdays at 9am'],
+  ['*/15 * * * *',   'Every 15 minutes'],
+  ['*/7 * * * *',    'Every 7 minutes (trap)'],
+  ['0 0 1 * *',      '1st of the month at 0:00'],
+  ['30 3 1 * 1',     'Day and weekday together (trap)'],
+  ['0 0 29 2 *',     'Leap years only'],
+  ['0 */2 * * SAT,SUN', 'Every 2 hours at weekends'],
+  ['15 10 * * ?',    'Quartz ?'],
+  ['0 0 12 * * ?',   'Six fields (with seconds)'],
+  ['@daily',         'Alias for daily at 0:00']
 ];
 var TZS = ['Asia/Tokyo','UTC','America/New_York','Europe/London','America/Los_Angeles','Australia/Sydney','Asia/Shanghai'];
 
@@ -922,7 +920,7 @@ function init() {
   if (local && list.indexOf(local) < 0) list.unshift(local);
   list.forEach(function(z){
     var o = document.createElement('option');
-    o.value = z; o.textContent = z + (z === local ? '（このブラウザ）' : '');
+    o.value = z; o.textContent = z + (z === local ? ' (this browser)' : '');
     tzSel.appendChild(o);
   });
   tzSel.value = (local && list.indexOf(local) >= 0) ? local : 'Asia/Tokyo';
@@ -957,8 +955,8 @@ function render() {
 
   $('read').innerHTML = describe(cron);
   $('kind').textContent = cron.hasSecond
-    ? '秒つき6フィールドとして読みました（Quartz / Spring 系の書き方）'
-    : '標準の5フィールドとして読みました（crontab の書き方）';
+    ? 'Read as six fields with seconds (the Quartz / Spring form)'
+    : 'Read as the standard five fields (the crontab form)';
 
   // 気をつけるところ
   var notes = findNotes(cron);
@@ -986,7 +984,7 @@ function render() {
       : vals.join(', ');
     var extra = '';
     if (kind === 'dow') extra = '<br><span style="color:var(--sub)">' +
-      vals.map(function(v){ return DOW_JA[v]; }).join('・') + '</span>';
+      vals.map(function(v){ return DOW_JA[v]; }).join(', ') + '</span>';
     if (kind === 'month' && vals.length <= 12 && !isFull(f,'month')) extra = '';
     tr.innerHTML =
       '<td class="f">' + escapeHtml(f.raw) + '</td>' +
@@ -1002,7 +1000,7 @@ function render() {
   var runs = nextN(cron, from, 20);
   var ul = $('runs'); ul.innerHTML = '';
   if (runs.length === 0) {
-    $('runsnote').textContent = '8年先まで探しましたが、当てはまる時刻が見つかりませんでした。存在しない日付を指しているはずです。';
+    $('runsnote').textContent = 'Searched eight years ahead and found no matching time. It must be pointing at a date that does not exist.';
   } else {
     var nowEpoch = Date.now();
     runs.forEach(function(w, i){
@@ -1013,36 +1011,36 @@ function render() {
         '<span class="t">' + p.y + '/' + pad2(p.mo) + '/' + pad2(p.d) + ' ' +
         pad2(p.h) + ':' + pad2(p.mi) + (cron.hasSecond ? ':' + pad2(p.s) : '') +
         ' <span style="color:var(--sub)">(' + DOW_JA[p.dow] + ')</span></span>' +
-        '<span class="d">' + (i === 0 ? 'あと' + humanGap(Math.max(0, epoch - nowEpoch)) : '+' + humanGap(w - runs[0])) + '</span>';
+        '<span class="d">' + (i === 0 ? 'in ' + humanGap(Math.max(0, epoch - nowEpoch)) : '+' + humanGap(w - runs[0])) + '</span>';
       ul.appendChild(li);
     });
     $('runsnote').innerHTML = runs.length < 20
-      ? '当てはまる時刻は8年以内に ' + runs.length + ' 件しかありませんでした。'
-      : '左の列が実行時刻（' + escapeHtml(tz) + 'の壁時計）、右が1件目からの経過です。';
+      ? 'Only ' + runs.length + ' matching times were found within eight years.'
+      : 'The left column is the run time (wall clock in ' + escapeHtml(tz) + '), the right is the time since the first one.';
   }
 
   // 統計
   var st = stats(cron, from);
   var sw = $('stats');
-  var perYear = st.capped ? STAT_CAP.toLocaleString() + '回以上' : st.count.toLocaleString() + '回';
+  var perYear = st.capped ? STAT_CAP.toLocaleString() + '+ times' : st.count.toLocaleString() + ' times';
   sw.innerHTML =
-    statCard('これから1年で', perYear, '') +
-    statCard('いちばん短い間隔', humanGap(st.minGap), '') +
-    statCard('いちばん長い間隔', humanGap(st.maxGap), '') +
-    statCard('ならすと', st.count > 1 ? humanGap(st.spanned / (st.count - 1)) + 'に1回' : '—', '');
+    statCard('Over the next year', perYear, '') +
+    statCard('Shortest gap', humanGap(st.minGap), '') +
+    statCard('Longest gap', humanGap(st.maxGap), '') +
+    statCard('On average', st.count > 1 ? humanGap(st.spanned / (st.count - 1)) + ' apart' : '—', '');
   var note = '';
   if (st.count === 0) note = runs.length
-    ? 'これから1年のあいだには一度も実行されません。次に実行されるのは上の一覧のとおりです。'
-    : 'この式に当てはまる時刻はありません。存在しない日付を指しているはずです。';
-  else if (st.capped) note = '数えるのは ' + STAT_CAP.toLocaleString() + '件で打ち切っています（1年ぶんに届いていません）。' +
-    '間隔の最短・最長は、その打ち切った範囲での値です。';
+    ? 'It does not fire at all during the next year. The next runs are the ones listed above.'
+    : 'No time matches this expression. It must be pointing at a date that does not exist.';
+  else if (st.capped) note = 'Counting stops at ' + STAT_CAP.toLocaleString() + ' entries, which is short of a full year. ' +
+    'The shortest and longest gaps are taken from that truncated range.';
   else if (st.minGap !== null && st.maxGap !== null && st.maxGap > st.minGap * 1.5)
-    note = '最短と最長の間隔がずれています（実行のない日や時間帯があるためです）。' +
-      (notes.length ? '「◯おきに1回」のつもりで書いたなら、上の「気をつけるところ」も確認してください。' : '');
-  else note = 'これから1年ぶんを実際に数えた値です（見積もりではありません）。';
+    note = 'The shortest and longest gaps are far apart, because there are days or hours with no runs at all. ' +
+      (notes.length ? 'If you meant “once every N”, read the points above as well.' : '');
+  else note = 'This is counted from an actual year ahead, not an estimate.';
   $('statnote').textContent = note;
 
-  $('tznote').textContent = '（cron は壁時計で動きます。ここで選んだ時計で判定します）';
+  $('tznote').textContent = '(cron runs on the wall clock. Matching uses the clock selected here.)';
 }
 function statCard(k, v, u) {
   return '<div class="stat"><span class="k">' + k + '</span>' +

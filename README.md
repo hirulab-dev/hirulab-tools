@@ -86,11 +86,12 @@ tools/
 
 ## 英語版
 
-`docs/en/` に14本あります（Regex Tester / Character Counter / Color Palette /
+`docs/en/` に15本あります（Regex Tester / Character Counter / Color Palette /
 Time Zone Converter / CSV Preview / Regex Railroad Diagrams / Why doesn't my regex match? /
 Regex Replacement Preview / URL Parser & Builder / HTTP Header Explainer / JWT Explainer /
-Password Generator & Strength Check / Base64 & Data URL Explainer / **QR Code Generator**）。
-このうち後半の9本は **日本語版から生成**しており、
+Password Generator & Strength Check / Base64 & Data URL Explainer / QR Code Generator /
+**Cron Expression Explainer**）。
+このうち後半の10本は **日本語版から生成**しており、
 **解析・判定・落とし穴検出のコードは日英で1バイトも違いません**
 （違うのは文字列リテラルの中身だけ、というのを生成のたびに機械で確かめています）。
 同じ検証スクリプトを英語ページにそのまま当てて、同じ結果になることも確認しています。

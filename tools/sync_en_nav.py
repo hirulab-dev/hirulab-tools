@@ -26,6 +26,9 @@ import sys
 
 sys.stdout.reconfigure(encoding="utf-8")
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from fix_lang_link import normalize, EN_MARKS  # noqa: E402
+
 # 生成スクリプト名 → 日本語ページのスラッグ
 PAIRS = {
     "make_en_railroad.py": "railroad",
@@ -39,6 +42,7 @@ PAIRS = {
     "make_en_jwt.py": None,
     "make_en_base64.py": None,
     "make_en_qr.py": None,
+    "make_en_cron.py": None,
 }
 
 # ★2026-08-28新設: ナビを JS の配列(`var NAV_LINKS = [...]`)で組み立てているページの生成元。
@@ -86,11 +90,22 @@ def add_en_links(script, src, add_en):
         #   `</ul>` の直前ではなく**その行の手前**に入れる(add_tool_link.py と同じ扱い)。
         tail = re.search(r'\n( *<li><a [^\n]*(?:Japanese version|English version)[^\n]*</li>)\n    </ul>', new)
         if tail:
-            new = new[:tail.start(1)] + li.strip() + "\n      " + new[tail.start(1):]
+            # ⚠ tail.start(1) は行頭(字下げの前)を指す。ここに li.strip() をそのまま差すと
+            #   新しい行が字下げゼロになり、うしろの行の字下げが二重になる
+            #   (2026-08-28 に実際にやらかした。英語ページ13本で `<li>` が左端に出た)。
+            new = new[:tail.start(1)] + "      " + li.strip() + "\n" + new[tail.start(1):]
         else:
             new = new.replace("    </ul>", "      " + li.strip() + "\n    </ul>", 1)
         print("  英語ナビに足した: %s ← %s" % (script, li.strip()))
         n += 1
+    # 足したかどうかに関わらず、字下げと「言語の行は最後」を毎回そろえ直す
+    body = re.search(r"(<ul>\n)(.*?)(\n    </ul>)", new, re.S)
+    if body:
+        fixed, _ = normalize(body.group(2), EN_MARKS, None)
+        if fixed != body.group(2):
+            new = new[:body.start()] + body.group(1) + fixed + body.group(3) + new[body.end():]
+            print("  英語ナビの並び・字下げをそろえた: %s" % script)
+            n += 1
     if not n:
         return src, 0
     return src[:e.start()] + new + src[e.end():], n
