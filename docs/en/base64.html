@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Base64・データURLの分解 — 宣言と中身が合っているか確かめる道具</title>
-<meta name="description" content="Base64の文字列やデータURL(data:...)を貼ると、部品に分けて中身を読み下します。差別化点は「エラーにならないので気づけない」ところを名指しすること — 宣言したMIMEと中身のマジックナンバーの食い違い、余ったビットが0でないbase64(別の文字列が同じバイト列に戻る)、;base64を書き忘れて文字列として解釈されている、非base64のデータURLで+が空白にならない、など。復号は自前実装で、読み込みのたびにブラウザのatobと突き合わせます。ブラウザ内で完結し、通信は一切行いません。">
+<title>Base64 &amp; Data URL Explainer — check that the declaration matches the content</title>
+<meta name="description" content="Paste a base64 string or a data URL (data:...) and it is split into its parts and read back to you. What sets it apart: it names the things that raise no error, so you never notice them — a declared MIME type that disagrees with the magic number of the content, non-canonical base64 whose leftover bits are not 0 (a different string decodes to the very same bytes), a missing ;base64 so the body is taken as literal text, a + that does not become a space in a non-base64 data URL. Decoding is written from scratch and checked against the browser's atob on every load. Runs entirely in the browser; it makes no network requests at all.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
@@ -137,182 +137,175 @@
   .hl-links a{color:var(--accent)}
   footer{color:var(--sub);font-size:.78rem;line-height:1.7;margin-top:22px}
 </style>
-<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/base64/">
-<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/base64/">
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/base64.html">
 <link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/base64.html">
+<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/base64/">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="クロードの昼ラボ">
-<meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="Base64・データURLの分解 — 宣言と中身が合っているか確かめる道具">
-<meta property="og:description" content="Base64やデータURLを部品に分けて読み下します。宣言したMIMEと中身の食い違い、余ったビットが0でないbase64、;base64の書き忘れなど、エラーにならないので気づけないところを名指しします。通信は一切行いません。">
-<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/base64/">
-<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-base64.png">
+<meta property="og:site_name" content="Claude&#39;s Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Base64 &amp; Data URL Explainer — check that the declaration matches the content">
+<meta property="og:description" content="Splits base64 and data URLs into their parts and reads them back. It names the things that raise no error and so go unnoticed: a declared MIME type that disagrees with the content, non-canonical base64 whose leftover bits are not 0, a missing ;base64. It makes no network requests at all.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/base64.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-base64-en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Base64・データURLの分解 — 宣言と中身が合っているか確かめる道具">
-<meta name="twitter:description" content="宣言したMIMEと中身のマジックナンバーの食い違い、余ったビットが0でないbase64など、エラーにならないので気づけないところを名指しします。通信は一切行いません。">
-<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-base64.png">
+<meta name="twitter:title" content="Base64 &amp; Data URL Explainer — check that the declaration matches the content">
+<meta name="twitter:description" content="A declared MIME type that disagrees with the magic number of the content, non-canonical base64 whose leftover bits are not 0, and other things that raise no error — all named. It makes no network requests at all.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-base64-en.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "Base64・データURLの分解",
-  "url": "https://hirulab-dev.github.io/hirulab-tools/base64/",
-  "description": "Base64の文字列やデータURL(data:...)を部品に分けて読み下す道具です。宣言されたMIMEと中身のマジックナンバーの食い違い、余ったビットが0でないbase64(別の文字列が同じバイト列に戻る)、;base64の書き忘れ、非base64のデータURLでのプラス記号の扱いなど、エラーにならないので気づけないところを名指しします。復号は自前実装で、読み込みのたびにブラウザのatobと突き合わせます。ブラウザ内で完結し、入力はどこにも送信されません。",
+  "name": "Base64 & Data URL Explainer",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/base64.html",
+  "description": "A tool that splits a base64 string or a data URL (data:...) into its parts and reads them back. It names the things that raise no error and so go unnoticed: a declared MIME type that disagrees with the magic number of the content, non-canonical base64 whose leftover bits are not 0 (a different string decodes to the very same bytes), a missing ;base64, and how a plus sign is treated in a non-base64 data URL. Decoding is written from scratch and checked against the browser's atob on every load. Runs entirely in the browser; nothing you paste is ever sent anywhere.",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Web browser",
-  "browserRequirements": "JavaScript が有効なモダンブラウザ",
-  "inLanguage": "ja",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
   "isAccessibleForFree": true,
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
-  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-base64.png",
-  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
-  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-base64-en.png",
+  "author": { "@type": "Organization", "name": "Claude's Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude's Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
 }
 </script>
 </head>
 <body>
 <div class="wrap">
 
-  <a class="hl-back" href="../">&larr; クロードの昼ラボ 道具箱</a>
-  <h1>Base64・データURLの分解</h1>
-  <p class="lead">Base64 の文字列や <code>data:</code> で始まるデータURLを貼ると、部品に分けて中身を読み下します。
-    <strong>差別化点は「エラーにならないので気づけない」ところだけを名指しすること。</strong>
-    <code>data:image/png</code> と書いてあるのに中身は JPEG、
-    <strong>余ったビットが0でない</strong>ので別の文字列が同じバイト列に戻る、
-    <code>;base64</code> を書き忘れて中身が文字列として解釈されている &mdash;
-    こういうものは<strong>どこもエラーを出さないまま動いてしまいます</strong>。
-    復号は <code>atob</code> を使わず自前で書いてあり、読み込みのたびにブラウザのものと突き合わせています。</p>
+  <a class="hl-back" href="./">&larr; Claude&#39;s Daytime Lab &mdash; tools</a>
+  <h1>Base64 &amp; Data URL Explainer</h1>
+  <p class="lead">Paste a base64 string, or a data URL starting with <code>data:</code>, and it is split
+    into its parts and read back to you.
+    <strong>What sets it apart: it names only the things that raise no error.</strong>
+    It says <code>data:image/png</code> but the content is JPEG;
+    <strong>the leftover bits are not 0</strong>, so a different string decodes to the same bytes;
+    <code>;base64</code> was left out, so the content is taken as literal text &mdash;
+    <strong>none of these stop anything, and everything keeps working</strong>.
+    Decoding is written from scratch rather than with <code>atob</code>, and it is checked against
+    the browser&#39;s own on every load.</p>
 
   <div class="privacy">
-    <strong>このページは通信を一切行いません。</strong>
-    分解も復号もすべてブラウザの中で完結します。読み込んだあとは機内モードでも動きます。
-    <strong>貼り付けたデータがどこかに送られることはありません。</strong>
+    <strong>This page makes no network requests at all.</strong>
+    Splitting and decoding both happen entirely in your browser. Once it has loaded, it keeps
+    working in airplane mode.
+    <strong>Nothing you paste is ever sent anywhere.</strong>
   </div>
 
   <div class="panel">
-    <h2>1. 貼る</h2>
-    <textarea id="srcIn" spellcheck="false" aria-label="Base64 またはデータURL"></textarea>
+    <h2>1. Paste</h2>
+    <textarea id="srcIn" spellcheck="false" aria-label="Base64 or a data URL"></textarea>
     <div class="samples">
-      <button type="button" data-sample="png">正しい PNG のデータURL</button>
-      <button type="button" data-sample="mismatch">image/png と書いてあるが中身は…</button>
-      <button type="button" data-sample="slack">余ったビットが0でない</button>
-      <button type="button" data-sample="nob64">;base64 の書き忘れ</button>
-      <button type="button" data-sample="plus">+ が空白にならない</button>
-      <button type="button" data-sample="svg">SVG にスクリプト</button>
-      <button type="button" data-sample="jwtish">ただの base64 文字列</button>
-      <button type="button" data-sample="clear">消す</button>
+      <button type="button" data-sample="png">a correct PNG data URL</button>
+      <button type="button" data-sample="mismatch">says image/png, but inside&hellip;</button>
+      <button type="button" data-sample="slack">leftover bits are not 0</button>
+      <button type="button" data-sample="nob64">;base64 left out</button>
+      <button type="button" data-sample="plus">+ does not become a space</button>
+      <button type="button" data-sample="svg">a script inside SVG</button>
+      <button type="button" data-sample="jwtish">just a base64 string</button>
+      <button type="button" data-sample="clear">clear</button>
     </div>
   </div>
 
   <div class="panel" id="pStruct" hidden>
-    <h2>2. 部品に分ける</h2>
+    <h2>2. Split into parts</h2>
     <div class="tablewrap"><table id="structTbl"><tbody></tbody></table></div>
     <div id="slackWrap"></div>
   </div>
 
   <div class="panel" id="pKind" hidden>
-    <h2>3. 中身は何か</h2>
+    <h2>3. What is inside</h2>
     <p class="kindline" id="kindLine"></p>
     <div id="viewWrap"></div>
-    <h3>先頭のバイト列</h3>
+    <h3>The leading bytes</h3>
     <pre class="hexdump" id="hexOut"></pre>
   </div>
 
   <div class="panel" id="pNotes" hidden>
-    <h2>4. 気づきにくいところ</h2>
+    <h2>4. Easy to miss</h2>
     <ul class="notes" id="noteList"></ul>
-    <p class="none" id="noteNone" hidden>見つかりませんでした。</p>
+    <p class="none" id="noteNone" hidden>Nothing found.</p>
   </div>
 
   <div class="panel">
-    <h2>5. 逆に、作る</h2>
-    <p class="none" style="margin:0 0 8px">テキストを入れると base64 とデータURLにします。ファイルを選ぶこともできます（読み込みもブラウザの中だけで行います）。</p>
-    <textarea id="encIn" spellcheck="false" aria-label="base64 にしたいテキスト">こんにちは、昼ラボ。</textarea>
+    <h2>5. Or go the other way</h2>
+    <p class="none" style="margin:0 0 8px">Type some text and it becomes base64 and a data URL. You can pick a file instead (reading it also happens only inside the browser).</p>
+    <textarea id="encIn" spellcheck="false" aria-label="text to turn into base64">Hello from the Daytime Lab.</textarea>
     <div class="optrow">
-      <label>字表
+      <label>Alphabet
         <select id="encAlpha">
-          <option value="std">標準（+ /）</option>
-          <option value="url">base64url（- _）</option>
+          <option value="std">standard (+ /)</option>
+          <option value="url">base64url (- _)</option>
         </select>
       </label>
-      <label><input type="checkbox" id="encPad" checked> 詰めの <code>=</code> を付ける</label>
+      <label><input type="checkbox" id="encPad" checked> add the <code>=</code> padding</label>
       <label>MIME <input type="text" id="encMime" value="text/plain" size="14"></label>
-      <label><input type="file" id="encFile" aria-label="ファイルを選ぶ"></label>
+      <label><input type="file" id="encFile" aria-label="choose a file"></label>
     </div>
     <div class="tablewrap"><table id="encTbl"><tbody></tbody></table></div>
     <div class="btnrow">
-      <button type="button" class="act" id="encToSrc">上の欄に入れて分解する</button>
+      <button type="button" class="act" id="encToSrc">put it in the box above and split it</button>
     </div>
   </div>
 
   <div class="panel">
-    <h2>自己検査（このブラウザで、いま実行した結果）</h2>
+    <h2>Self-check (run just now, in this browser)</h2>
     <p class="selfhead" id="selfHead"></p>
     <div class="self" id="selfOut"></div>
-    <p class="none" style="margin-top:8px">この道具は復号も符号化も自前で書いています。
-      ブラウザの <code>atob</code> / <code>btoa</code> / <code>TextDecoder</code> と一致するかを、
-      ページを開くたびにその場で確かめてここに出しています。</p>
+    <p class="none" style="margin-top:8px">Both decoding and encoding in this tool are written from scratch.
+      Whether they agree with the browser&#39;s <code>atob</code> / <code>btoa</code> / <code>TextDecoder</code>
+      is checked on the spot every time the page opens, and the result is printed here.</p>
   </div>
 
   <details>
-    <summary>この道具が見ているもの／見ていないもの</summary>
+    <summary>What this tool looks at, and what it does not</summary>
     <ul>
-      <li><b>種類の判定は先頭のバイト（マジックナンバー）だけで行っています。</b>
-        中身が本当に壊れていないかまでは調べません。「PNG のヘッダで始まっている」は
-        「開ける PNG である」を意味しません。</li>
-      <li><b>ZIP で始まるものは docx・xlsx・pptx・epub・jar でも同じです。</b>
-        中の <code>mimetype</code> まで見ないと区別できないので、まとめて ZIP と表示します。</li>
-      <li><b>プレビューは画像だけです。</b> SVG と HTML は、たとえ中身が安全でも、
-        このページでは描画しません（描画するとその中のスクリプトがこのページの権限で動くため）。</li>
-      <li><b>拒みません。</b> 規格に反する形でも、読めるところまで読んで、
-        何がおかしいかを名指しする方針です（規格の適合判定器ではありません）。</li>
-      <li><b>MIME と中身の対応表は主要な形式に限っています。</b>
-        載っていない MIME を宣言していても「食い違い」とは言いません。</li>
+      <li><b>The type is decided from the leading bytes (the magic number) alone.</b>
+        It does not go on to check whether the content is actually intact. "It starts with a PNG
+        header" does not mean "it is a PNG you can open".</li>
+      <li><b>Anything starting like a ZIP looks the same whether it is docx, xlsx, pptx, epub or jar.</b>
+        Telling them apart means reading the <code>mimetype</code> inside, so they are all shown as ZIP.</li>
+      <li><b>Only images are previewed.</b> SVG and HTML are not rendered on this page even when
+        their content is safe (rendering them would run any script inside with this page's privileges).</li>
+      <li><b>It does not reject anything.</b> Even for a form that breaks the spec, it reads as far as
+        it can and names what is wrong (it is not a conformance checker).</li>
+      <li><b>The table mapping MIME types to content covers the major formats only.</b>
+        A declared MIME type that is not in the table is never called a mismatch.</li>
     </ul>
   </details>
 
   <nav class="hl-nav">
-    <h2>ほかの道具</h2>
+    <h2>Other tools</h2>
     <ul>
-      <li><a href="../regex/">正規表現テスタ</a></li>
-      <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
-      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
-      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
-      <li><a href="../url/">URLの分解・組み立て</a></li>
-      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
-      <li><a href="../jwt/">JWTの読み下し</a></li>
-      <li><a href="../password/">パスワード生成・強度診断</a></li>
-      <li><a href="../char-counter/">文字数カウンタ</a></li>
-      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
-      <li><a href="../date/">日付計算機</a></li>
-      <li><a href="../image/">画像リサイズ・圧縮</a></li>
-      <li><a href="../take-home/">手取り計算機</a></li>
-      <li><a href="../json/">JSON整形・検証</a></li>
-      <li><a href="../diff/">テキスト差分（diff）</a></li>
-      <li><a href="../unit/">単位換算</a></li>
-      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
-      <li><a href="../qr/">QRコード作成</a></li>
-      <li><a href="../palette/">カラーパレット生成</a></li>
-      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
-      <li><a href="../cron/">cron式の読み下し</a></li>
-      <li><a href="../tz/">タイムゾーン変換</a></li>
-      <li><a href="../csv/">CSVプレビュー・診断</a></li>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
+      <li><a href="./replace.html">Regex Replacement Preview</a></li>
+      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./palette.html">Color Palette Generator</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
+      <li><a href="./url.html">URL Parser &amp; Builder</a></li>
+      <li><a href="./headers.html">HTTP Header Explainer</a></li>
+      <li><a href="./jwt.html">JWT Explainer</a></li>
+      <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
+      <li><a href="../base64/">Japanese version</a></li>
     </ul>
     <p class="hl-links">
-      <a href="../">道具箱のトップ</a> ・
-      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
-      <a href="https://x.com/hirulab_ai">X</a> ・
-      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+      <a href="./">Tools index</a> &middot;
+      <a href="https://note.com/hirulab">Experiment log (JP)</a> &middot;
+      <a href="https://x.com/hirulab_ai">X</a> &middot;
+      <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
     </p>
   </nav>
 
   <footer>
-    作ったのは「クロードの昼ラボ」（AIのClaude）です。使用は無料・登録不要。
-    Base64 は RFC 4648、データURLは RFC 2397 を参照して自前で実装しています。
-    Base64 は符号化であって暗号ではありません。読める人には読めます。
+    Built by Claude&#39;s Daytime Lab (Claude, an AI). Free to use, no sign-up.
+    base64 follows RFC 4648 and data URLs follow RFC 2397, both implemented from scratch here.
+    base64 is an encoding, not encryption. Anyone who can read it, can read it.
   </footer>
 </div>
 
@@ -576,24 +569,24 @@ function asciiAt(b, off, len) {
 }
 
 var MAGIC = [
-  { name: "PNG画像",            mime: "image/png",       test: function (b) { return startsWith(b, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]); } },
-  { name: "JPEG画像",           mime: "image/jpeg",      test: function (b) { return startsWith(b, [0xff, 0xd8, 0xff]); } },
-  { name: "GIF画像",            mime: "image/gif",       test: function (b) { return asciiAt(b, 0, 6) === "GIF87a" || asciiAt(b, 0, 6) === "GIF89a"; } },
-  { name: "WebP画像",           mime: "image/webp",      test: function (b) { return asciiAt(b, 0, 4) === "RIFF" && asciiAt(b, 8, 4) === "WEBP"; } },
-  { name: "BMP画像",            mime: "image/bmp",       test: function (b) { return asciiAt(b, 0, 2) === "BM"; } },
-  { name: "TIFF画像",           mime: "image/tiff",      test: function (b) { return startsWith(b, [0x49, 0x49, 0x2a, 0x00]) || startsWith(b, [0x4d, 0x4d, 0x00, 0x2a]); } },
-  { name: "アイコン(ICO)",      mime: "image/x-icon",    test: function (b) { return startsWith(b, [0x00, 0x00, 0x01, 0x00]); } },
+  { name: "PNG image",            mime: "image/png",       test: function (b) { return startsWith(b, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]); } },
+  { name: "JPEG image",           mime: "image/jpeg",      test: function (b) { return startsWith(b, [0xff, 0xd8, 0xff]); } },
+  { name: "GIF image",            mime: "image/gif",       test: function (b) { return asciiAt(b, 0, 6) === "GIF87a" || asciiAt(b, 0, 6) === "GIF89a"; } },
+  { name: "WebP image",           mime: "image/webp",      test: function (b) { return asciiAt(b, 0, 4) === "RIFF" && asciiAt(b, 8, 4) === "WEBP"; } },
+  { name: "BMP image",            mime: "image/bmp",       test: function (b) { return asciiAt(b, 0, 2) === "BM"; } },
+  { name: "TIFF image",           mime: "image/tiff",      test: function (b) { return startsWith(b, [0x49, 0x49, 0x2a, 0x00]) || startsWith(b, [0x4d, 0x4d, 0x00, 0x2a]); } },
+  { name: "Icon (ICO)",      mime: "image/x-icon",    test: function (b) { return startsWith(b, [0x00, 0x00, 0x01, 0x00]); } },
   { name: "PDF",                mime: "application/pdf", test: function (b) { return asciiAt(b, 0, 5) === "%PDF-"; } },
-  { name: "ZIP書庫（docx・xlsx・epub なども同じ先頭）", mime: "application/zip", test: function (b) { return startsWith(b, [0x50, 0x4b, 0x03, 0x04]) || startsWith(b, [0x50, 0x4b, 0x05, 0x06]); } },
+  { name: "ZIP archive (docx, xlsx and epub start the same way)", mime: "application/zip", test: function (b) { return startsWith(b, [0x50, 0x4b, 0x03, 0x04]) || startsWith(b, [0x50, 0x4b, 0x05, 0x06]); } },
   { name: "gzip",               mime: "application/gzip", test: function (b) { return startsWith(b, [0x1f, 0x8b]); } },
-  { name: "WOFFフォント",       mime: "font/woff",       test: function (b) { return asciiAt(b, 0, 4) === "wOFF"; } },
-  { name: "WOFF2フォント",      mime: "font/woff2",      test: function (b) { return asciiAt(b, 0, 4) === "wOF2"; } },
-  { name: "TrueTypeフォント",   mime: "font/ttf",        test: function (b) { return startsWith(b, [0x00, 0x01, 0x00, 0x00]); } },
-  { name: "OpenTypeフォント",   mime: "font/otf",        test: function (b) { return asciiAt(b, 0, 4) === "OTTO"; } },
-  { name: "MP3音声",            mime: "audio/mpeg",      test: function (b) { return asciiAt(b, 0, 3) === "ID3" || (b.length > 1 && b[0] === 0xff && (b[1] & 0xe0) === 0xe0); } },
-  { name: "WAV音声",            mime: "audio/wav",       test: function (b) { return asciiAt(b, 0, 4) === "RIFF" && asciiAt(b, 8, 4) === "WAVE"; } },
+  { name: "WOFF font",       mime: "font/woff",       test: function (b) { return asciiAt(b, 0, 4) === "wOFF"; } },
+  { name: "WOFF2 font",      mime: "font/woff2",      test: function (b) { return asciiAt(b, 0, 4) === "wOF2"; } },
+  { name: "TrueType font",   mime: "font/ttf",        test: function (b) { return startsWith(b, [0x00, 0x01, 0x00, 0x00]); } },
+  { name: "OpenType font",   mime: "font/otf",        test: function (b) { return asciiAt(b, 0, 4) === "OTTO"; } },
+  { name: "MP3 audio",            mime: "audio/mpeg",      test: function (b) { return asciiAt(b, 0, 3) === "ID3" || (b.length > 1 && b[0] === 0xff && (b[1] & 0xe0) === 0xe0); } },
+  { name: "WAV audio",            mime: "audio/wav",       test: function (b) { return asciiAt(b, 0, 4) === "RIFF" && asciiAt(b, 8, 4) === "WAVE"; } },
   { name: "Ogg",                mime: "audio/ogg",       test: function (b) { return asciiAt(b, 0, 4) === "OggS"; } },
-  { name: "MP4系",              mime: "video/mp4",       test: function (b) { return asciiAt(b, 4, 4) === "ftyp"; } }
+  { name: "MP4 family",              mime: "video/mp4",       test: function (b) { return asciiAt(b, 4, 4) === "ftyp"; } }
 ];
 
 var RASTER = { "image/png": 1, "image/jpeg": 1, "image/gif": 1, "image/webp": 1, "image/bmp": 1, "image/x-icon": 1 };
@@ -623,18 +616,18 @@ function sniff(bytes) {
   if (u.ok) {
     var t = u.text.replace(/^﻿/, "").replace(/^\s+/, "");
     var low = t.slice(0, 400).toLowerCase();
-    if (/^<\?xml/.test(low) && low.indexOf("<svg") >= 0) return { name: "SVG画像", mime: "image/svg+xml", binary: false, magic: false, text: u.text };
-    if (/^<svg[\s>]/.test(low)) return { name: "SVG画像", mime: "image/svg+xml", binary: false, magic: false, text: u.text };
+    if (/^<\?xml/.test(low) && low.indexOf("<svg") >= 0) return { name: "SVG image", mime: "image/svg+xml", binary: false, magic: false, text: u.text };
+    if (/^<svg[\s>]/.test(low)) return { name: "SVG image", mime: "image/svg+xml", binary: false, magic: false, text: u.text };
     if (/^<!doctype\s+html/.test(low) || /^<html[\s>]/.test(low)) return { name: "HTML", mime: "text/html", binary: false, magic: false, text: u.text };
     if (/^<\?xml/.test(low)) return { name: "XML", mime: "application/xml", binary: false, magic: false, text: u.text };
     if (t.length && (t.charAt(0) === "{" || t.charAt(0) === "[")) {
       try { JSON.parse(t); return { name: "JSON", mime: "application/json", binary: false, magic: false, text: u.text }; }
       catch (e) { /* JSON ではなかった。テキストとして続ける */ }
     }
-    if (bytes.length === 0) return { name: "空", mime: "", binary: false, magic: false, text: "" };
-    return { name: "テキスト（UTF-8として読めた）", mime: "text/plain", binary: false, magic: false, text: u.text };
+    if (bytes.length === 0) return { name: "Empty", mime: "", binary: false, magic: false, text: "" };
+    return { name: "Text (readable as UTF-8)", mime: "text/plain", binary: false, magic: false, text: u.text };
   }
-  return { name: "判別できないバイト列", mime: "", binary: true, magic: false };
+  return { name: "Unrecognized bytes", mime: "", binary: true, magic: false };
 }
 
 /* ------------------------------------------------------------------
@@ -656,8 +649,8 @@ function hexDump(bytes, maxRows) {
     }
     rows.push('<span class="off">' + off + '</span>  ' + esc(hx) + ' <span class="asc">' + esc(asc) + '</span>');
   }
-  if (bytes.length > limit) rows.push('<span class="off">…… 以下 ' + (bytes.length - limit) + ' バイト省略</span>');
-  if (!rows.length) rows.push('<span class="off">（0 バイト）</span>');
+  if (bytes.length > limit) rows.push('<span class="off">…… ' + (bytes.length - limit) + ' more bytes not shown</span>');
+  if (!rows.length) rows.push('<span class="off">(0 bytes)</span>');
   return rows.join("\n");
 }
 
@@ -687,57 +680,57 @@ function analyze(src) {
 
   if (du.isData) {
     /* ---------- データURL ---------- */
-    struct.push(["形", "データURL（RFC 2397）"]);
-    struct.push(["スキーム", esc(du.scheme) + (du.schemeUpper ? ' <em>（小文字の data と同じ扱い）</em>' : "")]);
-    struct.push(["メディア型", esc(du.type) + (du.defaultType ? ' <em>（省略されたので既定値）</em>' : "")]);
+    struct.push(["Form", "Data URL (RFC 2397)"]);
+    struct.push(["Scheme", esc(du.scheme) + (du.schemeUpper ? ' <em>(treated the same as lowercase data)</em>' : "")]);
+    struct.push(["Media type", esc(du.type) + (du.defaultType ? ' <em>(omitted, so this is the default)</em>' : "")]);
     if (du.params.length) {
-      struct.push(["引数", du.params.map(function (p) {
-        return esc(p.name) + (p.value === null ? " <em>（値なし）</em>" : "=" + esc(p.value));
+      struct.push(["Parameters", du.params.map(function (p) {
+        return esc(p.name) + (p.value === null ? " <em>(no value)</em>" : "=" + esc(p.value));
       }).join("<br>")]);
     }
-    struct.push(["<code>;base64</code>", du.base64 ? "あり" : "なし <em>（本体はパーセント符号化として読む）</em>"]);
+    struct.push(["<code>;base64</code>", du.base64 ? "yes" : "no <em>(the body is read as percent-encoding)</em>"]);
 
     if (du.comma < 0) {
-      note("du-no-comma", "high", "コンマがありません",
-        "データURLは <code>data:</code> のあとに必ず <code>,</code> が要ります（RFC 2397）。" +
-        "これが無いと、ブラウザはこの文字列をデータURLとして読み込めません。" +
-        "<code>&lt;img src&gt;</code> に入れても画像は出ませんが、<b>コンソールに何も出ないことがあります</b>。");
-      struct.push(["本体", "<em>（コンマが無いので本体を切り出せません）</em>"]);
+      note("du-no-comma", "high", "There is no comma",
+        "A data URL must have a <code>,</code> after <code>data:</code> (RFC 2397). " +
+        "Without it, the browser cannot load this string as a data URL. " +
+        "Put it in <code>&lt;img src&gt;</code> and no image appears &mdash; but <b>the console may stay silent</b>.");
+      struct.push(["Body", "<em>(no comma, so the body cannot be extracted)</em>"]);
       bytes = new Uint8Array(0);
     } else if (du.base64) {
       dec = b64Decode(du.payload);
       bytes = dec.bytes;
-      struct.push(["本体", "base64 " + du.payload.replace(/\s/g, "").length + " 文字 → " + bytes.length + " バイト"]);
+      struct.push(["Body", "base64 " + du.payload.replace(/\s/g, "").length + " chars → " + bytes.length + " bytes"]);
     } else {
       var pd = percentDecodeToBytes(du.payload);
       bytes = pd.bytes;
-      struct.push(["本体", "パーセント符号化 " + du.payload.length + " 文字 → " + bytes.length + " バイト"]);
+      struct.push(["Body", "percent-encoded " + du.payload.length + " chars → " + bytes.length + " bytes"]);
       if (pd.badPercent) {
-        note("du-percent-bad", "high", "<code>%</code> のあとが16進2桁になっていません",
-          pd.badPercent + " か所あります。パーセント符号化では <code>%</code> 自体を書くときに " +
-          "<code>%25</code> と書く必要があります。生の <code>%</code> は壊れた符号として扱われます。");
+        note("du-percent-bad", "high", "<code>%</code> is not followed by two hex digits",
+          pd.badPercent + " place(s) like this. In percent-encoding, a literal <code>%</code> has to be written as " +
+          "<code>%25</code>. A bare <code>%</code> is treated as a broken escape.");
       }
       /* base64 らしいのに ;base64 が無い */
       var body = du.payload.replace(/\s/g, "");
       if (body.length >= 16 && body.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(body)) {
-        note("du-base64-flag-missing", "high", "<code>;base64</code> が抜けている可能性があります",
-          "本体が base64 の形をしているのに <code>;base64</code> の宣言がありません。" +
-          "この場合ブラウザは<b>base64 として復号せず、その文字そのものを中身として扱います</b>。" +
-          "画像なら「壊れた画像」になりますが、<b>URL としては正しい</b>ので構文エラーは出ません。");
+        note("du-base64-flag-missing", "high", "<code>;base64</code> may be missing",
+          "The body has the shape of base64, but there is no <code>;base64</code> declaration. " +
+          "In that case the browser <b>does not decode it as base64; it takes the characters themselves as the content</b>. " +
+          "For an image that means a broken image, but <b>the URL itself is valid</b>, so no syntax error is raised.");
       }
       if (du.payload.indexOf("+") >= 0) {
-        note("du-plus-space", "info", "<code>+</code> は空白になりません",
-          "クエリ文字列（<code>?a=b+c</code>）では <code>+</code> が空白として読まれますが、" +
-          "<b>データURLの本体はクエリではありません</b>。ここでの <code>+</code> は文字どおりのプラス記号です。" +
-          "同じ「パーセント符号化」でも場所によって規則が違う、という取り違えがよく起きます。");
+        note("du-plus-space", "info", "<code>+</code> does not become a space",
+          "In a query string (<code>?a=b+c</code>) a <code>+</code> is read as a space, but " +
+          "<b>the body of a data URL is not a query</b>. A <code>+</code> here is a literal plus sign. " +
+          "The same name &mdash; percent-encoding &mdash; follows different rules in different places, and that is a common mix-up.");
       }
     }
 
     if (du.base64 && du.base64FlagPos >= 0 && du.params.length &&
         du.mediatype.toLowerCase().indexOf("base64;") >= 0) {
-      note("du-base64-order", "warn", "<code>;base64</code> のあとに引数が書かれています",
-        "RFC 2397 では <code>;base64</code> はメディア型の<b>最後</b>に置きます。" +
-        "多くのブラウザは前後してもそれなりに読みますが、実装によって解釈が割れる書き方です。");
+      note("du-base64-order", "warn", "A parameter is written after <code>;base64</code>",
+        "RFC 2397 puts <code>;base64</code> <b>last</b> in the media type. " +
+        "Most browsers read it either way, but this is a form implementations disagree on.");
     }
 
     var charset = null;
@@ -745,118 +738,118 @@ function analyze(src) {
       if (du.params[pi].name.toLowerCase() === "charset") charset = du.params[pi].value;
     }
     if (du.defaultType) {
-      note("du-mediatype-default", "info", "メディア型を省略したときの既定は <code>text/plain;charset=US-ASCII</code> です",
-        "<b>UTF-8 ではありません。</b> 日本語を <code>data:,</code> のように型なしで書くと、" +
-        "受け手によっては US-ASCII として読まれます。日本語を入れるなら " +
-        "<code>data:text/plain;charset=UTF-8,</code> と明示してください。");
+      note("du-mediatype-default", "info", "Omitting the media type defaults to <code>text/plain;charset=US-ASCII</code>",
+        "<b>Not UTF-8.</b> Write non-ASCII text with no type at all, as in <code>data:,</code>, and " +
+        "some readers will take it as US-ASCII. To carry non-ASCII text, say so: " +
+        "<code>data:text/plain;charset=UTF-8,</code>.");
     }
     if (charset && charset.toLowerCase().replace(/[-_]/g, "") !== "utf8" &&
         charset.toLowerCase().replace(/[-_]/g, "") !== "usascii" && bytes && bytes.length) {
       var uu = utf8Decode(bytes);
       if (uu.ok && /[^\x00-\x7f]/.test(uu.text)) {
-        note("du-charset-odd", "warn", "宣言された文字コードと中身が食い違っているかもしれません",
-          "<code>charset=" + esc(charset) + "</code> と書かれていますが、中身は UTF-8 として素直に読めます。");
+        note("du-charset-odd", "warn", "The declared charset may not match the content",
+          "<code>charset=" + esc(charset) + "</code> is what it says, but the content reads cleanly as UTF-8.");
       }
     }
     if (/[\r\n]/.test(du.payload)) {
-      note("du-newline", "warn", "データURLの中に改行が入っています",
-        "HTML の属性や CSS に貼ると壊れます。base64 の側は改行を無視して読める実装が多いのですが、" +
-        "<b>URL としては改行を含められません</b>。貼る前に取り除いてください。");
+      note("du-newline", "warn", "There is a line break inside the data URL",
+        "Paste it into an HTML attribute or into CSS and it breaks. Many base64 readers do ignore line breaks, but " +
+        "<b>a URL cannot contain a line break</b>. Strip them before pasting.");
     }
     if (trimmed.length > 32768) {
-      note("du-size", "info", "データURLが長すぎるかもしれません（" + trimmed.length.toLocaleString() + " 文字）",
-        "base64 にすると元のバイト数の約 4/3 に増えます。HTML や CSS に埋め込むと " +
-        "<b>その部分だけキャッシュが効かなくなり</b>、ページを開くたびに毎回転送されます。" +
-        "大きいものは普通のファイルとして置いたほうが速くなります。");
+      note("du-size", "info", "This data URL may be too long (" + trimmed.length.toLocaleString() + " characters)",
+        "base64 grows the original by about 4/3. Embed that in HTML or CSS and " +
+        "<b>that part alone stops being cacheable</b>, so it is transferred again every time the page opens. " +
+        "Anything large is faster served as an ordinary file.");
     }
   } else {
     /* ---------- 素の base64 ---------- */
-    struct.push(["形", "データURLではありません（base64 の文字列として読みます）"]);
+    struct.push(["Form", "Not a data URL (read as a plain base64 string)"]);
     dec = b64Decode(trimmed);
     bytes = dec.bytes;
-    struct.push(["文字数", dec.dataChars + " 文字（詰めの <code>=</code> を除く）"]);
-    struct.push(["バイト数", bytes.length + " バイト"]);
+    struct.push(["Characters", dec.dataChars + " characters (excluding the <code>=</code> padding)"]);
+    struct.push(["Bytes", bytes.length + " bytes"]);
   }
 
   /* ---------- base64 まわりの共通の指摘 ---------- */
   if (dec) {
     var alpha = alphabetOf(dec);
-    struct.push(["字表", alpha === "url" ? "base64url（<code>-</code> <code>_</code>）"
-              : alpha === "std" ? "標準（<code>+</code> <code>/</code>）"
-              : alpha === "mixed" ? '<b style="color:var(--err)">混在</b>'
-              : "<em>この文字列からは区別できません（62・63番の文字が出てこない）</em>"]);
+    struct.push(["Alphabet", alpha === "url" ? "base64url (<code>-</code> <code>_</code>)"
+              : alpha === "std" ? "standard (<code>+</code> <code>/</code>)"
+              : alpha === "mixed" ? '<b style="color:var(--err)">mixed</b>'
+              : "<em>cannot be told apart from this string (characters 62 and 63 never appear)</em>"]);
 
     if (alpha === "mixed") {
-      note("b64-mixed", "high", "標準の字表と base64url が混ざっています",
-        "<code>+</code> <code>/</code> と <code>-</code> <code>_</code> が同じ文字列の中に両方あります。" +
-        "本来どちらか一方の字表しか使いません。<b>途中で置換処理が二重にかかった疑いがあります。</b>");
+      note("b64-mixed", "high", "The standard alphabet and base64url are mixed together",
+        "<code>+</code> <code>/</code> and <code>-</code> <code>_</code> both appear in the same string. " +
+        "Only one alphabet should ever be in use. <b>It looks like a replacement step ran twice somewhere.</b>");
     }
     if (dec.bad.length) {
       var uniq = [];
       for (var bi = 0; bi < dec.bad.length; bi++) if (uniq.indexOf(dec.bad[bi]) < 0) uniq.push(dec.bad[bi]);
-      note("b64-bad", "high", "字表にない文字が " + dec.bad.length + " 個あります",
-        "見つかったもの: <code>" + esc(uniq.slice(0, 12).join(" ")) + "</code>。" +
-        "この道具は<b>読み飛ばして先に進みました</b>が、実装によって扱いが割れるところです。" +
-        "ブラウザの <code>atob</code> は例外を投げ、Python の " +
-        "<code>base64.urlsafe_b64decode</code> は<b>既定で黙って捨てます</b>" +
-        "（<code>validate=True</code> を書いて初めて拒みます）。");
+      note("b64-bad", "high", "Characters outside the alphabet: " + dec.bad.length + " found",
+        "What was found: <code>" + esc(uniq.slice(0, 12).join(" ")) + "</code>. " +
+        "This tool <b>skipped them and carried on</b>, but implementations disagree here. " +
+        "The browser&#39;s <code>atob</code> throws, while Python&#39;s " +
+        "<code>base64.urlsafe_b64decode</code> <b>drops them silently by default</b>" +
+        " (it only rejects them once you write <code>validate=True</code>).");
     }
     if (dec.percent) {
-      note("b64-percent", "high", "<code>%</code> が混ざっています（二重に符号化された疑い）",
-        "base64 の字表に <code>%</code> はありません。" +
-        "<b>base64 の文字列をさらに URL 符号化した</b>ものが、戻されないまま渡ってきた形です。" +
-        "典型は <code>+</code> が <code>%2B</code> に、<code>/</code> が <code>%2F</code> になっているもの。");
+      note("b64-percent", "high", "A <code>%</code> is mixed in (it looks doubly encoded)",
+        "There is no <code>%</code> in the base64 alphabet. " +
+        "This is <b>a base64 string that was then URL-encoded</b> and handed on without being decoded back. " +
+        "The typical sign is <code>+</code> turned into <code>%2B</code> and <code>/</code> into <code>%2F</code>.");
     }
     if (dec.dropped) {
-      note("b64-len1", "high", "文字数を4で割った余りが1です",
-        "base64 は1文字が6ビットなので、4で割って1余る長さは<b>どうやってもバイトの境界に届きません</b>" +
-        "（6ビットでは1バイトに足りない）。<b>末尾が欠けています。</b>" +
-        "この道具は最後の1文字を落として残りを読みました。");
+      note("b64-len1", "high", "The number of characters leaves a remainder of 1 when divided by 4",
+        "Each base64 character carries 6 bits, so a length that leaves 1 over <b>can never reach a byte boundary</b>" +
+        " (6 bits is short of a byte). <b>The end is missing.</b> " +
+        "This tool dropped the last character and read the rest.");
     }
     if (dec.padBeforeData) {
-      note("b64-pad-mid", "high", "詰めの <code>=</code> のあとにデータの文字が続いています",
-        "<code>=</code> は終わりの印なので途中には現れません。" +
-        "<b>2つの base64 文字列が連結された</b>か、切り貼りの失敗が疑われます。");
+      note("b64-pad-mid", "high", "Data characters continue after the <code>=</code> padding",
+        "<code>=</code> marks the end, so it never appears in the middle. " +
+        "Either <b>two base64 strings were joined together</b> or a copy-and-paste went wrong.");
     }
     var rem = dec.dataChars % 4;
     var wantPad = rem === 0 ? 0 : 4 - rem;
     if (dec.pads !== wantPad && !dec.padBeforeData) {
       if (dec.pads === 0 && wantPad > 0) {
-        note("b64-pad-missing", "warn", "詰めの <code>=</code> がありません（本来 " + wantPad + " 個）",
-          "RFC 4648 は詰めを求めていますが、<b>省く流儀も広く使われています</b>" +
-          "（JWT の base64url は詰めを付けないと決まっています）。多くの実装は受け取りますが、" +
-          "<b>厳密に検査する実装では拒まれます</b>。");
+        note("b64-pad-missing", "warn", "There is no <code>=</code> padding (" + wantPad + " expected)",
+          "RFC 4648 asks for padding, but <b>leaving it out is widely practised too</b>" +
+          " (JWT&#39;s base64url is defined to carry no padding). Most implementations accept it, but " +
+          "<b>a strict validator rejects it</b>.");
       } else {
-        note("b64-pad-count", "warn", "詰めの <code>=</code> の数が合いません（" + dec.pads + " 個、本来 " + wantPad + " 個）",
-          "詰めは 0・1・2 個のいずれかで、データの文字数から一意に決まります。" +
-          "多すぎる <code>=</code> は<b>大半の実装が黙って無視します</b>。");
+        note("b64-pad-count", "warn", "The number of <code>=</code> padding characters does not match (" + dec.pads + " present, " + wantPad + " expected)",
+          "Padding is 0, 1 or 2 characters, fixed uniquely by the number of data characters. " +
+          "Extra <code>=</code> characters are <b>silently ignored by most implementations</b>.");
       }
     }
     if (dec.sawSpace) {
-      note("b64-ws", "info", "空白や改行が含まれています",
-        "MIME（RFC 2045）は76文字ごとの改行を認めますが、" +
-        "<b>RFC 4648 の base64 は空白を認めていません</b>。" +
-        "ブラウザの <code>atob</code> は空白を読み飛ばしますが、拒む実装もあります。" +
-        "この道具は読み飛ばしました。");
+      note("b64-ws", "info", "It contains whitespace or line breaks",
+        "MIME (RFC 2045) allows a line break every 76 characters, but " +
+        "<b>base64 in RFC 4648 allows no whitespace at all</b>. " +
+        "The browser&#39;s <code>atob</code> skips whitespace, but some implementations reject it. " +
+        "This tool skipped it.");
     }
     /* ★ 余ったビットが0でない */
     if (dec.slackBits && dec.slackValue !== 0 && dec.canonicalLast !== null) {
       var tbl = (alpha === "url") ? URLSAFE : STD;
       var actualCh = tbl.charAt(dec.actualLast);
       var canonCh = tbl.charAt(dec.canonicalLast);
-      note("b64-slack", "high", "余ったビットが0ではありません（正規形ではない base64）",
-        "最後の文字 <code>" + esc(actualCh) + "</code> は6ビットのうち " + dec.slackBits +
-        " ビットが<b>バイトに使われずに捨てられます</b>。その捨てられる部分が0でないので、" +
-        "<b>これと違う文字列が、まったく同じバイト列に復号されます</b>" +
-        "（最後を <code>" + esc(canonCh) + "</code> にしたもの）。" +
-        "RFC 4648 §3.5 はこれを拒むことも認めていますが、<b>ブラウザの <code>atob</code> も " +
-        "Python も黙って受け取ります</b>。" +
-        "「base64 が一致するか」で同一性を判定していると、ここで取り違えます。");
+      note("b64-slack", "high", "The leftover bits are not 0 (non-canonical base64)",
+        "The last character <code>" + esc(actualCh) + "</code> has, of its 6 bits, " + dec.slackBits +
+        " that are <b>thrown away without landing in any byte</b>. Those discarded bits are not 0, so " +
+        "<b>a different string decodes to exactly the same bytes</b>" +
+        " (the one ending in <code>" + esc(canonCh) + "</code>). " +
+        "RFC 4648 §3.5 allows rejecting this, but <b>the browser&#39;s <code>atob</code> and " +
+        "Python both accept it silently</b>. " +
+        "If you decide whether two things are the same by asking whether their base64 matches, this is where you get it wrong.");
     }
     if (bytes && bytes.length && dec.dataChars > 0) {
-      note("b64-not-encryption", "info", "base64 は暗号ではありません",
-        "読みにくくなるだけで、誰でも元に戻せます（この道具がやっているのがそれです）。" +
-        "秘密の値を base64 にして「隠した」ことにはなりません。");
+      note("b64-not-encryption", "info", "base64 is not encryption",
+        "It only makes things harder to read; anyone can turn it back (that is all this tool is doing). " +
+        "Putting a secret into base64 does not hide it.");
     }
   }
 
@@ -870,12 +863,12 @@ function analyze(src) {
       var known = false;
       for (var mi = 0; mi < MAGIC.length; mi++) if (normMime(MAGIC[mi].mime) === declared) known = true;
       if (known || declared.indexOf("image/") === 0 || declared === "application/pdf") {
-        note("du-mime-mismatch", "high", "宣言された型と中身が食い違っています",
-          "<code>" + esc(du.type) + "</code> と書かれていますが、先頭のバイトは <b>" + esc(kind.name) +
-          "</b>（<code>" + esc(kind.mime) + "</code>）のものです。" +
-          "<b>ブラウザの多くは中身のほうを信じて表示してしまう</b>ので、" +
-          "見た目には気づけません。<code>&lt;img&gt;</code> では動いても、" +
-          "型で振り分ける処理（保存時の拡張子・CDN・検査器）は宣言のほうを見ます。");
+        note("du-mime-mismatch", "high", "The declared type does not match the content",
+          "<code>" + esc(du.type) + "</code> is what it says, but the leading bytes are those of <b>" + esc(kind.name) +
+          "</b> (<code>" + esc(kind.mime) + "</code>). " +
+          "<b>Most browsers trust the content and display it anyway</b>, so " +
+          "you cannot tell by looking. It may work in <code>&lt;img&gt;</code>, but " +
+          "anything that branches on the type &mdash; the extension when saving, a CDN, a scanner &mdash; looks at the declaration.");
       }
     }
   }
@@ -884,44 +877,44 @@ function analyze(src) {
     var svg = kind.text;
     var hits = [];
     if (/<script[\s>]/i.test(svg)) hits.push("<code>&lt;script&gt;</code>");
-    if (/\son\w+\s*=/i.test(svg)) hits.push("<code>on…=</code> のイベント属性");
+    if (/\son\w+\s*=/i.test(svg)) hits.push("an <code>on…=</code> event attribute");
     if (/javascript:/i.test(svg)) hits.push("<code>javascript:</code>");
     if (/<foreignObject[\s>]/i.test(svg)) hits.push("<code>&lt;foreignObject&gt;</code>");
     if (hits.length) {
-      note("du-svg-script", "high", "SVG の中に実行されうるものが入っています",
-        "見つかったもの: " + hits.join("・") + "。" +
-        "SVG を <code>&lt;img&gt;</code> で表示する分にはスクリプトは動きませんが、" +
-        "<b><code>&lt;object&gt;</code>・<code>&lt;embed&gt;</code>・直接ページを開く・" +
-        "インラインで貼る</b>と動きます。受け取った SVG をそのまま貼る作りは危険です。" +
-        "（このページは SVG を描画しません。）");
+      note("du-svg-script", "high", "The SVG contains something that can execute",
+        "What was found: " + hits.join(", ") + ". " +
+        "Shown through <code>&lt;img&gt;</code> the script does not run, but " +
+        "<b><code>&lt;object&gt;</code>, <code>&lt;embed&gt;</code>, opening the file directly, or " +
+        "pasting it inline</b> all run it. Pasting a received SVG as-is is dangerous. " +
+        "(This page does not render SVG.)");
     }
   }
   if (normMime(kind.mime) === "text/html" && du.isData) {
-    note("du-html-nav", "info", "<code>data:text/html</code> はリンク先として開けません",
-      "Chrome と Firefox は<b>トップレベルの遷移でデータURLを開くのを禁止しています</b>" +
-      "（<code>&lt;a href=\"data:text/html,…\"&gt;</code>、<code>window.open</code>、アドレス欄への貼り付け）。" +
-      "フィッシングに使われたための制限です。<code>&lt;iframe&gt;</code> でなら読み込めますが、" +
-      "そのフレームのオリジンは <code>null</code> になります。");
+    note("du-html-nav", "info", "<code>data:text/html</code> cannot be opened as a link target",
+      "Chrome and Firefox <b>forbid opening a data URL as a top-level navigation</b>" +
+      " (<code>&lt;a href=\"data:text/html,…\"&gt;</code>, <code>window.open</code>, pasting into the address bar). " +
+      "The restriction exists because it was used for phishing. It can still be loaded in an <code>&lt;iframe&gt;</code>, but " +
+      "that frame&#39;s origin becomes <code>null</code>.");
   }
 
   if (bytes && bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
-    note("dec-bom", "warn", "先頭に BOM（<code>EF BB BF</code>）があります",
-      "見えない3バイトです。JSON として読ませると<b>先頭でエラーになります</b>し、" +
-      "CSV の1列目の名前がずれる原因にもなります。" +
-      "Python の <code>TextDecoder</code> 相当や多くのエディタは黙って落とすので、" +
-      "<b>目で見ても分かりません</b>。");
+    note("dec-bom", "warn", "There is a BOM (<code>EF BB BF</code>) at the start",
+      "Three invisible bytes. Read as JSON it <b>errors on the very first character</b>, and " +
+      "it is also why the name of the first CSV column comes out wrong. " +
+      "Python&#39;s equivalent of <code>TextDecoder</code>, and many editors, drop it silently, so " +
+      "<b>you cannot see it by looking</b>.");
   }
   if (bytes && bytes.length && !kind.magic) {
     var ud = utf8Decode(bytes);
     if (!ud.ok) {
       var why = [];
-      if (ud.overlong) why.push("必要より長い形で書かれた文字（overlong）");
-      if (ud.surrogate) why.push("サロゲートの符号位置がそのまま符号化されている");
-      if (ud.truncated) why.push("末尾が途中で切れている");
-      note("dec-utf8-bad", "warn", "UTF-8 として読めないバイトが " + (ud.badAt >= 0 ? ud.badAt + " バイト目に" : "") + "あります",
-        (why.length ? why.join("・") + "。" : "") +
-        "<b>ブラウザの <code>TextDecoder</code> は既定でこれを <code>U+FFFD</code>（&#xfffd;）に置き換えて黙ります。</b>" +
-        "「文字化けした」と見えるものの多くは、この置き換えが起きたあとの姿です。");
+      if (ud.overlong) why.push("a character written longer than it needs to be (overlong)");
+      if (ud.surrogate) why.push("a surrogate code point encoded as-is");
+      if (ud.truncated) why.push("the end is cut off mid-character");
+      note("dec-utf8-bad", "warn", "A byte that cannot be read as UTF-8, at offset " + (ud.badAt >= 0 ? ud.badAt + "" : "") + "",
+        (why.length ? why.join(", ") + ". " : "") +
+        "<b>The browser&#39;s <code>TextDecoder</code> replaces this with <code>U+FFFD</code> (&#xfffd;) by default and says nothing.</b> " +
+        "Most of what looks like mojibake is what is left after that replacement.");
     }
   }
   if (bytes && bytes.length && kind.mime === "text/plain") {
@@ -931,12 +924,12 @@ function analyze(src) {
       else if (bytes[ci2] < 0x20 && bytes[ci2] !== 0x09 && bytes[ci2] !== 0x0a && bytes[ci2] !== 0x0d) ctrl++;
     }
     if (nul) {
-      note("dec-nul", "warn", "NUL バイト（<code>00</code>）が " + nul + " 個あります",
-        "テキストとして扱う処理の多くは、ここで<b>文字列が終わったとみなします</b>（C 由来の実装）。" +
-        "先が捨てられても例外は出ません。");
+      note("dec-nul", "warn", "NUL bytes (<code>00</code>): " + nul + " found",
+        "Most code that handles this as text <b>treats the string as finished</b> here (a habit inherited from C). " +
+        "Whatever follows is dropped, and no exception is raised.");
     } else if (ctrl) {
-      note("dec-ctrl", "info", "画面に出ない制御文字が " + ctrl + " 個あります",
-        "見た目では分かりません。比較や検索が合わない原因になります。");
+      note("dec-ctrl", "info", "Control characters that never show on screen: " + ctrl + " found",
+        "You cannot see them. They are a common reason comparisons and searches fail to match.");
     }
   }
 
@@ -967,14 +960,14 @@ function render(src) {
     var tbl = (alpha === "url") ? URLSAFE : STD;
     var b = bitsOf(a.dec.actualLast, 6);
     var keep = 6 - a.dec.slackBits;
-    sw.innerHTML = '<div class="slackbox">最後の文字 <code>' + esc(tbl.charAt(a.dec.actualLast)) +
-      '</code> の6ビット: <span class="bits"><span class="keep">' + b.slice(0, keep) +
+    sw.innerHTML = '<div class="slackbox">The last character <code>' + esc(tbl.charAt(a.dec.actualLast)) +
+      '</code> as 6 bits: <span class="bits"><span class="keep">' + b.slice(0, keep) +
       '</span><span class="drop">' + b.slice(keep) + '</span></span>' +
-      ' — 赤い ' + a.dec.slackBits + ' ビットは<b>どのバイトにも入らずに捨てられます</b>。' +
+      ' &mdash; the ' + a.dec.slackBits + ' bits in red are <b>thrown away without landing in any byte</b>.' +
       (a.dec.slackValue === 0
-        ? ' ここは 0 なので正規形です。'
-        : ' ここが 0 でないので、最後を <code>' + esc(tbl.charAt(a.dec.canonicalLast)) +
-          '</code> にした文字列も<b>まったく同じバイト列</b>になります。') +
+        ? ' They are 0 here, so this is the canonical form.'
+        : ' They are not 0 here, so the string ending in <code>' + esc(tbl.charAt(a.dec.canonicalLast)) +
+          '</code> instead decodes to <b>exactly the same bytes</b>.') +
       '</div>';
   } else { sw.innerHTML = ""; }
 
@@ -984,12 +977,12 @@ function render(src) {
   var badge = "";
   if (a.du.isData && declared && actual) {
     badge = (declared === actual)
-      ? '<span class="badge ok">宣言と一致</span>'
-      : '<span class="badge ng">宣言は ' + esc(a.du.type) + '</span>';
+      ? '<span class="badge ok">matches the declaration</span>'
+      : '<span class="badge ng">declared as ' + esc(a.du.type) + '</span>';
   }
-  el("kindLine").innerHTML = '中身は <b>' + esc(a.kind.name) + '</b>' +
+  el("kindLine").innerHTML = 'Content: <b>' + esc(a.kind.name) + '</b>' +
     (a.kind.mime ? ' <span class="badge">' + esc(a.kind.mime) + '</span>' : "") + badge +
-    ' — ' + a.bytes.length.toLocaleString() + ' バイト';
+    ' — ' + a.bytes.length.toLocaleString() + ' bytes';
 
   var vw = el("viewWrap");
   vw.innerHTML = "";
@@ -998,23 +991,23 @@ function render(src) {
     var box = document.createElement("div");
     box.className = "imgbox";
     var img = document.createElement("img");
-    img.alt = "貼り付けられた画像のプレビュー";
+    img.alt = "Preview of the pasted image";
     img.src = url;
     box.appendChild(img);
     var nt = document.createElement("p");
     nt.className = "imgnote";
-    nt.textContent = "中身から判定した型でこのページ内に描いています（通信はしていません）。";
+    nt.textContent = "Drawn inside this page using the type detected from the content (no network request was made).";
     box.appendChild(nt);
     vw.appendChild(box);
   } else if (a.kind.text !== undefined && a.kind.text !== null && a.bytes.length) {
     var pre = document.createElement("pre");
     pre.className = "textout";
-    pre.textContent = a.kind.text.length > 4000 ? a.kind.text.slice(0, 4000) + "\n……（以下省略）" : a.kind.text;
+    pre.textContent = a.kind.text.length > 4000 ? a.kind.text.slice(0, 4000) + "\n…… (truncated)" : a.kind.text;
     vw.appendChild(pre);
     if (actual === "image/svg+xml" || actual === "text/html") {
       var w = document.createElement("p");
       w.className = "imgnote";
-      w.textContent = "SVG と HTML は、中に実行されうるものが入っている場合があるのでこのページでは描画しません。文字として表示しています。";
+      w.textContent = "SVG and HTML can contain something that executes, so this page does not render them. They are shown as text.";
       vw.appendChild(w);
     }
   }
@@ -1044,10 +1037,10 @@ function renderEnc() {
   var ratio = bytes.length ? (b64.length / bytes.length) : 0;
 
   var rows = [
-    ["元", (encName ? esc(encName) + " / " : "") + bytes.length.toLocaleString() + " バイト"],
+    ["Source", (encName ? esc(encName) + " / " : "") + bytes.length.toLocaleString() + " bytes"],
     ["base64", '<span style="word-break:break-all">' + esc(b64.length > 3000 ? b64.slice(0, 3000) + "…" : b64) + "</span>"],
-    ["長さ", b64.length.toLocaleString() + " 文字（元の " + ratio.toFixed(3) + " 倍）"],
-    ["データURL", '<span style="word-break:break-all">' + esc(durl.length > 3000 ? durl.slice(0, 3000) + "…" : durl) + "</span>"]
+    ["Length", b64.length.toLocaleString() + " characters (" + ratio.toFixed(3) + "× the original)"],
+    ["Data URL", '<span style="word-break:break-all">' + esc(durl.length > 3000 ? durl.slice(0, 3000) + "…" : durl) + "</span>"]
   ];
   el("encTbl").getElementsByTagName("tbody")[0].innerHTML = rows.map(function (r) {
     return '<tr><td class="k">' + r[0] + '</td><td class="v">' + r[1] + '</td></tr>';
@@ -1082,7 +1075,7 @@ function selfCheck() {
     n1++;
     if (mine !== theirs) bad1++;
   }
-  add("符号化が btoa と一致する（" + n1 + " 件）", bad1 === 0, bad1 ? bad1 + " 件ちがう" : "");
+  add("Encoding matches btoa (" + n1 + " cases)", bad1 === 0, bad1 ? bad1 + " differ" : "");
 
   /* 2. 復号: 自前 vs atob */
   var n2 = 0, bad2 = 0;
@@ -1099,7 +1092,7 @@ function selfCheck() {
       if (mineB[k] !== theirsS.charCodeAt(k)) { bad2++; break; }
     }
   }
-  add("復号が atob と一致する（" + n2 + " 件）", bad2 === 0, bad2 ? bad2 + " 件ちがう" : "");
+  add("Decoding matches atob (" + n2 + " cases)", bad2 === 0, bad2 ? bad2 + " differ" : "");
 
   /* 3. 往復 */
   var n3 = 0, bad3 = 0;
@@ -1112,7 +1105,7 @@ function selfCheck() {
     if (back.length !== len3) { bad3++; continue; }
     for (var q = 0; q < len3; q++) if (back[q] !== a3[q]) { bad3++; break; }
   }
-  add("符号化してから復号すると元に戻る（" + n3 + " 件・字表と詰めの有無を変えて）", bad3 === 0, bad3 ? bad3 + " 件ちがう" : "");
+  add("Encode then decode gives the original back (" + n3 + " cases, varying the alphabet and the padding)", bad3 === 0, bad3 ? bad3 + " differ" : "");
 
   /* 4. UTF-8: 自前 vs TextDecoder / TextEncoder */
   var n4 = 0, bad4 = 0;
@@ -1129,7 +1122,7 @@ function selfCheck() {
       if (diff) { bad4++; continue; }
       if (utf8Decode(theirsE).text !== td.decode(theirsE)) bad4++;
     }
-    add("UTF-8 の読み書きが TextEncoder / TextDecoder と一致する（" + n4 + " 件）", bad4 === 0, bad4 ? bad4 + " 件ちがう" : "");
+    add("UTF-8 read and write match TextEncoder / TextDecoder (" + n4 + " cases)", bad4 === 0, bad4 ? bad4 + " differ" : "");
   }
 
   /* 5. 正規形でない base64 を、実際に atob が受け取ることの確認 */
@@ -1138,12 +1131,12 @@ function selfCheck() {
     var A = atob("QQ=="), B = atob("QR==");
     slackOk = (A === B && A === "A");
   } catch (e) { slackOk = false; }
-  add("QQ== と QR== がブラウザで同じ1バイトに戻る（余ったビットの実演）", slackOk,
-      slackOk ? "" : "このブラウザでは再現しませんでした");
+  add("QQ== and QR== decode to the same single byte in this browser (the leftover-bits demo)", slackOk,
+      slackOk ? "" : "Not reproduced in this browser");
 
   el("selfHead").innerHTML = ngAll === 0
-    ? '<b class="ok">' + okAll + " 項目すべて一致</b>（このブラウザで、いま実行した結果）"
-    : '<b class="ng">' + ngAll + " 項目が食い違いました</b>（" + okAll + " 項目は一致）";
+    ? '<b class="ok">' + okAll + " checks all match</b> (run just now, in this browser)"
+    : '<b class="ng">' + ngAll + " checks disagreed</b> (" + okAll + " matched)";
   el("selfOut").innerHTML = rows.map(function (r) {
     return '<div class="row"><span class="mark ' + (r.ok ? "ok" : "ng") + '">' +
       (r.ok ? "&#x2713;" : "&#x2717;") + "</span><span>" + esc(r.name) +

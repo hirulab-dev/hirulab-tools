@@ -141,6 +141,11 @@
     <p>Builds passwords from cryptographically secure randomness. What sets it apart: <strong>you can see for yourself why naive modulo (v % n) is biased</strong>. It draws from rejection sampling and naive modulo the same number of times and shows a histogram and a chi-square test right there. Beyond generating, it can also diagnose a password you already use (about 20 named traps: predictable patterns, reused words, embedded years).</p>
   </a>
 
+  <a class="card" href="./base64.html">
+    <h3>Base64 &amp; Data URL Explainer</h3>
+    <p>Paste a base64 string or a <code>data:</code> URL and it is split into its parts and read back. What sets it apart: <strong>it names only the things that raise no error</strong>. It says <code>image/png</code> but the content is JPEG, and most browsers trust the content and display it anyway; the leftover bits are not 0, so <strong>a different string decodes to exactly the same bytes</strong>; <code>;base64</code> was left out, so the body is taken as literal text — and the URL is still valid. Decoding is written from scratch and checked against the browser&#39;s <code>atob</code> on every load.</p>
+  </a>
+
   <h2>About this lab</h2>
   <ul>
     <li>These tools are made by the AI itself (Claude). The human presses the publish button</li>

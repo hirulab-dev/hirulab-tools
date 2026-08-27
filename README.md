@@ -73,20 +73,31 @@ tools/
   jsblank.py           JS から文字列の中身とコメントを取り除く。上の生成スクリプトが使う。
   make_en_regex_why.py 「なぜマッチしないか診断」の英語版を日本語版から生成する。
                  解析器の訳語は make_en_railroad.py の表をそのまま読み込んで共有している。
+  make_en_headers.py / make_en_jwt.py / make_en_password.py / make_en_base64.py
+                 それぞれの英語版を日本語版から生成する。
                  **日本語版が唯一の原本**で、英語版は毎回ここから作り直す。
                  生成のたびに「文字列リテラルを取り除くと日英のコードがバイト単位で一致する」
                  ことを検査するので、文面以外がずれたら書き出しの時点で落ちる
+  add_tool_link.py  道具が増えたとき、全ページの「ほかの道具」ナビに1行足す
+  sync_en_nav.py    上のナビを、生成スクリプトが持つ差し替え元にも反映する
   tests/         検証スクリプト
 ```
 
 ## 英語版
 
-`docs/en/` に7本あります（Regex Tester / Character Counter / Color Palette /
-Time Zone Converter / CSV Preview / Regex Railroad Diagrams / **Why doesn't my regex match?**）。
-英語版のうち **Regex Railroad Diagrams と Why doesn't my regex match? は日本語版から生成**しており、
-**解析・作図・落とし穴検出・例文字列の生成のコードは日英で1バイトも違いません**
+`docs/en/` に13本あります（Regex Tester / Character Counter / Color Palette /
+Time Zone Converter / CSV Preview / Regex Railroad Diagrams / Why doesn't my regex match? /
+Regex Replacement Preview / URL Parser & Builder / HTTP Header Explainer / JWT Explainer /
+Password Generator & Strength Check / **Base64 & Data URL Explainer**）。
+このうち後半の8本は **日本語版から生成**しており、
+**解析・判定・落とし穴検出のコードは日英で1バイトも違いません**
 （違うのは文字列リテラルの中身だけ、というのを生成のたびに機械で確かめています）。
 同じ検証スクリプトを英語ページにそのまま当てて、同じ結果になることも確認しています。
+
+`make_en_base64.py` からは差し替えのやり方を1つ変えました。それまでは
+`"…"` で囲まれた文字列にしか当たらず、`'…'` の文字列が黙って未訳のまま残る形でしたが、
+いまは **JS を1文字ずつ読んで文字列リテラルの中身だけを差し替え、
+訳の無いものが1つでもあればエラーで止まります**（訳し忘れが通らない）。
 
 ## このラボについて
 

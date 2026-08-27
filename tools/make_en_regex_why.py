@@ -525,10 +525,9 @@ HTML_PARTS = [
         <b>3 where the captured groups differed, all from that approximation</b>. It was rewritten.</li>'''),
 
  ('''  <nav class="hl-nav">
-    <h2>ほかの道具</h2>''', '''  <nav class="hl-nav">
-    <h2>Other tools</h2>'''),
-
- ('''      <li><a href="../regex/">正規表現テスタ</a></li>
+    <h2>ほかの道具</h2>
+    <ul>
+      <li><a href="../regex/">正規表現テスタ</a></li>
       <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
       <li><a href="../replace/">正規表現の置換プレビュー</a></li>
       <li><a href="../char-counter/">文字数カウンタ</a></li>
@@ -548,7 +547,10 @@ HTML_PARTS = [
       <li><a href="../csv/">CSVプレビュー・診断</a></li>
       <li><a href="../url/">URLの分解・組み立て</a></li>
       <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
+      <li><a href="../jwt/">JWTの読み下し</a></li>
       <li><a href="../en/regex-why.html">English version</a></li>
+      <li><a href="../password/">パスワード生成・強度診断</a></li>
+      <li><a href="../base64/">Base64・データURLの分解</a></li>
     </ul>
     <p class="hl-links">
       <a href="../">道具箱のトップ</a> ・
@@ -557,7 +559,10 @@ HTML_PARTS = [
       <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
     </p>
   </nav>''',
-  '''      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+  '''  <nav class="hl-nav">
+    <h2>Other tools</h2>
+    <ul>
+      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
       <li><a href="./replace.html">Regex Replacement Preview</a></li>
       <li><a href="./regex-tester.html">Regex Tester</a></li>
       <li><a href="./char-counter.html">Character Counter</a></li>
@@ -566,7 +571,10 @@ HTML_PARTS = [
       <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
       <li><a href="./url.html">URL Parser &amp; Builder</a></li>
       <li><a href="./headers.html">HTTP Header Explainer</a></li>
+      <li><a href="./jwt.html">JWT Explainer</a></li>
       <li><a href="../regex-why/">Japanese version</a></li>
+      <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
+      <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
     </ul>
     <p class="hl-links">
       <a href="./">All tools (English)</a> ·

@@ -33,16 +33,46 @@ def font(path, size):
 
 
 def wrap(draw, text, f, max_w):
-    """日本語は単語境界がないので1文字ずつ詰める。"""
+    """日本語は単語境界がないので1文字ずつ詰める。
+
+    ★2026-08-27修正: 空白のある語（英語）まで1文字ずつ折っていたので、
+    英語版のOGPが `Generato / r` のように**語の途中で改行していた**。
+    空白を含む語は空白の手前で折る。日本語は従来どおり1文字ずつ。
+    """
     lines, cur = [], ""
-    for ch in text:
-        if ch == "\n":
-            lines.append(cur); cur = ""; continue
-        t = cur + ch
+
+    def push(chunk):
+        """1つのかたまり（英単語 or 1文字）を積む。入らなければ改行する。"""
+        nonlocal cur
+        t = cur + chunk
         if draw.textlength(t, font=f) > max_w and cur:
-            lines.append(cur); cur = ch
+            lines.append(cur)
+            cur = chunk.lstrip(" ")
         else:
             cur = t
+
+    word = ""
+    for ch in text:
+        if ch == "\n":
+            if word:
+                push(word); word = ""
+            lines.append(cur); cur = ""
+            continue
+        if ch == " ":
+            if word:
+                push(word + " ")
+                word = ""
+            elif cur:
+                push(" ")
+            continue
+        if ch.isascii():
+            word += ch          # 英数字は語がそろうまで待つ
+            continue
+        if word:
+            push(word); word = ""
+        push(ch)                # 日本語は1文字ずつ
+    if word:
+        push(word)
     if cur:
         lines.append(cur)
     return lines
