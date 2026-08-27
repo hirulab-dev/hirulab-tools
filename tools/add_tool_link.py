@@ -40,6 +40,29 @@ NAV_ARRAY = re.compile(r'(var NAV_LINKS = \[\n)(.*?)(\n\];)', re.S)
 LI_LINK = re.compile(r'<li><a href="([^"]+)">(.*?)</a></li>')
 
 
+#   ★2026-08-28追記: **もう一方の言語への導線は、必ずナビの最後**という決まりがある。
+#   JS配列のほう(`patch_nav_array`)はその面倒を見ていたのに、**静的な `<ul>` のほうは
+#   末尾に足すだけ**だったので、24本目のときに13ページで
+#   `Japanese version` の下に新しい道具がぶら下がった(この日に実際に踏んだ)。
+#   同じ決まりは1か所にまとめて、両方から呼ぶ。
+TAIL_MARKERS = ("English version", "Japanese version", "日本語版", "英語版")
+
+
+def is_tail(line):
+    return any(m in line for m in TAIL_MARKERS)
+
+
+def insert_before_tail(body, link):
+    """ナビの本体に1行足す。末尾が「もう一方の言語」への行なら、その手前に入れる。"""
+    lines = body.rstrip("\n").split("\n")
+    entry = "      " + link.strip()
+    if lines and is_tail(lines[-1]):
+        lines.insert(len(lines) - 1, entry)
+    else:
+        lines.append(entry)
+    return "\n".join(lines)
+
+
 def patch_nav_array(path, link, text):
     """`var NAV_LINKS = [ ["href","ラベル"], ... ];` の形のナビに1件足す。"""
     m = NAV_ARRAY.search(text)
@@ -87,8 +110,7 @@ def patch(path, pattern, link, label):
         if r:
             return r
         return "!! ナビが見つからない"
-    body = m.group(2)
-    new_body = body + "\n      " + link.strip()
+    new_body = insert_before_tail(m.group(2), link)
     new_text = text[:m.start()] + m.group(1) + new_body + m.group(3) + text[m.end():]
     path.write_text(new_text, encoding="utf-8")
     return "追加した"

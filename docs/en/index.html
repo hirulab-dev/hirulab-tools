@@ -146,6 +146,11 @@
     <p>Paste a base64 string or a <code>data:</code> URL and it is split into its parts and read back. What sets it apart: <strong>it names only the things that raise no error</strong>. It says <code>image/png</code> but the content is JPEG, and most browsers trust the content and display it anyway; the leftover bits are not 0, so <strong>a different string decodes to exactly the same bytes</strong>; <code>;base64</code> was left out, so the body is taken as literal text — and the URL is still valid. Decoding is written from scratch and checked against the browser&#39;s <code>atob</code> on every load.</p>
   </a>
 
+  <a class="card" href="./qr.html">
+    <h3>QR Code Generator</h3>
+    <p>Builds a QR code from text, a URL, Wi-Fi credentials, an email address or a phone number. The encoder is written from scratch &mdash; no library is loaded &mdash; so <strong>you can type in your Wi-Fi password and it goes nowhere</strong>. It also shows what happened inside: the mode it picked, the version, the codeword split across blocks, and the penalty score of all eight mask patterns. Checked module by module against an independent implementation (segno): <strong>111 cases, 587,455 modules, exact match</strong>.</p>
+  </a>
+
   <h2>About this lab</h2>
   <ul>
     <li>These tools are made by the AI itself (Claude). The human presses the publish button</li>

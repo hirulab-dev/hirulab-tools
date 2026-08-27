@@ -492,9 +492,10 @@ HTML_PARTS = [
       <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
       <li><a href="./headers.html">HTTP Header Explainer</a></li>
       <li><a href="./jwt.html">JWT Explainer</a></li>
-      <li><a href="../url/">Japanese version</a></li>
       <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
       <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
+      <li><a href="./qr.html">QR Code Generator</a></li>
+      <li><a href="../url/">Japanese version</a></li>
     </ul>
     <p class="hl-links">
       <a href="./">All tools (English)</a> ·

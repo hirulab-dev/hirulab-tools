@@ -80,16 +80,17 @@ tools/
                  ことを検査するので、文面以外がずれたら書き出しの時点で落ちる
   add_tool_link.py  道具が増えたとき、全ページの「ほかの道具」ナビに1行足す
   sync_en_nav.py    上のナビを、生成スクリプトが持つ差し替え元にも反映する
+                    （静的な <ul> と、JS配列 NAV_LINKS の両方）
   tests/         検証スクリプト
 ```
 
 ## 英語版
 
-`docs/en/` に13本あります（Regex Tester / Character Counter / Color Palette /
+`docs/en/` に14本あります（Regex Tester / Character Counter / Color Palette /
 Time Zone Converter / CSV Preview / Regex Railroad Diagrams / Why doesn't my regex match? /
 Regex Replacement Preview / URL Parser & Builder / HTTP Header Explainer / JWT Explainer /
-Password Generator & Strength Check / **Base64 & Data URL Explainer**）。
-このうち後半の8本は **日本語版から生成**しており、
+Password Generator & Strength Check / Base64 & Data URL Explainer / **QR Code Generator**）。
+このうち後半の9本は **日本語版から生成**しており、
 **解析・判定・落とし穴検出のコードは日英で1バイトも違いません**
 （違うのは文字列リテラルの中身だけ、というのを生成のたびに機械で確かめています）。
 同じ検証スクリプトを英語ページにそのまま当てて、同じ結果になることも確認しています。

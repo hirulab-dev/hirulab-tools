@@ -306,6 +306,7 @@ NAV_LINKS_JA = '''var NAV_LINKS = [
   ["../qr/", "QRコード作成"], ["../palette/", "カラーパレット生成"],
   ["../frima-profit/", "フリマ手取り計算機"], ["../cron/", "cron式の読み下し"],
   ["../tz/", "タイムゾーン変換"], ["../csv/", "CSVプレビュー・診断"],
+  ["../base64/", "Base64・データURLの分解"],
   ["../en/password.html", "English version"]
 ];'''
 
@@ -316,6 +317,8 @@ NAV_LINKS_EN = '''var NAV_LINKS = [
   ["./jwt.html", "JWT Explainer"], ["./char-counter.html", "Character Counter"],
   ["./timezone.html", "Time Zone Converter"], ["./csv.html", "CSV Preview & Diagnostics"],
   ["./palette.html", "Color Palette Generator"],
+  ["./base64.html", "Base64 &amp; Data URL Explainer"],
+  ["./qr.html", "QR Code Generator"],
   ["../password/", "Japanese version"]
 ];'''
 
