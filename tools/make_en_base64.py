@@ -284,6 +284,7 @@ EN_NAV = '''  <nav class="hl-nav">
       <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
       <li><a href="./qr.html">QR Code Generator</a></li>
       <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
+      <li><a href="./image.html">Image Resizer &amp; Compressor</a></li>
       <li><a href="../base64/">Japanese version</a></li>
     </ul>
     <p class="hl-links">

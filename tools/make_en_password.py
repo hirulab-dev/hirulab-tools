@@ -321,6 +321,7 @@ NAV_LINKS_EN = '''var NAV_LINKS = [
   ["./qr.html", "QR Code Generator"],
   ["./cron.html", "Cron Expression Explainer"],
   ["./contrast.html", "Contrast Ratio Checker"],
+  ["./image.html", "Image Resizer &amp; Compressor"],
   ["../password/", "Japanese version"]
 ];'''
 
