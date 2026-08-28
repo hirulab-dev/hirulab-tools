@@ -16,6 +16,7 @@
 | `test_base64.py` | [Base64・データURLの分解](https://hirulab-dev.github.io/hirulab-tools/base64/) の**参照を3つの出どころに分ける**。(1) 符号化・復号を Python の `base64`（`validate=True`）と 400 件 (2) **データURLの分解を Python 標準の `urllib.request`（`DataHandler`）と 400 件** — 別の言語のデータURL専用パーサに当てる (3) **中身の判定は「本物のファイル」に当てる** — Pillow に実際に PNG/JPEG/GIF/BMP/TIFF/WebP を保存させ、その生バイトを食わせる（マジックナンバーの表を手で書き写した値を参照にしない）。仕込んだ落とし穴 27 件の名指しも確認。`--sabotage` つき |
 | `test_qr.py` | [QRコード作成](https://hirulab-dev.github.io/hirulab-tools/qr/) の符号化器と、独立実装 **segno** の出力を**1モジュールずつ**。111 ケース・**587,455 モジュール**を完全一致で照合（型番1〜40のうち30種、誤り訂正 L/M/Q/H の全レベル）。参照データは `make_qr_reference.py` で作る（大きいので git には入れない） |
 | `test_cron.py` | [cron式の読み下し](https://hirulab-dev.github.io/hirulab-tools/cron/) と Python の **croniter**。ランダム生成した式の「次の実行時刻」を突き合わせる。★ **croniter との解釈差3種は Vixie cron 側に合わせてあり、差が出ること自体を検査**している（幅ゼロの範囲 `5-5` / 日・曜日が `*/n` のときの OR 判定 / 存在しない日付を含む月の扱い） |
+| `test_image.py` | [画像リサイズ・圧縮](https://hirulab-dev.github.io/hirulab-tools/image/) に**本物の画像を実際に食わせて、出てきた画像を Pillow で読み直す**。参照はページの表示ではなく別の出どころ: 目標の寸法は Python で独立に書き下した規則、実際の寸法と形式は Pillow が読んだ値、削減率の表示は出力の実バイト数から計算した値。5枚 × 7通り（長辺/幅/高さ/％/そのまま × JPEG/PNG/WebP）= 35 件。`--sabotage` つき（5種すべて検出）。**同じスクリプトが英語版 `docs/en/image.html` にもそのまま当たる** |
 
 ⚠ `test_qr.py` は Chromium ではなく **dukpy（Duktape）** で JS を走らせます。
 参照データを作るときの segno は、**詰めビットの処理を1か所だけ規格どおりに直してから**使っています
@@ -36,6 +37,9 @@ python tools/tests/test_url.py --n 600
 python tools/tests/test_jwt.py --n 400
 python tools/tests/test_base64.py --n 400
 python tools/tests/test_password.py --n 40000 --trials 25
+python tools/tests/test_image.py                       # 既定は docs/image/index.html
+python tools/tests/test_image.py docs/en/image.html    # 英語版にも同じものを当てる
+python tools/tests/test_image.py --sabotage            # わざと壊して検査が効いているか見る
 
 pip install croniter dukpy segno
 python tools/tests/test_cron.py docs/cron/index.html --n 800
