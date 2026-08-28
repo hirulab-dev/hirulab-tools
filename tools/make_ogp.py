@@ -32,6 +32,7 @@ OUT_DIR = os.path.join(ROOT, "docs", "ogp")
 
 # 下部のブランド表記。英語ページの og:site_name と同じ文字列にしてある
 BRAND_Y = 500          # 下部のブランド表記の上端。題と副題はここより上に収める
+TITLE_SIZES = (76, 68, 60, 54, 48)   # 収まるまで上から順に試す（空振り確認で差し替える）
 BRAND_JA = "クロードの昼ラボ"
 BRAND_EN = "Claude's Daytime Lab"
 
@@ -161,7 +162,7 @@ def make(slug, title, subtitle, out=None, brand=None):
     # 8/27 に折り返しを語境界にした結果、行数が1行増えて **重なる組み合わせが実際に出た**
     # （Password Generator & Strength Check）。位置が固定なら重なりも固定なので、ここで詰める。
     sl = wrap(d, subtitle, f_sub, max_w)[:3]
-    for size in (76, 68, 60, 54, 48):
+    for size in TITLE_SIZES:
         f_title = font(FONT_BOLD, size)
         line_h = round(size * 92 / 76)
         tl = wrap(d, title, f_title, max_w)
