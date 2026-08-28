@@ -3,8 +3,11 @@
 
 使い方:
     python tools/make_ogp.py json "JSON整形・検証" "壊れている場所を行と列で指します。"
+    python tools/make_ogp.py qr-en "QR Code Generator" "..."      # 英語のブランド表記になる
 
 第1引数がスラッグで、`docs/ogp/ogp-<スラッグ>.png` に書き出す。
+**スラッグが `-en` で終わる / `en-` で始まる / `en` そのものなら、下部のブランド表記を英語にする**
+(2026-08-28。英語ページに日本語が1文字も出ないようにしている方針と、OGPだけが食い違っていた)。
 Windows の Yu Gothic / Consolas を使う。フォントが無い環境では FONT_* を差し替えること。
 
 2026-08-19 作成。既存7枚は同じ設計で手作りされていたがスクリプトが残っていなかったので、
@@ -26,6 +29,20 @@ FONT_MONO = r"C:\Windows\Fonts\consola.ttf"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(ROOT, "docs", "ogp")
+
+# 下部のブランド表記。英語ページの og:site_name と同じ文字列にしてある
+BRAND_Y = 500          # 下部のブランド表記の上端。題と副題はここより上に収める
+BRAND_JA = "クロードの昼ラボ"
+BRAND_EN = "Claude's Daytime Lab"
+
+
+def brand_for(slug):
+    """スラッグから日英どちらのブランド表記かを決める。
+
+    英語版の画像は `ogp-qr-en.png` と `ogp-en-palette.png` の2通りの名前が
+    混在しているので、両方に当たる形にしてある（`ogp-en.png` は英語トップ）。
+    """
+    return BRAND_EN if (slug == "en" or slug.endswith("-en") or slug.startswith("en-")) else BRAND_JA
 
 
 def font(path, size):
@@ -119,7 +136,7 @@ def draw_flask(d, cx, cy, scale=1.0):
                fill=ACCENT, width=max(2, int(4 * s)))
 
 
-def make(slug, title, subtitle, out=None):
+def make(slug, title, subtitle, out=None, brand=None):
     img = Image.new("RGB", (W, H), BG_BOTTOM)
     d = ImageDraw.Draw(img)
 
@@ -131,26 +148,41 @@ def make(slug, title, subtitle, out=None):
 
     draw_flask(d, 1005, 300, 1.0)
 
-    f_title = font(FONT_BOLD, 76)
     f_sub = font(FONT_REG, 34)
     f_brand = font(FONT_BOLD, 28)
     f_url = font(FONT_MONO, 28)
 
     x = 88
     max_w = 740
-    tl = wrap(d, title, f_title, max_w)
-    y = 128
+    y0 = 128
+
+    # ★2026-08-28: 題と副題が下のブランド表記に重ならないところまで題を小さくする。
+    # それまでは 76px 決め打ちで、行数が増えても下へ流れるだけだった。
+    # 8/27 に折り返しを語境界にした結果、行数が1行増えて **重なる組み合わせが実際に出た**
+    # （Password Generator & Strength Check）。位置が固定なら重なりも固定なので、ここで詰める。
+    sl = wrap(d, subtitle, f_sub, max_w)[:3]
+    for size in (76, 68, 60, 54, 48):
+        f_title = font(FONT_BOLD, size)
+        line_h = round(size * 92 / 76)
+        tl = wrap(d, title, f_title, max_w)
+        bottom = y0 + line_h * len(tl) + 14 + 46 * len(sl)
+        if bottom <= BRAND_Y - 8:
+            break
+    else:
+        raise SystemExit("題と副題が長すぎて %d px でも収まらない: %r" % (size, title))
+
+    y = y0
     for line in tl:
         d.text((x, y), line, font=f_title, fill=WHITE)
-        y += 92
+        y += line_h
 
     y += 14
-    for line in wrap(d, subtitle, f_sub, max_w)[:3]:
+    for line in sl:
         d.text((x, y), line, font=f_sub, fill=GRAY)
         y += 46
 
-    d.text((x, 500), "クロードの昼ラボ", font=f_brand, fill=ACCENT)
-    d.text((x, 546), "hirulab-dev.github.io/hirulab-tools", font=f_url, fill=GRAY)
+    d.text((x, BRAND_Y), brand or brand_for(slug), font=f_brand, fill=ACCENT)
+    d.text((x, BRAND_Y + 46), "hirulab-dev.github.io/hirulab-tools", font=f_url, fill=GRAY)
 
     d.rectangle([0, H - 10, W, H], fill=ACCENT)
 
