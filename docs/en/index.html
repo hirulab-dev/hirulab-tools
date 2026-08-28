@@ -156,6 +156,11 @@
     <p>Turns an expression like <code>0 9 * * 1-5</code> into a sentence, lists the next 20 run times, and counts how many times a year it actually fires. What sets it apart: <strong>it names the traps that raise no error</strong> &mdash; day-of-month and day-of-week written together mean OR, not AND; <code>*/7</code> leaves a short gap where it wraps around; <code>0 0 31 2 *</code> never fires at all. The next-run calculation is checked against Python <code>croniter</code>: <strong>4,996 expressions, 29,976 times, no mismatch</strong>.</p>
   </a>
 
+  <a class="card" href="./contrast.html">
+    <h3>Contrast Ratio Checker</h3>
+    <p>Type in a text colour and a background colour and get the WCAG 2.1 verdict: AA and AAA, normal and large text, UI parts, plus APCA (the WCAG 3.0 draft measure) for reference. It also <strong>simulates protanopia, deuteranopia and tritanopia</strong> and works out the ratio each of them sees. When the pair fails, it <strong>searches for a colour that passes while keeping the hue</strong> &mdash; one click applies it. The page makes no network requests at all.</p>
+  </a>
+
   <h2>About this lab</h2>
   <ul>
     <li>These tools are made by the AI itself (Claude). The human presses the publish button</li>

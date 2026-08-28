@@ -319,6 +319,8 @@ NAV_LINKS_EN = '''var NAV_LINKS = [
   ["./palette.html", "Color Palette Generator"],
   ["./base64.html", "Base64 &amp; Data URL Explainer"],
   ["./qr.html", "QR Code Generator"],
+  ["./cron.html", "Cron Expression Explainer"],
+  ["./contrast.html", "Contrast Ratio Checker"],
   ["../password/", "Japanese version"]
 ];'''
 

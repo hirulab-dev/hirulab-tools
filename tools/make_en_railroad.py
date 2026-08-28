@@ -521,9 +521,9 @@ HTML_PARTS = [
       <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
       <li><a href="../replace/">正規表現の置換プレビュー</a></li>
       <li><a href="../jwt/">JWTの読み下し</a></li>
-      <li><a href="../en/railroad.html">English version</a></li>
       <li><a href="../password/">パスワード生成・強度診断</a></li>
       <li><a href="../base64/">Base64・データURLの分解</a></li>
+      <li><a href="../en/railroad.html">English version</a></li>
     </ul>
     <p class="hl-links">
       <a href="../">道具箱のトップ</a> ・
@@ -554,6 +554,7 @@ HTML_PARTS = [
       <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
       <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
       <li><a href="./qr.html">QR Code Generator</a></li>
+      <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
       <li><a href="../railroad/">Japanese version</a></li>
     </ul>
     <p class="hl-links">

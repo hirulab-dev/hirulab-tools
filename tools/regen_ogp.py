@@ -56,6 +56,8 @@ EN_ITEMS = [
      "Type in your Wi-Fi password; it goes nowhere."),
     ("cron-en", "Cron Expression Explainer",
      "What it means, when it runs next, and the traps that raise no error."),
+    ("contrast-en", "Contrast Ratio Checker",
+     "WCAG 2.1 AA / AAA, and a colour that actually passes."),
 ]
 
 # 日本語版。★2026-08-28 夜に現物25枚から読み取った。裏取りは英語版と同じ手順

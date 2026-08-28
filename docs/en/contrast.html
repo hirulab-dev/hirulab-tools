@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>コントラスト比チェッカー — WCAG 2.1 / 3.0(APCA)対応</title>
-<meta name="description" content="文字色と背景色のコントラスト比をその場で判定。WCAG 2.1のAA/AAA基準に加え、色覚特性シミュレーションと自動修正提案つき。AI(Claude)が作ったブラウザ完結ツール。データは送信されません。">
+<title>Contrast Ratio Checker — WCAG 2.1 AA / AAA, with APCA for reference</title>
+<meta name="description" content="Checks the contrast ratio between a text colour and a background colour as you type. WCAG 2.1 AA and AAA, colour vision deficiency simulation, and a suggested colour that actually passes. Built by an AI (Claude); everything runs in the browser and nothing is ever sent anywhere.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --text:#1a1a1a; --sub:#666;
@@ -74,54 +74,54 @@
   footer { color:var(--sub); font-size:.78rem; margin-top:32px; border-top:1px solid var(--border); padding-top:12px; }
   footer a { color:var(--accent); }
 
-  /* バッジは white-space:nowrap なので2列固定だと375px幅で19pxはみ出す。
-     .badges の定義より後ろに置くこと（同じ詳細度なので、前に書くと負ける） */
+  /* The badges are white-space:nowrap, so a fixed two-column grid overflows by 19px at 375px.
+     This has to come after the .badges rule — same specificity, so an earlier rule loses. */
   @media (max-width:560px) { .badges { grid-template-columns:1fr; } }
 </style>
-<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/contrast/">
-<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/contrast/">
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/contrast.html">
 <link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/contrast.html">
+<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/contrast/">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="クロードの昼ラボ">
-<meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="コントラスト比チェッカー — クロードの昼ラボ">
-<meta property="og:description" content="文字色と背景色のコントラスト比をWCAG 2.1のAA/AAAで判定。色覚特性シミュレーションと改善案つき。">
-<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/contrast/">
-<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-contrast.png">
+<meta property="og:site_name" content="Claude&#39;s Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Contrast Ratio Checker">
+<meta property="og:description" content="Checks a text colour against a background colour with WCAG 2.1 AA and AAA, simulates colour vision deficiency, and suggests a colour that passes.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/contrast.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-contrast-en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="コントラスト比チェッカー — クロードの昼ラボ">
-<meta name="twitter:description" content="文字色と背景色のコントラスト比をWCAG 2.1のAA/AAAで判定。色覚特性シミュレーションと改善案つき。">
-<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-contrast.png">
+<meta name="twitter:title" content="Contrast Ratio Checker">
+<meta name="twitter:description" content="WCAG 2.1 AA / AAA for any pair of colours, with colour vision deficiency simulation and a fix that passes.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-contrast-en.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "コントラスト比チェッカー",
-  "url": "https://hirulab-dev.github.io/hirulab-tools/contrast/",
-  "description": "文字色と背景色のコントラスト比を WCAG 2.1 の AA/AAA で判定し、色覚特性のシミュレーションと修正案を出します。",
+  "name": "Contrast Ratio Checker",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/contrast.html",
+  "description": "Works out the contrast ratio between a text colour and a background colour, judges it against WCAG 2.1 AA and AAA, simulates colour vision deficiency and suggests a colour that passes.",
   "applicationCategory": "UtilitiesApplication",
   "operatingSystem": "Web browser",
-  "browserRequirements": "JavaScript が有効なモダンブラウザ",
-  "inLanguage": "ja",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
   "isAccessibleForFree": true,
   "offers": {
     "@type": "Offer",
     "price": "0",
-    "priceCurrency": "JPY"
+    "priceCurrency": "USD"
   },
-  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-contrast.png",
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-contrast-en.png",
   "author": {
     "@type": "Organization",
-    "name": "クロードの昼ラボ",
+    "name": "Claude&#39;s Daytime Lab",
     "url": "https://note.com/hirulab"
   },
   "isPartOf": {
     "@type": "WebSite",
-    "name": "クロードの昼ラボ — ツール置き場",
-    "url": "https://hirulab-dev.github.io/hirulab-tools/"
+    "name": "Claude&#39;s Daytime Lab &mdash; Tools",
+    "url": "https://hirulab-dev.github.io/hirulab-tools/en/"
   }
 }
 </script>
@@ -141,104 +141,97 @@
 </head>
 <body>
 <div class="wrap">
-  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
-  <h1>コントラスト比チェッカー</h1>
-  <div class="tagline">文字色と背景色を入れるだけ。WCAG 2.1 の AA / AAA 判定、色覚特性シミュレーション、基準を満たす色の自動提案まで。すべてブラウザ内で完結し、入力した値はどこにも送信されません。</div>
+  <a class="hl-back" href="./">&larr; Claude&#39;s Daytime Lab &mdash; tools</a>
+  <h1>Contrast Ratio Checker</h1>
+  <div class="tagline">Type in a text colour and a background colour. You get the WCAG 2.1 AA / AAA verdict, a colour vision deficiency simulation, and a suggested colour that actually passes. Everything happens inside the browser and the values you type are never sent anywhere.</div>
 
   <div class="pickers">
     <div class="picker">
-      <div class="label">文字色 (foreground)</div>
+      <div class="label">Text colour (foreground)</div>
       <div class="row">
         <input type="color" id="fg-color" value="#767676">
-        <input type="text" id="fg-text" value="#767676" spellcheck="false" aria-label="文字色">
+        <input type="text" id="fg-text" value="#767676" spellcheck="false" aria-label="Text colour">
       </div>
     </div>
     <div class="picker">
-      <div class="label">背景色 (background)</div>
+      <div class="label">Background colour</div>
       <div class="row">
         <input type="color" id="bg-color" value="#ffffff">
-        <input type="text" id="bg-text" value="#ffffff" spellcheck="false" aria-label="背景色">
+        <input type="text" id="bg-text" value="#ffffff" spellcheck="false" aria-label="Background colour">
       </div>
     </div>
   </div>
   <div class="btnrow">
-    <button id="swap">⇅ 入れ替え</button>
-    <button id="rand">🎲 ランダム</button>
-    <button id="copy-css">CSSをコピー</button>
+    <button id="swap">&#8645; Swap</button>
+    <button id="rand">&#127922; Random</button>
+    <button id="copy-css">Copy CSS</button>
     <span id="copied" style="font-size:.78rem;color:var(--ok);align-self:center"></span>
   </div>
 
   <div class="score">
     <div class="ratio"><span id="ratio">4.54</span><small> : 1</small></div>
     <div class="badges">
-      <div class="badge"><span class="pill" id="p-aa-n">—</span> AA 通常テキスト <span style="color:var(--sub)">4.5:1</span></div>
-      <div class="badge"><span class="pill" id="p-aaa-n">—</span> AAA 通常テキスト <span style="color:var(--sub)">7:1</span></div>
-      <div class="badge"><span class="pill" id="p-aa-l">—</span> AA 大きい文字 <span style="color:var(--sub)">3:1</span></div>
-      <div class="badge"><span class="pill" id="p-aaa-l">—</span> AAA 大きい文字 <span style="color:var(--sub)">4.5:1</span></div>
-      <div class="badge"><span class="pill" id="p-ui">—</span> UI部品・図形 <span style="color:var(--sub)">3:1</span></div>
-      <div class="badge"><span class="pill" id="p-apca">—</span> APCA(参考) <span style="color:var(--sub)" id="apca-val"></span></div>
+      <div class="badge"><span class="pill" id="p-aa-n">&mdash;</span> AA normal text <span style="color:var(--sub)">4.5:1</span></div>
+      <div class="badge"><span class="pill" id="p-aaa-n">&mdash;</span> AAA normal text <span style="color:var(--sub)">7:1</span></div>
+      <div class="badge"><span class="pill" id="p-aa-l">&mdash;</span> AA large text <span style="color:var(--sub)">3:1</span></div>
+      <div class="badge"><span class="pill" id="p-aaa-l">&mdash;</span> AAA large text <span style="color:var(--sub)">4.5:1</span></div>
+      <div class="badge"><span class="pill" id="p-ui">&mdash;</span> UI parts &amp; graphics <span style="color:var(--sub)">3:1</span></div>
+      <div class="badge"><span class="pill" id="p-apca">&mdash;</span> APCA (reference) <span style="color:var(--sub)" id="apca-val"></span></div>
     </div>
   </div>
 
   <div class="preview" id="preview">
-    <div class="big">大きい文字のサンプル(24px相当)</div>
-    <div class="small">通常サイズの本文テキストです。The quick brown fox jumps over the lazy dog. 0123456789</div>
-    <div class="tiny">注釈やキャプションに使う小さめの文字</div>
+    <div class="big">Large text sample (equivalent to 24px)</div>
+    <div class="small">Body text at the usual size. The quick brown fox jumps over the lazy dog. 0123456789</div>
+    <div class="tiny">The smaller size used for notes and captions</div>
   </div>
 
-  <h2>色覚特性シミュレーション</h2>
+  <h2>Colour vision deficiency simulation</h2>
   <div class="grid3" id="sims"></div>
 
-  <h2>AA(4.5:1)を満たす修正案</h2>
+  <h2>A fix that reaches AA (4.5:1)</h2>
   <div class="fixes" id="fixes"></div>
 
-  <h2>「大きい文字」の定義(WCAG 2.1)</h2>
+  <h2>What WCAG 2.1 counts as &ldquo;large text&rdquo;</h2>
   <table>
-    <tr><th>条件</th><th>該当サイズ</th></tr>
-    <tr><td>通常の太さ</td><td>18pt 以上(= 24px 以上)</td></tr>
-    <tr><td>太字(bold)</td><td>14pt 以上(= 18.66px 以上)</td></tr>
-    <tr><td>日本語の場合</td><td>WCAG は 22px 以上(太字は 18px 以上)を目安として示している</td></tr>
+    <tr><th>Weight</th><th>Size that qualifies</th></tr>
+    <tr><td>Normal weight</td><td>18pt or larger (= 24px or larger)</td></tr>
+    <tr><td>Bold</td><td>14pt or larger (= 18.66px or larger)</td></tr>
+    <tr><td>Japanese text</td><td>WCAG gives 22px or larger (18px if bold) as the guideline</td></tr>
   </table>
 
     <nav class="hl-nav">
-    <h2>ほかの道具</h2>
+    <h2>Other tools</h2>
     <ul>
-      <li><a href="../regex/">正規表現テスタ</a></li>
-      <li><a href="../char-counter/">文字数カウンタ</a></li>
-      <li><a href="../date/">日付計算機</a></li>
-      <li><a href="../image/">画像リサイズ・圧縮</a></li>
-      <li><a href="../take-home/">手取り計算機</a></li>
-      <li><a href="../json/">JSON整形・検証</a></li>
-      <li><a href="../diff/">テキスト差分（diff）</a></li>
-      <li><a href="../unit/">単位換算</a></li>
-      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
-      <li><a href="../qr/">QRコード作成</a></li>
-      <li><a href="../palette/">カラーパレット生成</a></li>
-      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
-      <li><a href="../cron/">cron式の読み下し</a></li>
-      <li><a href="../tz/">タイムゾーン変換</a></li>
-      <li><a href="../csv/">CSVプレビュー・診断</a></li>
-      <li><a href="../url/">URLの分解・組み立て</a></li>
-      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
-      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
-      <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
-      <li><a href="../replace/">正規表現の置換プレビュー</a></li>      <li><a href="../jwt/">JWTの読み下し</a></li>
-
-      <li><a href="../password/">パスワード生成・強度診断</a></li>
-      <li><a href="../base64/">Base64・データURLの分解</a></li>
-      <li><a href="../en/contrast.html">English version</a></li>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
+      <li><a href="./replace.html">Regex Replacement Preview</a></li>
+      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./palette.html">Color Palette Generator</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
+      <li><a href="./url.html">URL Parser &amp; Builder</a></li>
+      <li><a href="./headers.html">HTTP Header Explainer</a></li>
+      <li><a href="./jwt.html">JWT Explainer</a></li>
+      <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
+      <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
+      <li><a href="./qr.html">QR Code Generator</a></li>
+      <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
+      <li><a href="./cron.html">Cron Expression Explainer</a></li>
+      <li><a href="../contrast/">Japanese version</a></li>
     </ul>
     <p class="hl-links">
-      <a href="../">道具箱のトップ</a> ・
-      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
-      <a href="https://x.com/hirulab_ai">X</a> ・
-      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+      <a href="./">Tools index</a> &middot;
+      <a href="https://note.com/hirulab">Experiment log (JP)</a> &middot;
+      <a href="https://x.com/hirulab_ai">X</a> &middot;
+      <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
     </p>
   </nav>
   <footer>
-    コントラスト比は WCAG 2.1 の相対輝度式で計算しています。APCA は WCAG 3.0 のドラフト指標で、まだ勧告ではないため参考値です。
-    色覚特性シミュレーションは Brettel/Viénot 系の LMS 変換による近似で、実際の見え方を保証するものではありません。
-    <br>作: <strong>クロードの昼ラボ</strong>(AIのClaudeが書いています) — このページは通信を一切行いません。
+    The contrast ratio uses the relative luminance formula from WCAG 2.1. APCA is a draft measure from WCAG 3.0 &mdash; it is not a recommendation yet, so it is shown for reference only.
+    The colour vision deficiency simulation is an approximation using a Brettel/Vi&eacute;not-style LMS transform; it does not guarantee how anyone actually sees the colours.
+    <br>Made by <strong>Claude&#39;s Daytime Lab</strong> (written by Claude, an AI) &mdash; this page makes no network requests at all.
   </footer>
 </div>
 
@@ -393,38 +386,38 @@ function render() {
 
   // 色覚特性
   const sims = [
-    ["一般的な色覚", "normal"],
-    ["1型(P型・赤)", "protanopia"],
-    ["2型(D型・緑)", "deuteranopia"],
-    ["3型(T型・青)", "tritanopia"]
+    ["Typical colour vision", "normal"],
+    ["Protanopia (red)", "protanopia"],
+    ["Deuteranopia (green)", "deuteranopia"],
+    ["Tritanopia (blue)", "tritanopia"]
   ];
   $("sims").innerHTML = sims.map(([name, kind]) => {
     const f = simulate(fg, kind), b = simulate(bg, kind);
     const r = contrast(f, b);
     return `<div class="sim"><div class="name">${name}</div>
-      <div class="swatch" style="background:${toHex(b)};color:${toHex(f)}">Aa あア亜 サンプル</div>
-      <div class="val">比 ${r.toFixed(2)}:1 / ${toHex(f)} on ${toHex(b)}</div></div>`;
+      <div class="swatch" style="background:${toHex(b)};color:${toHex(f)}">Aa Bb 123 sample</div>
+      <div class="val">ratio ${r.toFixed(2)}:1 / ${toHex(f)} on ${toHex(b)}</div></div>`;
   }).join("");
 
   // 修正案
   const box = $("fixes");
   if (ratio >= 4.5) {
-    box.innerHTML = `<div class="empty">すでに AA(4.5:1)を満たしています。AAA(7:1)を狙うなら、下の入れ替え・ランダムで探索してみてください。</div>`;
+    box.innerHTML = `<div class="empty">This pair already clears AA (4.5:1). If you want AAA (7:1), try Swap or Random above to look for one.</div>`;
   } else {
     const cands = [];
     const nf = nudgeLightness(fg, bg, 4.5);
-    if (nf) cands.push(["文字色の明度を調整", toHex(nf), toHex(bg), contrast(nf, bg)]);
+    if (nf) cands.push(["Adjust the lightness of the text colour", toHex(nf), toHex(bg), contrast(nf, bg)]);
     const nb = nudgeLightness(bg, fg, 4.5);
-    if (nb) cands.push(["背景色の明度を調整", toHex(fg), toHex(nb), contrast(fg, nb)]);
+    if (nb) cands.push(["Adjust the lightness of the background", toHex(fg), toHex(nb), contrast(fg, nb)]);
     const bw = contrast([0,0,0], bg) >= contrast([255,255,255], bg) ? [0,0,0] : [255,255,255];
-    cands.push(["文字を白か黒に", toHex(bw), toHex(bg), contrast(bw, bg)]);
+    cands.push(["Make the text white or black", toHex(bw), toHex(bg), contrast(bw, bg)]);
     box.innerHTML = cands.filter(c => c[3] >= 4.5).map(([name, f, b, r]) =>
       `<button class="fix" data-fg="${f}" data-bg="${b}">
         <div class="name">${name}</div>
-        <div class="sample" style="background:${b};color:${f}">Aa あア亜 サンプル</div>
+        <div class="sample" style="background:${b};color:${f}">Aa Bb 123 sample</div>
         <div class="val">${r.toFixed(2)}:1 — ${f} on ${b}</div>
       </button>`).join("") ||
-      `<div class="empty">この組み合わせからは、色相を保ったまま AA に届く案が見つかりませんでした。色そのものを見直してください。</div>`;
+      `<div class="empty">No colour that keeps this hue reaches AA. The colours themselves need rethinking.</div>`;
   }
 }
 
@@ -455,13 +448,13 @@ $("rand").addEventListener("click", () => {
 });
 $("copy-css").addEventListener("click", () => {
   const css = `color: ${toHex(fg)};\nbackground-color: ${toHex(bg)};\n/* contrast ${contrast(fg,bg).toFixed(2)}:1 */`;
-  const done = () => { $("copied").textContent = "コピーしました"; setTimeout(() => $("copied").textContent = "", 1600); };
+  const done = () => { $("copied").textContent = "Copied"; setTimeout(() => $("copied").textContent = "", 1600); };
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(css).then(done, () => { $("copied").textContent = "コピーできませんでした"; });
+    navigator.clipboard.writeText(css).then(done, () => { $("copied").textContent = "Could not copy"; });
   } else {
     const ta = document.createElement("textarea");
     ta.value = css; document.body.appendChild(ta); ta.select();
-    try { document.execCommand("copy"); done(); } catch (e) { $("copied").textContent = "コピーできませんでした"; }
+    try { document.execCommand("copy"); done(); } catch (e) { $("copied").textContent = "Could not copy"; }
     document.body.removeChild(ta);
   }
 });
