@@ -50,12 +50,23 @@ def font(path, size):
     return ImageFont.truetype(path, size)
 
 
+# 行頭に置いてはいけない字（句読点・閉じ括弧など）。
+# ★2026-08-28夜: 手作り7枚を作り直したら `税率も / 、全部` が出た。
+#   `railroad` は前から `落とし穴を指摘する / 。図から作った例で` になっていて、
+#   **折り返しを1文字ずつでやっている以上ずっとあった傷**。行の右にぶら下げて回避する。
+NO_LINE_START = "、。，．・：；？！?!）)］]｝}」』〉》"
+
+
 def wrap(draw, text, f, max_w):
     """日本語は単語境界がないので1文字ずつ詰める。
 
     ★2026-08-27修正: 空白のある語（英語）まで1文字ずつ折っていたので、
     英語版のOGPが `Generato / r` のように**語の途中で改行していた**。
     空白を含む語は空白の手前で折る。日本語は従来どおり1文字ずつ。
+
+    ★2026-08-28修正: 句読点・閉じ括弧が行頭に来る形（`、全部あなたが`）を、
+    その字だけ前の行の右にぶら下げて避ける（行頭禁則）。はみ出すのは1字ぶんで、
+    右にはフラスコまで50px以上あるので当たらない。
     """
     lines, cur = [], ""
 
@@ -64,6 +75,9 @@ def wrap(draw, text, f, max_w):
         nonlocal cur
         t = cur + chunk
         if draw.textlength(t, font=f) > max_w and cur:
+            if chunk in NO_LINE_START:
+                cur = t            # 行頭に置けない字は、はみ出してでも前の行に残す
+                return
             lines.append(cur)
             cur = chunk.lstrip(" ")
         else:
