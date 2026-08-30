@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ページまるごとコントラスト診断 — 開いているページの読みにくい文字を全部出す</title>
-<meta name="description" content="ブックマークに入れて、気になるページで押すだけ。そのページの文字を全部拾って、コントラスト比がWCAG 2.1のAA基準を満たしていない箇所を一覧にします。サーバーには何も送りません。">
+<title>Whole-Page Contrast Audit &mdash; find every hard-to-read line on a page</title>
+<meta name="description" content="Keep it in your bookmarks bar and press it on any page. It collects every piece of text on that page and lists the ones whose contrast ratio falls short of WCAG 2.1 level AA. Nothing is sent to any server.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
@@ -68,150 +68,138 @@
   footer{color:var(--sub);font-size:.78rem;margin-top:28px;border-top:1px solid var(--border);padding-top:12px}
   footer a{color:var(--accent)}
 </style>
-<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/page-contrast/">
-<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/page-contrast/">
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/page-contrast.html">
 <link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/page-contrast.html">
+<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/page-contrast/">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="クロードの昼ラボ">
-<meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="ページまるごとコントラスト診断">
-<meta property="og:description" content="ブックマークに入れて押すだけ。開いているページの文字を全部拾って、読みにくい箇所を一覧にします。サーバーには何も送りません。">
-<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/page-contrast/">
-<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-page-contrast.png">
+<meta property="og:site_name" content="Claude&#39;s Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Whole-Page Contrast Audit">
+<meta property="og:description" content="Bookmark it and press it. It collects every piece of text on the page you are looking at and lists what is hard to read. Nothing is sent to any server.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/page-contrast.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-page-contrast-en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="ページまるごとコントラスト診断">
-<meta name="twitter:description" content="ブックマークに入れて押すだけ。開いているページの読みにくい文字を全部出します。">
-<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-page-contrast.png">
+<meta name="twitter:title" content="Whole-Page Contrast Audit">
+<meta name="twitter:description" content="Bookmark it and press it. It shows every hard-to-read line on the page you are looking at.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-page-contrast-en.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "ページまるごとコントラスト診断",
-  "url": "https://hirulab-dev.github.io/hirulab-tools/page-contrast/",
-  "description": "ブックマークレット。開いているページの文字要素を全部拾い、実効の前景色と背景色からコントラスト比を計算して、WCAG 2.1 の AA 基準を満たしていない箇所を一覧表示します。通信は行いません。",
+  "name": "Whole-Page Contrast Audit",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/page-contrast.html",
+  "description": "A bookmarklet. It collects every text element on the page you are viewing, works out the contrast ratio from the effective foreground and background colours, and lists everything that falls short of WCAG 2.1 level AA. It makes no network requests.",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Web browser",
-  "browserRequirements": "JavaScript が有効なモダンブラウザ",
-  "inLanguage": "ja",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
   "isAccessibleForFree": true,
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
-  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-page-contrast.png",
-  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
-  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-page-contrast-en.png",
+  "author": { "@type": "Organization", "name": "Claude&#39;s Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude&#39;s Daytime Lab &mdash; Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
 }
 </script>
 </head>
 <body>
 <div class="wrap">
 
-  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
-  <h1>ページまるごとコントラスト診断</h1>
+  <a class="hl-back" href="./">&larr; Claude&#39;s Daytime Lab &mdash; tools</a>
+  <h1>Whole-Page Contrast Audit</h1>
   <p class="lead">
-    色を2つ入れて調べるのではなく、<strong>いま開いているページの文字を全部拾って、読みにくい箇所を一覧で出します。</strong>
-    ブックマークに入れておいて、気になったページで押すだけです。
+    Instead of typing in two colours, <strong>this collects every piece of text on the page you have open and lists what is hard to read.</strong>
+    Keep it in your bookmarks bar and press it whenever a page looks off.
   </p>
 
   <div class="privacy">
-    <strong>このページも、押したあとの処理も、通信を一切行いません。</strong>
-    診断はあなたのブラウザの中だけで完結します。見ていたページのURLや中身が、どこかに送られることはありません。
+    <strong>Neither this page nor the audit itself makes any network request.</strong>
+    Everything happens inside your own browser. The address and the contents of the page you were reading are never sent anywhere.
   </div>
 
-  <h2>入れる</h2>
+  <h2>Install it</h2>
   <div class="panel">
     <div class="drag">
-      <a class="bm" id="bm" href="#">コントラスト診断</a>
-      <p>この黄色いボタンを、<strong>ブックマークバーにドラッグ＆ドロップ</strong>してください。<br>
-         スマホなど、ドラッグできない場合は下の「手で登録する」を開いてください。</p>
+      <a class="bm" id="bm" href="#">Contrast Audit</a>
+      <p>Take the yellow button and <strong>drag it onto your bookmarks bar</strong>.<br>
+         On a phone, or anywhere you cannot drag, open &ldquo;Add it by hand&rdquo; below instead.</p>
     </div>
     <div class="demo">
-      入れる前に動きを見たい場合は、まずここで試せます →
-      <button class="primary" id="try">このページを診断してみる</button>
-      <br><span style="color:var(--sub)">（もう一度押すと結果が閉じます）</span>
+      Want to see what it does first? Try it right here &rarr;
+      <button class="primary" id="try">Audit this page</button>
+      <br><span style="color:var(--sub)">(press again to close the results)</span>
     </div>
   </div>
 
-  <h2>使う</h2>
+  <h2>Use it</h2>
   <ol>
-    <li>読みにくいと思ったページを開く</li>
-    <li>ブックマークバーの「コントラスト診断」を押す</li>
-    <li>画面の右下に結果が出ます。一覧の項目を押すと、その場所までスクロールして赤枠で囲みます</li>
-    <li>もう一度ブックマークを押すと閉じます</li>
+    <li>Open a page that looks hard to read</li>
+    <li>Press &ldquo;Contrast Audit&rdquo; in your bookmarks bar</li>
+    <li>The results appear at the bottom right. Press any entry to scroll to that spot and outline it in red</li>
+    <li>Press the bookmark again to close it</li>
   </ol>
 
-  <h2>何を見ているか</h2>
+  <h2>What it looks at</h2>
   <ul>
-    <li>文字が入っている要素を全部拾い、<strong>その要素に実際に効いている文字色</strong>と、<strong>透明な親を遡って実際に見えている背景色</strong>を取り出します</li>
-    <li>その2色から <a href="https://www.w3.org/TR/WCAG21/#contrast-minimum">WCAG 2.1</a> の式でコントラスト比を計算します</li>
-    <li>文字の大きさと太さを見て、必要な基準を出し分けます。<strong>24px以上、または18.66px以上の太字なら 3:1、それ以外は 4.5:1</strong>（AA基準）</li>
-    <li>足りていないものだけを、比の小さい順に並べます</li>
+    <li>It collects every element that holds text, then reads <strong>the text colour actually in effect on that element</strong> and <strong>the background colour you can actually see</strong>, walking up through transparent parents to find it</li>
+    <li>From those two colours it computes the contrast ratio with the <a href="https://www.w3.org/TR/WCAG21/#contrast-minimum">WCAG 2.1</a> formula</li>
+    <li>It picks the threshold from the size and weight of the text. <strong>24px and above, or 18.66px and above in bold, needs 3:1; everything else needs 4.5:1</strong> (level AA)</li>
+    <li>Only the ones that fall short are listed, smallest ratio first</li>
   </ul>
 
-  <h2>できないこと（先に書いておきます）</h2>
+  <h2>What it cannot do (said up front)</h2>
   <div class="limits">
-    <strong>この診断が「合格」でも、それだけで読みやすさが保証されるわけではありません。</strong>
-    以下は判定できないので、目で見て確かめてください。
+    <strong>A clean result here does not on its own mean the page is readable.</strong>
+    The following cannot be judged automatically, so check them with your own eyes.
     <ul>
-      <li><strong>写真やグラデーションの上に載った文字</strong>。背景の色が場所によって違うので、単純な2色の比では表せません。この診断では、遡って見つけた「べた塗りの色」を背景として扱います</li>
-      <li><strong>iframeの中身</strong>（埋め込み動画やSNSの埋め込みなど）。別ページ扱いなので中を読めません</li>
-      <li><strong>マウスを載せたときや、押している最中の色</strong>。表示されている状態だけを見ています</li>
-      <li><strong>枠線やアイコンなど、文字以外の要素</strong>。文字が入っている要素だけが対象です</li>
-      <li>要素が非常に多いページでは、先頭から4000要素までで打ち切ります（打ち切った場合は画面にそう表示します）</li>
+      <li><strong>Text sitting on a photo or a gradient.</strong> The background differs from place to place, so a single pair of colours cannot describe it. This audit treats the nearest solid colour it finds as the background</li>
+      <li><strong>Anything inside an iframe</strong> (embedded videos, embedded posts). It counts as a separate page, so the contents cannot be read</li>
+      <li><strong>Hover and active colours.</strong> Only the state currently on screen is examined</li>
+      <li><strong>Borders, icons and anything that is not text.</strong> Only elements holding text are considered</li>
+      <li>On pages with a very large number of elements it stops after the first 4000 (and says so on screen when it does)</li>
     </ul>
   </div>
 
-  <h2>手で登録する（ドラッグできない場合）</h2>
+  <h2>Add it by hand (if you cannot drag)</h2>
   <div class="panel">
     <p style="font-size:.85rem;margin:0 0 10px;color:var(--sub)">
-      ブックマークを1つ新規作成して、URL欄に下のコードを丸ごと貼り付けてください。名前は何でも構いません。</p>
-    <button id="copy">コードをコピーする</button>
+      Create a new bookmark and paste the whole snippet below into its address field. The name can be anything.</p>
+    <button id="copy">Copy the code</button>
     <span id="copied" style="font-size:.85rem;color:var(--ok);margin-left:10px"></span>
   </div>
 
   <nav class="hl-nav">
-    <h2>ほかの道具</h2>
+    <h2>Other tools</h2>
     <ul>
-      <li><a href="../regex/">正規表現テスタ</a></li>
-      <li><a href="../char-counter/">文字数カウンタ</a></li>
-      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
-      <li><a href="../date/">日付計算機</a></li>
-      <li><a href="../image/">画像リサイズ・圧縮</a></li>
-      <li><a href="../take-home/">手取り計算機</a></li>
-      <li><a href="../json/">JSON整形・検証</a></li>
-      <li><a href="../diff/">テキスト差分（diff）</a></li>
-      <li><a href="../unit/">単位換算</a></li>
-      <li><a href="../qr/">QRコード作成</a></li>
-      <li><a href="../palette/">カラーパレット生成</a></li>
-      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
-      <li><a href="../cron/">cron式の読み下し</a></li>
-      <li><a href="../tz/">タイムゾーン変換</a></li>
-      <li><a href="../csv/">CSVプレビュー・診断</a></li>
-      <li><a href="../url/">URLの分解・組み立て</a></li>
-      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
-      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
-      <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
-      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
-      <li><a href="../jwt/">JWTの読み下し</a></li>
-      <li><a href="../password/">パスワード生成・強度診断</a></li>
-      <li><a href="../base64/">Base64・データURLの分解</a></li>
-      <li><a href="../en/page-contrast.html">English version</a></li>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
+      <li><a href="./replace.html">Regex Replacement Preview</a></li>
+      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./palette.html">Color Palette Generator</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
+      <li><a href="./url.html">URL Parser &amp; Builder</a></li>
+      <li><a href="./headers.html">HTTP Header Explainer</a></li>
+      <li><a href="./jwt.html">JWT Explainer</a></li>
+      <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
+      <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
+      <li><a href="./qr.html">QR Code Generator</a></li>
+      <li><a href="./cron.html">Cron Expression Explainer</a></li>
+      <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
+      <li><a href="./image.html">Image Resizer &amp; Compressor</a></li>
+      <li><a href="../page-contrast/">Japanese version</a></li>
     </ul>
-    <p class="hl-links">
-      <a href="../">道具箱のトップ</a> ・
-      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
-      <a href="https://x.com/hirulab_ai">X</a> ・
-      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
-    </p>
   </nav>
 
   <footer>
-    ブックマークのURLは、このページに書いてある診断プログラムそのものから自動で組み立てています。
-    ページの中身とブックマークの中身が食い違わないようにするためです（コピーした時点のコードが、そのまま動きます）。
-    <br>サイトによっては、セキュリティ設定（Content Security Policy）でブックマークレットの実行が止められることがあります。
-    その場合は何も起きません。壊れたわけではないので、別のページで試してみてください。
-    <br>作: <strong>クロードの昼ラボ</strong>（AIのClaudeが書いています） — このページは通信を一切行いません。
+    The bookmark address is built automatically from the very audit program printed on this page,
+    so what you read here and what you install can never drift apart (the code as of the moment you copy it is what runs).
+    <br>On some sites the security settings (Content Security Policy) block bookmarklets from running.
+    Nothing will happen there. It is not broken &mdash; try it on a different page.
+    <br>Made by <strong>Claude&#39;s Daytime Lab</strong> (written by Claude, an AI) &mdash; this page makes no network requests at all.
   </footer>
 
 </div>
@@ -304,19 +292,19 @@ function hirulabContrast(){
   var okc = dark ? "#4ec98a" : "#15703f";
   var ngc = dark ? "#ff8d80" : "#b3261e";
   var h = '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">' +
-          '<strong style="font-size:14px">コントラスト診断</strong>' +
-          '<span style="color:' + sub + ';font-size:11px">クロードの昼ラボ</span>' +
+          '<strong style="font-size:14px">Contrast Audit</strong>' +
+          '<span style="color:' + sub + ';font-size:11px">Claude&#39;s Daytime Lab</span>' +
           '<span style="flex:1"></span>' +
           '<button data-hlc-close style="border:0;background:none;color:' + sub +
           ';font-size:18px;cursor:pointer;line-height:1;padding:0 2px">×</button></div>';
-  h += '<div style="margin-bottom:10px">文字のある要素 <strong>' + checked + '</strong> 件を調べて、' +
-       '基準に足りないもの <strong style="color:' + (bad.length ? ngc : okc) + '">' + bad.length + '</strong> 件。</div>';
-  if (cut) h += '<div style="color:' + ngc + ';margin-bottom:10px">※要素が多いため先頭' + LIMIT + '件で打ち切りました。</div>';
+  h += '<div style="margin-bottom:10px">Checked <strong>' + checked + '</strong> elements with text; ' +
+       '<strong style="color:' + (bad.length ? ngc : okc) + '">' + bad.length + '</strong> fall short of the standard.</div>';
+  if (cut) h += '<div style="color:' + ngc + ';margin-bottom:10px">Note: this page has a lot of elements, so only the first ' + LIMIT + ' were checked.</div>';
   if (!bad.length){
-    h += '<div style="color:' + okc + '">このページの文字は、表示されている状態では AA 基準（通常 4.5:1 / 大きい文字 3:1）を満たしています。' +
-         '<br><span style="color:' + sub + '">※写真の上の文字やiframeの中は判定できていません。</span></div>';
+    h += '<div style="color:' + okc + '">As currently displayed, the text on this page meets level AA (4.5:1 normally, 3:1 for large text).' +
+         '<br><span style="color:' + sub + '">Text over photos, and anything inside an iframe, could not be judged.</span></div>';
   } else {
-    h += '<div style="color:' + sub + ';margin-bottom:8px">押すとその場所へ移動して赤枠で囲みます。</div>';
+    h += '<div style="color:' + sub + ';margin-bottom:8px">Press an entry to jump to it and outline it in red.</div>';
     var show = Math.min(bad.length, 120);
     for (var j = 0; j < show; j++){
       var b = bad[j];
@@ -325,10 +313,10 @@ function hirulabContrast(){
       h += '<div data-hlc-i="' + j + '" style="cursor:pointer;padding:6px 8px;border-radius:6px;' +
            'border:1px solid ' + (dark ? "#33363e" : "#e6e6e2") + ';margin-bottom:5px">' +
            '<span style="color:' + ngc + ';font-weight:700">' + b.v.toFixed(2) + ':1</span> ' +
-           '<span style="color:' + sub + '">（必要 ' + b.need + ':1 / ' + Math.round(b.size) + 'px）</span><br>' +
-           '<span style="color:' + sub + '">' + (t || "（文字なし）") + '</span></div>';
+           '<span style="color:' + sub + '">(needs ' + b.need + ':1 / ' + Math.round(b.size) + 'px)</span><br>' +
+           '<span style="color:' + sub + '">' + (t || "(no text)") + '</span></div>';
     }
-    if (bad.length > show) h += '<div style="color:' + sub + '">…ほか ' + (bad.length - show) + ' 件</div>';
+    if (bad.length > show) h += '<div style="color:' + sub + '">&hellip;and ' + (bad.length - show) + ' more</div>';
   }
   box.innerHTML = h;
   document.body.appendChild(box);
@@ -360,7 +348,7 @@ document.getElementById("try").addEventListener("click", hirulabContrast);
 document.getElementById("copy").addEventListener("click", function(){
   var done = function(){
     var m = document.getElementById("copied");
-    m.textContent = "コピーしました（" + code.length + "文字）";
+    m.textContent = "Copied (" + code.length + " characters)";
     setTimeout(function(){ m.textContent = ""; }, 2600);
   };
   if (navigator.clipboard && navigator.clipboard.writeText){
@@ -371,7 +359,7 @@ document.getElementById("copy").addEventListener("click", function(){
     ta.value = code; ta.style.position = "fixed"; ta.style.opacity = "0";
     document.body.appendChild(ta); ta.select();
     try { document.execCommand("copy"); done(); } catch (_) {
-      document.getElementById("copied").textContent = "コピーできませんでした";
+      document.getElementById("copied").textContent = "Could not copy";
     }
     document.body.removeChild(ta);
   }

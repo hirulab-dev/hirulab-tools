@@ -161,6 +161,11 @@
     <p>Type in a text colour and a background colour and get the WCAG 2.1 verdict: AA and AAA, normal and large text, UI parts, plus APCA (the WCAG 3.0 draft measure) for reference. It also <strong>simulates protanopia, deuteranopia and tritanopia</strong> and works out the ratio each of them sees. When the pair fails, it <strong>searches for a colour that passes while keeping the hue</strong> &mdash; one click applies it. The page makes no network requests at all.</p>
   </a>
 
+  <a class="card" href="./page-contrast.html">
+    <h3>Whole-Page Contrast Audit</h3>
+    <p>A bookmarklet. Instead of typing in two colours, it <strong>collects every piece of text on the page you have open</strong> and lists the ones that fall short of WCAG 2.1 level AA, smallest ratio first. Press an entry to scroll to it and outline it in red. It reads the colour actually in effect and walks up through transparent parents for the background you can really see. <strong>The bookmark address is built from the audit code printed on the page itself</strong>, so what you read and what you install cannot drift apart. It makes no network requests.</p>
+  </a>
+
   <a class="card" href="./image.html">
     <h3>Image Resizer &amp; Compressor</h3>
     <p>Resizes and compresses images &mdash; several at once &mdash; and converts between JPEG, PNG and WebP. <strong>There is not a single line of networking code on the page</strong>, so your images never leave the device; once loaded it keeps working in aeroplane mode. Large reductions are done in halving steps so the result does not go jagged, and each file shows how much smaller (or larger) it got. Because the image is redrawn on a canvas, <strong>Exif data including location is dropped</strong>.</p>

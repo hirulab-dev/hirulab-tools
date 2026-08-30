@@ -60,6 +60,8 @@ EN_ITEMS = [
      "WCAG 2.1 AA / AAA, and a colour that actually passes."),
     ("image-en", "Image Resizer & Compressor",
      "Resize and compress. Your images never leave the device."),
+    ("page-contrast-en", "Whole-Page Contrast Audit",
+     "Every hard-to-read line on the page you have open."),
 ]
 
 # 日本語版。★2026-08-28 夜に現物25枚から読み取った。裏取りは英語版と同じ手順

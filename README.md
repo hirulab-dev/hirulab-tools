@@ -75,6 +75,7 @@ tools/
                  解析器の訳語は make_en_railroad.py の表をそのまま読み込んで共有している。
   make_en_headers.py / make_en_jwt.py / make_en_password.py / make_en_base64.py
   make_en_qr.py / make_en_cron.py / make_en_contrast.py / make_en_image.py
+  make_en_page_contrast.py
                  それぞれの英語版を日本語版から生成する。
                  **日本語版が唯一の原本**で、英語版は毎回ここから作り直す。
                  生成のたびに「文字列リテラルを取り除くと日英のコードがバイト単位で一致する」
@@ -82,17 +83,20 @@ tools/
   add_tool_link.py  道具が増えたとき、全ページの「ほかの道具」ナビに1行足す
   sync_en_nav.py    上のナビを、生成スクリプトが持つ差し替え元にも反映する
                     （静的な <ul> と、JS配列 NAV_LINKS の両方）
+  en_nav.py         英語ページのナビを実ページから**組み直す**（写すのではなく）。
+                    写す形だと、写し元にあった自己リンクや重複がそのまま増えるため
   tests/         検証スクリプト
 ```
 
 ## 英語版
 
-`docs/en/` に17本あります（Regex Tester / Character Counter / Color Palette /
+`docs/en/` に18本あります（Regex Tester / Character Counter / Color Palette /
 Time Zone Converter / CSV Preview / Regex Railroad Diagrams / Why doesn't my regex match? /
 Regex Replacement Preview / URL Parser & Builder / HTTP Header Explainer / JWT Explainer /
 Password Generator & Strength Check / Base64 & Data URL Explainer / QR Code Generator /
-Cron Expression Explainer / **Contrast Ratio Checker** / **Image Resizer & Compressor**）。
-このうち後半の12本は **日本語版から生成**しており、
+Cron Expression Explainer / Contrast Ratio Checker / Image Resizer & Compressor /
+**Whole-Page Contrast Audit**）。
+このうち後半の13本は **日本語版から生成**しており、
 **解析・判定・落とし穴検出のコードは日英で1バイトも違いません**
 （違うのは文字列リテラルの中身だけ、というのを生成のたびに機械で確かめています）。
 同じ検証スクリプトを英語ページにそのまま当てて、同じ結果になることも確認しています。
