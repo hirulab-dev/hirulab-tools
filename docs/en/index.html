@@ -171,6 +171,11 @@
     <p>Resizes and compresses images &mdash; several at once &mdash; and converts between JPEG, PNG and WebP. <strong>There is not a single line of networking code on the page</strong>, so your images never leave the device; once loaded it keeps working in aeroplane mode. Large reductions are done in halving steps so the result does not go jagged, and each file shows how much smaller (or larger) it got. Because the image is redrawn on a canvas, <strong>Exif data including location is dropped</strong>.</p>
   </a>
 
+  <a class="card" href="./diff.html">
+    <h3>Text Diff</h3>
+    <p>Compares two texts side by side and <strong>colours the exact characters that changed inside each line</strong>, not just the lines themselves. Myers&#39; algorithm is implemented from scratch &mdash; the same family of method <code>git diff</code> uses &mdash; and run a second time over each replaced pair of lines. Side-by-side, one-column and unified diff views; runs of unchanged lines fold away; the result exports as a <code>.patch</code>. <strong>Nothing is sent anywhere</strong>, which is rather the point when the thing you are comparing is half-written code or a document that cannot leave the building.</p>
+  </a>
+
   <h2>About this lab</h2>
   <ul>
     <li>These tools are made by the AI itself (Claude). The human presses the publish button</li>

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>テキスト差分（diff）— 行の中のどこが変わったかまで色を付ける</title>
-<meta name="description" content="2つのテキストを比べて、変わった行と、その行の中のどの文字が変わったかまで色分けします。unified diff（パッチ）形式での書き出しつき。ブラウザ内で完結し、データはどこにも送信されません。">
+<title>Text Diff &mdash; highlights which characters changed, not just which lines</title>
+<meta name="description" content="Compares two texts and colours both the lines that changed and the exact characters that changed inside them. Exports a unified diff (patch). Everything runs in your browser and nothing is ever sent anywhere.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
@@ -98,39 +98,39 @@
   .file span{cursor:pointer;text-decoration:underline dotted}
   .file span:hover{color:var(--accent)}
 </style>
-<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/diff/">
-<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/diff/">
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/diff.html">
 <link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/diff.html">
+<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/diff/">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="クロードの昼ラボ">
-<meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="テキスト差分（diff） — クロードの昼ラボ">
-<meta property="og:description" content="2つのテキストを比べて、行の中のどの文字が変わったかまで色を付けます。データはどこにも送信されません。">
-<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/diff/">
-<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-diff.png">
+<meta property="og:site_name" content="Claude&#39;s Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Text Diff">
+<meta property="og:description" content="Compares two texts and colours the exact characters that changed inside each line. Nothing is sent anywhere.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/diff.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-diff-en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="テキスト差分（diff） — クロードの昼ラボ">
-<meta name="twitter:description" content="2つのテキストを比べて、行の中のどの文字が変わったかまで色を付けます。データはどこにも送信されません。">
-<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-diff.png">
+<meta name="twitter:title" content="Text Diff">
+<meta name="twitter:description" content="Compares two texts and colours the exact characters that changed inside each line. Nothing is sent anywhere.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-diff-en.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "テキスト差分（diff）",
-  "url": "https://hirulab-dev.github.io/hirulab-tools/diff/",
-  "description": "2つのテキストを比較して、変わった行と、その行の中のどの文字が変わったかまで色分けします。unified diff 形式での書き出しつき。ブラウザ内で完結します。",
+  "name": "Text Diff",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/diff.html",
+  "description": "Compares two texts and colours the lines that changed together with the exact characters that changed inside them. Exports a unified diff. Everything runs inside the browser.",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Web browser",
-  "browserRequirements": "JavaScript が有効なモダンブラウザ",
-  "inLanguage": "ja",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
   "isAccessibleForFree": true,
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
-  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-diff.png",
-  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
-  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-diff-en.png",
+  "author": { "@type": "Organization", "name": "Claude&#39;s Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude&#39;s Daytime Lab &mdash; Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
 }
 </script>
 <style>
@@ -152,32 +152,32 @@
 <body>
 <div class="wrap">
 
-  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
-  <h1>テキスト差分（diff）</h1>
-  <p class="lead">2つのテキストの違いを並べて表示します。<strong>変わった行を示すだけでなく、その行の中のどの文字が変わったかまで色を付けます。</strong></p>
+  <a class="hl-back" href="./">&larr; Claude&#39;s Daytime Lab &mdash; tools</a>
+  <h1>Text Diff</h1>
+  <p class="lead">Shows the differences between two texts side by side. <strong>It does not just mark which lines changed &mdash; it colours the exact characters that changed inside them.</strong></p>
 
   <div class="privacy">
-    <strong>このページは通信を一切行いません。</strong>
-    貼り付けたテキストも、開いたファイルも、ブラウザの中だけで処理されます。読み込んだあとは機内モードでも動きます。
-    差分を取りたいものは、たいてい書きかけのコードか、社外に出せない文書です。そこを気にせず使えるように作りました。
+    <strong>This page makes no network requests at all.</strong>
+    Text you paste and files you open are handled entirely inside your browser. Once the page has loaded it keeps working in airplane mode.
+    Whatever you want to diff is usually half-written code or a document that cannot leave the building, so it is built to be used without thinking about that.
   </div>
 
   <div class="panel">
     <div class="pair">
       <div>
-        <label class="h" for="a">変更前（左）</label>
-        <textarea id="a" spellcheck="false" placeholder="こちらに元のテキストを貼り付け"></textarea>
+        <label class="h" for="a">Before (left)</label>
+        <textarea id="a" spellcheck="false" placeholder="Paste the original text here"></textarea>
         <div class="row">
-          <label class="file"><span>ファイルを開く</span><input type="file" id="fa"></label>
+          <label class="file"><span>Open a file</span><input type="file" id="fa"></label>
           <span class="sep"></span>
           <span class="file" id="na"></span>
         </div>
       </div>
       <div>
-        <label class="h" for="b">変更後（右）</label>
-        <textarea id="b" spellcheck="false" placeholder="こちらに新しいテキストを貼り付け"></textarea>
+        <label class="h" for="b">After (right)</label>
+        <textarea id="b" spellcheck="false" placeholder="Paste the new text here"></textarea>
         <div class="row">
-          <label class="file"><span>ファイルを開く</span><input type="file" id="fb"></label>
+          <label class="file"><span>Open a file</span><input type="file" id="fb"></label>
           <span class="sep"></span>
           <span class="file" id="nb"></span>
         </div>
@@ -185,23 +185,23 @@
     </div>
 
     <div class="row">
-      <button class="primary" id="run">比較する</button>
-      <button id="swap">左右を入れ替え</button>
-      <button id="sample">例を入れる</button>
-      <button id="clear">消す</button>
+      <button class="primary" id="run">Compare</button>
+      <button id="swap">Swap sides</button>
+      <button id="sample">Load an example</button>
+      <button id="clear">Clear</button>
       <span class="sep"></span>
-      <span class="note" style="margin:0">Ctrl + Enter でも比較できます</span>
+      <span class="note" style="margin:0">Ctrl + Enter compares too</span>
     </div>
 
     <div class="row opts">
-      <label><input type="checkbox" id="ig-case"> 大文字と小文字を区別しない</label>
-      <label><input type="checkbox" id="ig-ws"> 空白の量を無視する</label>
-      <label><input type="checkbox" id="ig-tail" checked> 行末の空白を無視する</label>
-      <label>行の中の差分:
+      <label><input type="checkbox" id="ig-case"> Ignore case</label>
+      <label><input type="checkbox" id="ig-ws"> Ignore how much whitespace</label>
+      <label><input type="checkbox" id="ig-tail" checked> Ignore trailing whitespace</label>
+      <label>Inside a line:
         <select id="gran">
-          <option value="char">文字単位</option>
-          <option value="word">単語単位</option>
-          <option value="none">付けない</option>
+          <option value="char">by character</option>
+          <option value="word">by word</option>
+          <option value="none">no highlight</option>
         </select>
       </label>
     </div>
@@ -211,14 +211,14 @@
 
   <div class="panel hide" id="resultPanel">
     <div class="tabs">
-      <button id="tab-sbs" aria-selected="true">並べて表示</button>
-      <button id="tab-inl" aria-selected="false">1列で表示</button>
+      <button id="tab-sbs" aria-selected="true">Side by side</button>
+      <button id="tab-inl" aria-selected="false">One column</button>
       <button id="tab-uni" aria-selected="false">unified diff</button>
       <span class="sep"></span>
-      <label class="file" style="text-decoration:none"><input type="checkbox" id="wrapmode" style="display:inline"> 折り返す</label>
-      <label class="file" style="text-decoration:none"><input type="checkbox" id="fold" checked style="display:inline"> 変化のない行をたたむ</label>
-      <button id="copy">unified diff をコピー</button>
-      <button id="dl">.patch で保存</button>
+      <label class="file" style="text-decoration:none"><input type="checkbox" id="wrapmode" style="display:inline"> Wrap lines</label>
+      <label class="file" style="text-decoration:none"><input type="checkbox" id="fold" checked style="display:inline"> Fold unchanged lines</label>
+      <button id="copy">Copy the unified diff</button>
+      <button id="dl">Save as .patch</button>
     </div>
 
     <div class="stats" id="stats"></div>
@@ -228,47 +228,39 @@
   </div>
 
   <nav class="hl-nav">
-    <h2>ほかの道具</h2>
+    <h2>Other tools</h2>
     <ul>
-      <li><a href="../regex/">正規表現テスタ</a></li>
-      <li><a href="../char-counter/">文字数カウンタ</a></li>
-      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
-      <li><a href="../date/">日付計算機</a></li>
-      <li><a href="../image/">画像リサイズ・圧縮</a></li>
-      <li><a href="../take-home/">手取り計算機</a></li>
-      <li><a href="../json/">JSON整形・検証</a></li>
-      <li><a href="../unit/">単位換算</a></li>
-      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
-      <li><a href="../qr/">QRコード作成</a></li>
-      <li><a href="../palette/">カラーパレット生成</a></li>
-      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
-      <li><a href="../cron/">cron式の読み下し</a></li>
-      <li><a href="../tz/">タイムゾーン変換</a></li>
-      <li><a href="../csv/">CSVプレビュー・診断</a></li>
-      <li><a href="../url/">URLの分解・組み立て</a></li>
-      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
-      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
-      <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
-      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
-      <li><a href="../jwt/">JWTの読み下し</a></li>
-      <li><a href="../password/">パスワード生成・強度診断</a></li>
-      <li><a href="../base64/">Base64・データURLの分解</a></li>
-      <li><a href="../en/diff.html">English version</a></li>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
+      <li><a href="./replace.html">Regex Replacement Preview</a></li>
+      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./palette.html">Color Palette Generator</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
+      <li><a href="./url.html">URL Parser &amp; Builder</a></li>
+      <li><a href="./headers.html">HTTP Header Explainer</a></li>
+      <li><a href="./jwt.html">JWT Explainer</a></li>
+      <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
+      <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
+      <li><a href="./qr.html">QR Code Generator</a></li>
+      <li><a href="./cron.html">Cron Expression Explainer</a></li>
+      <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
+      <li><a href="./image.html">Image Resizer &amp; Compressor</a></li>
+      <li><a href="./page-contrast.html">Whole-Page Contrast Audit</a></li>
+      <li><a href="../diff/">Japanese version</a></li>
     </ul>
-    <p class="hl-links">
-      <a href="../">道具箱のトップ</a> ・
-      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
-      <a href="https://x.com/hirulab_ai">X</a> ・
-      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
-    </p>
   </nav>
 
   <footer>
-    差分の計算には Myers のアルゴリズム（1986年の論文 “An O(ND) Difference Algorithm and Its Variations”）を
-    自前で実装したものを使っています。<code>git diff</code> や多くの diff ツールと同じ系統の手法です。
-    まず行の対応を取り、続いて置き換えられた行どうしをもう一度同じアルゴリズムにかけて、文字（または単語）単位の差分を出しています。
-    <br>変更量が極端に大きい場合は途中で計算を打ち切り、その範囲を「まるごと置き換え」として表示します（打ち切ったときは画面にそう表示します）。
-    <br>作: <strong>クロードの昼ラボ</strong>（AIのClaudeが書いています） — このページは通信を一切行いません。
+    The differences are computed with our own implementation of Myers&#39; algorithm
+    (from the 1986 paper &ldquo;An O(ND) Difference Algorithm and Its Variations&rdquo;), the same family of method
+    that <code>git diff</code> and most other diff tools use.
+    Lines are matched first, then each pair of replaced lines is run through the same algorithm again to get the
+    character-level (or word-level) difference.
+    <br>When the amount of change is extreme the computation is cut short and that stretch is shown as one whole
+    replacement (the page says so when that happens).
+    <br>Made by <strong>Claude&#39;s Daytime Lab</strong> (written by Claude, an AI) &mdash; this page makes no network requests at all.
   </footer>
 
 </div>
@@ -463,7 +455,7 @@ function renderSbs(rows, A, B) {
   const out = ['<table class="d sbs"><tbody>'];
   let drawn = 0, cut = false;
   for (const it of items) {
-    if (it.gap) { out.push('<tr class="r-gap"><td colspan="4">— 同じ行が ' + it.gap + ' 行 —</td></tr>'); continue; }
+    if (it.gap) { out.push('<tr class="r-gap"><td colspan="4">&mdash; ' + it.gap + ' identical lines &mdash;</td></tr>'); continue; }
     if (drawn >= MAX_ROWS) { cut = true; break; }
     drawn++;
     const r = it.r;
@@ -494,7 +486,7 @@ function renderInline(rows, A, B) {
     '<tr class="' + cls + '"><td class="no">' + an + '</td><td class="no">' + bn +
     '</td><td class="sign">' + sign + '</td><td class="tx">' + html + "</td></tr>";
   for (const it of items) {
-    if (it.gap) { out.push('<tr class="r-gap"><td colspan="4">— 同じ行が ' + it.gap + ' 行 —</td></tr>'); continue; }
+    if (it.gap) { out.push('<tr class="r-gap"><td colspan="4">&mdash; ' + it.gap + ' identical lines &mdash;</td></tr>'); continue; }
     if (drawn >= MAX_ROWS) { cut = true; break; }
     drawn++;
     const r = it.r;
@@ -551,7 +543,7 @@ function unified(ops, A, B, ctx, nameA, nameB) {
 }
 
 function paintUnified(text) {
-  if (!text) return '<span class="m">差分はありません。</span>';
+  if (!text) return '<span class="m">There are no differences.</span>';
   return text.split("\n").map(l => {
     const e = esc(l);
     if (l.startsWith("@@")) return '<span class="h">' + e + "</span>";
@@ -564,11 +556,11 @@ function paintUnified(text) {
 
 /* ---------- 7. 実行 ---------- */
 let lastUnified = "";
-let nameA = "変更前", nameB = "変更後";
+let nameA = "before", nameB = "after";
 
 function run() {
   const rawA = $("a").value, rawB = $("b").value;
-  if (!rawA && !rawB) { setStatus("warn", "左右どちらにもテキストがありません。「例を入れる」で試せます。"); return; }
+  if (!rawA && !rawB) { setStatus("warn", "There is no text on either side. Press “Load an example” to try it."); return; }
   const opts = { cs: $("ig-case").checked, ws: $("ig-ws").checked, tail: $("ig-tail").checked };
   const mode = $("gran").value;
 
@@ -591,22 +583,22 @@ function run() {
   lastUnified = unified(ops, A, B, 3, nameA, nameB);
 
   $("stats").innerHTML =
-    '<span class="stat add"><b>+' + (add + mod) + "</b>行 追加</span>" +
-    '<span class="stat del"><b>−' + (del + mod) + "</b>行 削除</span>" +
-    '<span class="stat"><b>' + mod + "</b>行 書き換え</span>" +
-    '<span class="stat"><b>' + same + "</b>行 そのまま</span>" +
-    '<span class="stat">' + A.length + " 行 → " + B.length + " 行</span>" +
-    '<span class="stat">' + ms + " ミリ秒</span>";
+    '<span class="stat add"><b>+' + (add + mod) + "</b> lines added</span>" +
+    '<span class="stat del"><b>−' + (del + mod) + "</b> lines removed</span>" +
+    '<span class="stat"><b>' + mod + "</b> lines rewritten</span>" +
+    '<span class="stat"><b>' + same + "</b> lines unchanged</span>" +
+    '<span class="stat">' + A.length + " lines &rarr; " + B.length + " lines</span>" +
+    '<span class="stat">' + ms + " ms</span>";
 
   const identical = add === 0 && del === 0 && mod === 0;
   if (identical) {
     const exact = rawA.replace(/\r\n?/g, "\n") === rawB.replace(/\r\n?/g, "\n");
-    setStatus("ok", exact ? "2つのテキストは完全に同じです。"
-      : "行の内容は一致しています（無視する設定にした違いだけがあります）。");
+    setStatus("ok", exact ? "The two texts are exactly the same."
+      : "The lines match (the only differences are ones you chose to ignore).");
   } else if (truncated) {
-    setStatus("warn", "変更量が大きすぎたため計算を打ち切りました。共通する先頭と末尾以外を、まるごと置き換えとして表示しています。");
+    setStatus("warn", "The amount of change was too large, so the computation was cut short. Everything except the shared beginning and end is shown as one whole replacement.");
   } else {
-    setStatus("ok", "違いは " + (add + del + mod) + " 行です。色の付いた行が変わったところです。");
+    setStatus("ok", "There are " + (add + del + mod) + " changed lines. The coloured lines are where they are.");
   }
 
   $("resultPanel").classList.remove("hide");
@@ -621,7 +613,7 @@ function render(rows, A, B) {
   const r = sbs ? renderSbs(rows, A, B) : renderInline(rows, A, B);
   $("diffbox").innerHTML = r.html;
   $("diffbox").classList.toggle("wrapmode", $("wrapmode").checked);
-  $("trunc").textContent = r.cut ? "行数が多いため先頭 " + MAX_ROWS + " 行ぶんだけ表示しています。全体は unified diff タブか .patch の保存で確認してください。" : "";
+  $("trunc").textContent = r.cut ? "Too many lines to draw them all, so only the first " + MAX_ROWS + " are shown. Use the unified diff tab, or save the .patch, to see all of it." : "";
 }
 
 function setStatus(cls, msg) {
@@ -657,33 +649,33 @@ $("swap").onclick = () => {
 $("clear").onclick = () => {
   $("a").value = ""; $("b").value = "";
   $("na").textContent = ""; $("nb").textContent = "";
-  nameA = "変更前"; nameB = "変更後";
+  nameA = "before"; nameB = "after";
   $("resultPanel").classList.add("hide");
   $("status").className = "status";
 };
 $("sample").onclick = () => {
   $("a").value =
-`# 昼ラボ 運用メモ
-公開しているツールは 7 本です。
-すべてブラウザの中だけで動きます。
-データはサーバーに送信されません。
+`# Daytime Lab operating notes
+There are 7 tools published.
+Everything runs inside the browser.
+No data is sent to any server.
 
-## やること
-- ツールを1日1個ふやす
-- note に実験ログを書く
-- アクセス解析を入れるか決める`;
+## To do
+- Add one tool a day
+- Write up the experiment log
+- Decide whether to add analytics`;
   $("b").value =
-`# 昼ラボ 運用メモ
-公開しているツールは 8 本です。
-すべてブラウザの中だけで動きます。
-データはサーバーに送信されません。
-入れていないので、送りようがありません。
+`# Daytime Lab operating notes
+There are 8 tools published.
+Everything runs inside the browser.
+No data is sent to any server.
+There is no analytics, so there is nothing to send.
 
-## やること
-- ツールを1日1個ふやす
-- note に実験ログを書く
-- Zenn に技術記事を出す`;
-  nameA = "変更前"; nameB = "変更後";
+## To do
+- Add one tool a day
+- Write up the experiment log
+- Publish a technical article`;
+  nameA = "before"; nameB = "after";
   $("na").textContent = ""; $("nb").textContent = "";
   run();
 };
@@ -695,10 +687,10 @@ function readFile(input, target, label, which) {
     const fr = new FileReader();
     fr.onload = () => {
       $(target).value = String(fr.result);
-      $(label).textContent = f.name + "（" + f.size.toLocaleString() + " バイト）";
+      $(label).textContent = f.name + " (" + f.size.toLocaleString() + " bytes)";
       if (which === "a") nameA = f.name; else nameB = f.name;
     };
-    fr.onerror = () => showToast("ファイルを読めませんでした");
+    fr.onerror = () => showToast("Could not read the file");
     fr.readAsText(f);           // 読むだけ。どこにも送らない
     input.value = "";
   });
@@ -707,12 +699,12 @@ readFile($("fa"), "a", "na", "a");
 readFile($("fb"), "b", "nb", "b");
 
 $("copy").onclick = async () => {
-  if (!lastUnified) { showToast("差分がありません"); return; }
-  try { await navigator.clipboard.writeText(lastUnified); showToast("コピーしました"); }
-  catch (e) { showToast("コピーできませんでした"); }
+  if (!lastUnified) { showToast("There is no diff yet"); return; }
+  try { await navigator.clipboard.writeText(lastUnified); showToast("Copied"); }
+  catch (e) { showToast("Could not copy"); }
 };
 $("dl").onclick = () => {
-  if (!lastUnified) { showToast("差分がありません"); return; }
+  if (!lastUnified) { showToast("There is no diff yet"); return; }
   const blob = new Blob([lastUnified], { type: "text/plain" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);

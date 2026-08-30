@@ -17,6 +17,8 @@
 | `test_qr.py` | [QRコード作成](https://hirulab-dev.github.io/hirulab-tools/qr/) の符号化器と、独立実装 **segno** の出力を**1モジュールずつ**。111 ケース・**587,455 モジュール**を完全一致で照合（型番1〜40のうち30種、誤り訂正 L/M/Q/H の全レベル）。参照データは `make_qr_reference.py` で作る（大きいので git には入れない） |
 | `test_cron.py` | [cron式の読み下し](https://hirulab-dev.github.io/hirulab-tools/cron/) と Python の **croniter**。ランダム生成した式の「次の実行時刻」を突き合わせる。★ **croniter との解釈差3種は Vixie cron 側に合わせてあり、差が出ること自体を検査**している（幅ゼロの範囲 `5-5` / 日・曜日が `*/n` のときの OR 判定 / 存在しない日付を含む月の扱い） |
 | `test_image.py` | [画像リサイズ・圧縮](https://hirulab-dev.github.io/hirulab-tools/image/) に**本物の画像を実際に食わせて、出てきた画像を Pillow で読み直す**。参照はページの表示ではなく別の出どころ: 目標の寸法は Python で独立に書き下した規則、実際の寸法と形式は Pillow が読んだ値、削減率の表示は出力の実バイト数から計算した値。5枚 × 7通り（長辺/幅/高さ/％/そのまま × JPEG/PNG/WebP）= 35 件。`--sabotage` つき（5種すべて検出）。**同じスクリプトが英語版 `docs/en/image.html` にもそのまま当たる** |
+| `test_page_contrast.py` | [ページまるごとコントラスト診断](https://hirulab-dev.github.io/hirulab-tools/page-contrast/) を、**WCAG 2.1 の式を Python で独立に書き下したもの**と突き合わせる。色・大きさ・太さが分かっている見本ページを食わせ、「足りない」と名指しした集合が一致するか（60枚）・画面に出た比としきい値が一致するか（1,316件）を見る。`--sabotage` つき（5種すべて検出）。英語版にもそのまま当たる |
+| `test_diff.py` | [テキスト差分（diff）](https://hirulab-dev.github.io/hirulab-tools/diff/) の**参照を5つの出どころに分ける**。(1) 書き出した unified diff を **本物の `git apply`（第三者の実装）** に食わせて当てる (1b) **パッチの見出しが本文と合っているか**を現物の行に照らす — ★ **git はハンクの開始行がずれていても前後を探して当ててしまう**ので、これは git apply では見えない (2) **手数が最小か**を、Myers とはまったく別のアルゴリズム（最長共通部分列の動的計画法）で出した理論値と照合（行の単位と、行の中の文字の単位の両方） (3) ops を順に当てると変更前が変更後になるか (4) 行の分け方と「無視する」設定は Python で書き下した規則と照合。`--sabotage` つき（6種すべて検出）。英語版にもそのまま当たる |
 
 ⚠ `test_qr.py` は Chromium ではなく **dukpy（Duktape）** で JS を走らせます。
 参照データを作るときの segno は、**詰めビットの処理を1か所だけ規格どおりに直してから**使っています
@@ -40,6 +42,9 @@ python tools/tests/test_password.py --n 40000 --trials 25
 python tools/tests/test_image.py                       # 既定は docs/image/index.html
 python tools/tests/test_image.py docs/en/image.html    # 英語版にも同じものを当てる
 python tools/tests/test_image.py --sabotage            # わざと壊して検査が効いているか見る
+python tools/tests/test_page_contrast.py               # 日英ともに当たる
+python tools/tests/test_diff.py --n 300                # 日英ともに当たる（git が要る）
+python tools/tests/test_diff.py --sabotage
 
 pip install croniter dukpy segno
 python tools/tests/test_cron.py docs/cron/index.html --n 800

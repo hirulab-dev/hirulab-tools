@@ -62,6 +62,8 @@ EN_ITEMS = [
      "Resize and compress. Your images never leave the device."),
     ("page-contrast-en", "Whole-Page Contrast Audit",
      "Every hard-to-read line on the page you have open."),
+    ("diff-en", "Text Diff",
+     "Which characters changed, not just which lines."),
 ]
 
 # 日本語版。★2026-08-28 夜に現物25枚から読み取った。裏取りは英語版と同じ手順
