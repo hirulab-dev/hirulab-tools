@@ -44,9 +44,13 @@
   button.mini:hover{border-color:var(--accent)}
   .opts{display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:14px;
         padding-top:12px;border-top:1px solid var(--border);font-size:.83rem;color:var(--sub)}
-  .opts label{display:flex;align-items:center;gap:6px;cursor:pointer}
+  .opts label{display:flex;align-items:center;gap:6px;cursor:pointer;flex-wrap:wrap;max-width:100%}
+  /* 選択肢の文が長いと select がそのまま伸びて、375px 幅で横スクロールが出る
+     (英語版の「Automatic (white or black)」で実際に 43px はみ出した)。
+     flex の子は既定で内容より縮まないので min-width:0 も要る。 */
   .opts select{border:1px solid var(--border);border-radius:8px;background:var(--panel2);
-       color:var(--text);padding:6px 8px;font-size:.83rem;font-family:inherit}
+       color:var(--text);padding:6px 8px;font-size:.83rem;font-family:inherit;
+       max-width:100%;min-width:0}
   .opts input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
   .fixnote{margin-top:10px;font-size:.82rem;color:var(--sub);line-height:1.6;
        background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 12px}

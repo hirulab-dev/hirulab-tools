@@ -55,6 +55,13 @@ HTML_PARTS = [
     ('  /* 色を指定しないとブラウザ既定の青になり、ダークモードで 1.89:1 まで落ちる */',
      '  /* Without an explicit color these fall back to the browser default blue, which is 1.89:1 in dark mode */'),
 
+    ('''  /* 選択肢の文が長いと select がそのまま伸びて、375px 幅で横スクロールが出る
+     (英語版の「Automatic (white or black)」で実際に 43px はみ出した)。
+     flex の子は既定で内容より縮まないので min-width:0 も要る。 */''',
+     '''  /* A long option makes the select grow to fit it, which overflows at 375px wide
+     (the English "Automatic (white or black)" pushed 43px past the edge).
+     A flex child does not shrink below its content, so min-width:0 is needed too. */'''),
+
     ('<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/palette/">\n'
      '<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/palette/">\n'
      '<link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/palette.html">',
@@ -158,7 +165,7 @@ HTML_PARTS = [
         <select id="fg">
           <option value="#ffffff">White #ffffff</option>
           <option value="#1a1a1a" selected>Black #1a1a1a</option>
-          <option value="auto">Automatic (whichever of white or black is readable)</option>
+          <option value="auto">Automatic (white or black)</option>
         </select>
       </label>
       <label for="level">Target to meet
