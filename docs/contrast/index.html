@@ -264,7 +264,10 @@ function parseColor(s) {
   if (m) {
     const parts = m[1].split(/[,\s/]+/).filter(Boolean).slice(0,3);
     if (parts.length < 3) return null;
-    const v = parts.map(p => p.endsWith("%") ? Math.round(parseFloat(p)*2.55) : parseInt(p,10));
+    // ⚠ 2.55 を掛けると 50% が 127.49999999999999 になって 127 に落ちる(ブラウザは 128)。
+    //    小数の指定も parseInt では切り捨てになる(1.5 → 1。ブラウザは 2)。どちらも 2026-09-01 修正。
+    const v = parts.map(p => p.endsWith("%") ? Math.round(parseFloat(p)*255/100)
+                                             : Math.round(parseFloat(p)));
     if (v.some(n => !Number.isFinite(n) || n < 0 || n > 255)) return null;
     return v;
   }

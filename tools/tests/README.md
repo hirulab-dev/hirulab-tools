@@ -22,6 +22,7 @@
 | `test_json.py` | [JSON整形・検証](https://hirulab-dev.github.io/hirulab-tools/json/) の**参照を出どころで分ける**。(1) **Python の `json`（第三者の実装）** と、受け付ける/拒む が **iff で** 一致するか・読み取った値が一致するか。★ `json.loads` は既定で `NaN` / `Infinity` を受け取るので `parse_constant` で拒ませてから参照にする (2) エラー位置は **道具が返す添字から行と「何文字目」を数え直して**照合し、Python の `JSONDecodeError` の行・列とも比べる (3) 正解の分かる壊れ方29件で位置を名指しできるか — **符号（`data-code`）が無い道具なので、英語版には位置だけで当てる** (4) 統計は Python で独立に書き下した規則 (5) 整形結果は Python に読み返させる（往復） (6) 色付けがタグを外すと元に戻るか (7) コメント・末尾カンマの除去は、元の値を正解にした往復で見る。`--sabotage` つき（8種すべて検出）。英語版にもそのまま当たる |
 | `test_unit.py` | [単位換算](https://hirulab-dev.github.io/hirulab-tools/unit/) の**参照を役目で2つに分ける**。(1) **pint（第三者の単位ライブラリ）** に基準単位まで換算させて 103 件 — ★ただし pint は換算を何段も掛けるので **最後の1ビットがずれる**（`ft` を 0.30479999999999996 と出す）。だから許容つきでしか使えない (2) **条約・法令の言葉から Python の `Fraction` で組み立てた有理数** と **1ビットも違わない**ことを 101 件 — 表の float を写すのではなく「1ヤード＝0.9144m ちょうど」「1尺＝10/33m」「1坪＝1間四方」から掛け算する。★**この道具は「定義値か近似値か」を1件ずつ出すのが売りなので、そのラベル自体を測る**（`定義` と名乗る行は有理数と完全一致であること）。★ **pint とわざと食い違う3行**（acre は国際/米国測量、mmHg は Torr との違い、BTU は定義が複数）は**差が出ること自体**を検査する。ほかに 全ペアの往復 1,348 件 / 温度を pint と 80 件 / 燃費（mile と gallon の係数は pint、式は独立）/ 勾配の atan / 入力の読み取りを Python で独立に / **表示を読み戻して丸めた真値と照合**（桁区切りと `×10ⁿ` をほどく）/ 画面のバッジと `d` の一致。`--sabotage` つき（7種すべて検出）。英語版にもそのまま当たる |
 | `test_char_counter.py` | [文字数カウンタ](https://hirulab-dev.github.io/hirulab-tools/char-counter/) の**参照を出どころで分ける**。(1) **X の重み付きカウントは twitter-text の公開設定 v3**(重み1は符号位置 0–4351 / 8192–8205 / 8208–8223 / 8242–8247 だけ、URL は一律23、絵文字は書記素クラスタ1つで2)を Python に書き下したもの。★**「全角なら2」ではない** — `…` `€` `→` やベトナム語は半角に見えても2 (2) **書記素クラスタの切り方は第三者の `regex` モジュール(UAX #29 の `\X`)**。道具側はブラウザの `Intl.Segmenter`(ICU)なので、別々の実装で同じ切れ方になるかを見る (3) **空白の集合は ECMAScript の規定を `unicodedata` から組み立てる**(JS の `\s` は Python の `isspace()` と違う。U+FEFF は JS だけ・U+0085 は Python だけ) (4) 文字数・行数・段落数・単語数・原稿用紙・読了時間は Python で独立に書き下した規則 (5) **画面の表示を読み戻す**(桁区切りをほどく)+バーの幅と状態。見本300通り × 日英2版 + 符号位置1,236個。`--sabotage` つき(8種すべて検出) |
+| `test_contrast.py` | [コントラスト比チェッカー](https://hirulab-dev.github.io/hirulab-tools/contrast/) の**参照を出どころで分ける**。(1) WCAG 2.1 の比は **第三者の `wcag-contrast-ratio`** と完全一致、**`coloraide`** とは厳密な sRGB の係数で完全一致 — ★**規格の本文は輝度の係数を4桁に丸めている**ので、厳密な行列で計算する実装とは比が最大 1.9e-4 違い、**AA の判定が割れる色の組が実在する**(`#93022c` on `#d5b312` = 規格 4.500229 / 厳密 4.499892)。道具は規格の本文どおりの側 (2) 規格の分岐のしきい 0.03928 と sRGB の 0.04045 は、**8bit の 256 値では1つも枝が変わらない**ことを全数で示す (3) **色の読み取りはブラウザの CSS パーサ**(`style.color` に入れて `getComputedStyle`)。わざと厳しくしてある形は表に並べ、**表に無い食い違いが1件でも出たら落ちる** (4) APCA は公開されている定数から Python で独立に書き下したもの(⚠第三者実装ではない)+ **明るさの差が deltaYmin 未満なら Lc が 0 になる**性質 (5) **色覚特性シミュレーションは第三者の `daltonlens`(Viénot 1999)** — ★LMS の取り方が違うので**同じ色にはならない**(最大差 23/255)。許容つきの比較に加えて、**正確に成り立つ性質**(グレーは動かない / 2回かけても1回と同じ / 1型2型は赤=緑・3型は緑=青)を別に測る (6) 修正案の「明度だけ動かす」は **Python 標準の `colorsys`**(別実装の HSL)で探し直す (7) **表示は丸めるが判定は丸めていないか** — しきいをまたぐ丸めの見本(4.4996 は「4.50」と出るが AA は FAIL)を全数走査で先に探して入れてある。300組 × 日英2版。`--sabotage` つき(11種すべて検出) |
 
 ⚠ `test_qr.py` は Chromium ではなく **dukpy（Duktape）** で JS を走らせます。
 参照データを作るときの segno は、**詰めビットの処理を1か所だけ規格どおりに直してから**使っています
@@ -31,7 +32,7 @@
 ## 使い方
 
 ```
-pip install playwright tzdata pint regex
+pip install playwright tzdata pint regex wcag-contrast-ratio coloraide daltonlens
 python -m playwright install chromium
 python tools/tests/test_timezone.py docs/tz/index.html --n 250
 python tools/tests/test_csv.py --page docs/csv/index.html --cases 800
@@ -54,6 +55,8 @@ python tools/tests/test_char_counter.py --sabotage
 python tools/tests/test_json.py --sabotage
 python tools/tests/test_unit.py --n 300              # 日英ともに当たる（pint が要る）
 python tools/tests/test_unit.py --sabotage
+python tools/tests/test_contrast.py --n 300          # 日英ともに当たる
+python tools/tests/test_contrast.py --sabotage
 
 pip install croniter dukpy segno
 python tools/tests/test_cron.py docs/cron/index.html --n 800
