@@ -242,21 +242,17 @@ KEEP = set()
 def en_nav(docs):
     """英語ナビを**実ページから**組み立てる。
 
-    `docs/en/cron.html` のナビは「自分以外の英語ページ全部 + 日本語版への行」なので、
-    そこに `./cron.html` を足せば「contrast 以外の全部」になる。
+    `docs/en/cron.html` のナビを写し元にする。
     生成スクリプトが自前でナビを持たないので、実ページとずれようがない。
+
+    ★2026-08-31: 写すのをやめて `en_nav.build` で**組み直す**ようにした。
+    写すだけだと、写し元にあった自己リンク・重複がそのまま増える
+    (実際 `en/contrast.html` が自分自身を、`en/image.html` が自分自身と
+     `./contrast.html` の2つ目を抱えて本番に出ていた)。
     """
-    src = (docs / "en" / "cron.html").read_text(encoding="utf-8")
-    m = re.search(r'  <nav class="hl-nav">.*?\n  </nav>', src, re.S)
-    if not m:
-        sys.exit("docs/en/cron.html のナビが見つかりません")
-    nav = m.group(0)
-    tail = '      <li><a href="../cron/">Japanese version</a></li>'
-    if tail not in nav:
-        sys.exit("docs/en/cron.html のナビに日本語版への行がありません")
-    add = ('      <li><a href="./cron.html">Cron Expression Explainer</a></li>\n'
-           '      <li><a href="../contrast/">Japanese version</a></li>')
-    return nav.replace(tail, add, 1)
+    import en_nav as _en_nav
+    return _en_nav.build(docs, "cron.html", "Cron Expression Explainer",
+                         "contrast.html", "../contrast/")
 
 
 def translate_literals(src, tr, keep):
@@ -310,6 +306,24 @@ def script_span(html):
     if not m:
         sys.exit("本体のスクリプトが見つかりません")
     return m.start(1), m.end(1)
+
+
+def code_japanese(src):
+    """**文字列でもコメントでも正規表現でもない**日本語を、前後20文字つきで返す。
+
+    2026-08-31 追加。ここまでの検査は
+      (a) 文字列リテラルの中身  (b) スクリプトの外(=HTML本文)
+    の2か所しか見ていなかった。**識別子として書かれた日本語**——
+    `収益: { 円: 0, 備考: "…" }` のような object のキー——は
+    リテラルではないので (a) に掛からず、スクリプトの中なので (b) にも掛からない。
+    それでいて `Object.keys()` で拾えば画面に出る。JSON整形ツールの見本がこの形だった。
+
+    正規表現リテラルは中身を空にしてから見る(`/[ぁ-ん]/` のような**処理の一部**であって
+    画面に出る文言ではないため。char-counter が実際にこれを持っている)。
+    """
+    skeleton = blank(src, blank_regex=True)
+    return [skeleton[max(0, m.start() - 20):m.start() + 20].replace("\n", " ")
+            for m in JA_CHARS.finditer(skeleton)]
 
 
 def main():

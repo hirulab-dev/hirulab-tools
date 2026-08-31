@@ -554,13 +554,16 @@ HTML_PARTS = [
       <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
       <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
       <li><a href="./qr.html">QR Code Generator</a></li>
+      <li><a href="./cron.html">Cron Expression Explainer</a></li>
       <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
       <li><a href="./image.html">Image Resizer &amp; Compressor</a></li>
+      <li><a href="./page-contrast.html">Whole-Page Contrast Audit</a></li>
+      <li><a href="./diff.html">Text Diff</a></li>
+      <li><a href="./json.html">JSON Formatter &amp; Validator</a></li>
       <li><a href="../railroad/">Japanese version</a></li>
     </ul>
     <p class="hl-links">
       <a href="./">All tools</a> &middot;
-      <a href="../railroad/">&#26085;&#26412;&#35486;&#29256;</a> &middot;
       <a href="https://x.com/hirulab_ai">X</a> &middot;
       <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
     </p>

@@ -322,6 +322,9 @@ NAV_LINKS_EN = '''var NAV_LINKS = [
   ["./cron.html", "Cron Expression Explainer"],
   ["./contrast.html", "Contrast Ratio Checker"],
   ["./image.html", "Image Resizer &amp; Compressor"],
+  ["./page-contrast.html", "Whole-Page Contrast Audit"],
+  ["./diff.html", "Text Diff"],
+  ["./json.html", "JSON Formatter &amp; Validator"],
   ["../password/", "Japanese version"]
 ];'''
 

@@ -30,8 +30,14 @@ def _regex_allowed(out_prefix):
     return bool(m) and m.group() in _KEYWORD_BEFORE_REGEX
 
 
-def blank(src, keep_quotes=True):
-    """文字列の中身を空にし、コメントを消したソースを返す。"""
+def blank(src, keep_quotes=True, blank_regex=False):
+    """文字列の中身を空にし、コメントを消したソースを返す。
+
+    `blank_regex=True` にすると**正規表現リテラルの中身も空にする**（`/[ぁ-ん]/g` → `//g`）。
+    2026-08-31 追加。英語版のコードに「文字列でもコメントでもない日本語」——
+    つまり**識別子として書かれた日本語**（`収益: { 円: 0 }` のような object のキー）が
+    残っていないかを見るために使う。既定を変えていないので、日英のバイト一致の検査には影響しない。
+    """
     out = []
     i, n = 0, len(src)
     while i < n:
@@ -79,7 +85,7 @@ def blank(src, keep_quotes=True):
                     break
                 j += 1
             if j < n and src[j] == "/":
-                out.append(src[i:j + 1])
+                out.append("//" if blank_regex else src[i:j + 1])
                 i = j + 1
                 continue
         out.append(c)

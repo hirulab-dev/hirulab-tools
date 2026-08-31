@@ -52,7 +52,9 @@ import sys
 import tempfile
 
 sys.stdout.reconfigure(encoding="utf-8")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from playwright.sync_api import sync_playwright
+from skipwatch import SkipWatch  # noqa: E402
 
 JA_CHARS = re.compile("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？　]")
 
@@ -465,7 +467,7 @@ def check_all(page, cases, work):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--docs", default="docs")
+    ap.add_argument("--docs", default=str(pathlib.Path.home() / "hirulab-tools" / "docs"))
     ap.add_argument("--page", help="この HTML を見る(既定は日本語版と英語版の両方)")
     ap.add_argument("--n", type=int, default=300)
     ap.add_argument("--seed", type=int, default=20260831)
@@ -542,13 +544,24 @@ def main():
                  n["header"], n["patch"], n["exact"], n["inner"]))
     if ui_ja:
         print("画面まで通した経路: 集計 %r" % ui_ja["stats"].replace("\n", " "))
+
+    # ★2026-08-31 昼 追加。前枠のログに書いた宿題。
+    #   「違いが無くて unified diff が空 → git apply にも見出しの検査にも回らない」組が
+    #   300 中 38 あり、**その割合が増えても誰も気づかない**状態だった
+    #   (8/22 に skipwatch を作った動機そのもの)。母数を毎回目に見えるところに出す。
+    g = result[pages[0][1]]
+    sw = SkipWatch("test_diff")
+    sw.check("[1] git apply に回らなかった組(差分が空)", len(cases) - g["patch"], len(cases))
+    sw.check("[1b] 見出しの検査に回らなかった組", len(cases) - g["header"], len(cases))
+    skip_code = sw.report()
+
     if fails:
         print("\n★食い違い %d 件" % len(fails))
         for f in fails[:20]:
             print("  " + f)
         return 1
     print("\n食い違い 0")
-    return 0
+    return skip_code
 
 
 if __name__ == "__main__":

@@ -19,6 +19,7 @@
 | `test_image.py` | [画像リサイズ・圧縮](https://hirulab-dev.github.io/hirulab-tools/image/) に**本物の画像を実際に食わせて、出てきた画像を Pillow で読み直す**。参照はページの表示ではなく別の出どころ: 目標の寸法は Python で独立に書き下した規則、実際の寸法と形式は Pillow が読んだ値、削減率の表示は出力の実バイト数から計算した値。5枚 × 7通り（長辺/幅/高さ/％/そのまま × JPEG/PNG/WebP）= 35 件。`--sabotage` つき（5種すべて検出）。**同じスクリプトが英語版 `docs/en/image.html` にもそのまま当たる** |
 | `test_page_contrast.py` | [ページまるごとコントラスト診断](https://hirulab-dev.github.io/hirulab-tools/page-contrast/) を、**WCAG 2.1 の式を Python で独立に書き下したもの**と突き合わせる。色・大きさ・太さが分かっている見本ページを食わせ、「足りない」と名指しした集合が一致するか（60枚）・画面に出た比としきい値が一致するか（1,316件）を見る。`--sabotage` つき（5種すべて検出）。英語版にもそのまま当たる |
 | `test_diff.py` | [テキスト差分（diff）](https://hirulab-dev.github.io/hirulab-tools/diff/) の**参照を5つの出どころに分ける**。(1) 書き出した unified diff を **本物の `git apply`（第三者の実装）** に食わせて当てる (1b) **パッチの見出しが本文と合っているか**を現物の行に照らす — ★ **git はハンクの開始行がずれていても前後を探して当ててしまう**ので、これは git apply では見えない (2) **手数が最小か**を、Myers とはまったく別のアルゴリズム（最長共通部分列の動的計画法）で出した理論値と照合（行の単位と、行の中の文字の単位の両方） (3) ops を順に当てると変更前が変更後になるか (4) 行の分け方と「無視する」設定は Python で書き下した規則と照合。`--sabotage` つき（6種すべて検出）。英語版にもそのまま当たる |
+| `test_json.py` | [JSON整形・検証](https://hirulab-dev.github.io/hirulab-tools/json/) の**参照を出どころで分ける**。(1) **Python の `json`（第三者の実装）** と、受け付ける/拒む が **iff で** 一致するか・読み取った値が一致するか。★ `json.loads` は既定で `NaN` / `Infinity` を受け取るので `parse_constant` で拒ませてから参照にする (2) エラー位置は **道具が返す添字から行と「何文字目」を数え直して**照合し、Python の `JSONDecodeError` の行・列とも比べる (3) 正解の分かる壊れ方29件で位置を名指しできるか — **符号（`data-code`）が無い道具なので、英語版には位置だけで当てる** (4) 統計は Python で独立に書き下した規則 (5) 整形結果は Python に読み返させる（往復） (6) 色付けがタグを外すと元に戻るか (7) コメント・末尾カンマの除去は、元の値を正解にした往復で見る。`--sabotage` つき（8種すべて検出）。英語版にもそのまま当たる |
 
 ⚠ `test_qr.py` は Chromium ではなく **dukpy（Duktape）** で JS を走らせます。
 参照データを作るときの segno は、**詰めビットの処理を1か所だけ規格どおりに直してから**使っています
@@ -45,6 +46,8 @@ python tools/tests/test_image.py --sabotage            # わざと壊して検�
 python tools/tests/test_page_contrast.py               # 日英ともに当たる
 python tools/tests/test_diff.py --n 300                # 日英ともに当たる（git が要る）
 python tools/tests/test_diff.py --sabotage
+python tools/tests/test_json.py --n 400                # 日英ともに当たる
+python tools/tests/test_json.py --sabotage
 
 pip install croniter dukpy segno
 python tools/tests/test_cron.py docs/cron/index.html --n 800

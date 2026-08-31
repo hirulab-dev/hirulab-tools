@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JSON整形・検証 — エラー箇所を行と列で指す</title>
-<meta name="description" content="JSONを整形・圧縮・検証します。壊れている場所を行と列で指摘して、その場所を実際にハイライトします。ブラウザ内で完結し、データはどこにも送信されません。">
+<title>JSON Formatter &amp; Validator &mdash; points at the error by line and column</title>
+<meta name="description" content="Formats, minifies and validates JSON. When something is broken it names the line and the column and shows you that line. Everything runs in your browser and nothing is ever sent anywhere.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
@@ -81,39 +81,39 @@
          transition:opacity .2s;pointer-events:none}
   .toast.show{opacity:.94}
 </style>
-<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/json/">
-<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/json/">
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/json.html">
 <link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/json.html">
+<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/json/">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="クロードの昼ラボ">
-<meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="JSON整形・検証 — クロードの昼ラボ">
-<meta property="og:description" content="JSONを整形・圧縮・検証。壊れている場所を行と列で指摘します。データはどこにも送信されません。">
-<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/json/">
-<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-json.png">
+<meta property="og:site_name" content="Claude&#39;s Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="JSON Formatter &amp; Validator">
+<meta property="og:description" content="Formats, minifies and validates JSON, naming the line and column of whatever is broken. Nothing is sent anywhere.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/json.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-json-en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="JSON整形・検証 — クロードの昼ラボ">
-<meta name="twitter:description" content="JSONを整形・圧縮・検証。壊れている場所を行と列で指摘します。データはどこにも送信されません。">
-<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-json.png">
+<meta name="twitter:title" content="JSON Formatter &amp; Validator">
+<meta name="twitter:description" content="Formats, minifies and validates JSON, naming the line and column of whatever is broken. Nothing is sent anywhere.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-json-en.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "JSON整形・検証",
-  "url": "https://hirulab-dev.github.io/hirulab-tools/json/",
-  "description": "JSONを整形・圧縮・検証します。壊れている場所を行と列で指摘し、その位置を実際に表示します。",
+  "name": "JSON Formatter &amp; Validator",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/json.html",
+  "description": "Formats, minifies and validates JSON. When something is broken it names the line and the column and shows you that line. Everything runs inside the browser.",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Web browser",
-  "browserRequirements": "JavaScript が有効なモダンブラウザ",
-  "inLanguage": "ja",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
   "isAccessibleForFree": true,
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
-  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-json.png",
-  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
-  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-json-en.png",
+  "author": { "@type": "Organization", "name": "Claude&#39;s Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude&#39;s Daytime Lab &mdash; Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
 }
 </script>
 <style>
@@ -135,36 +135,36 @@
 <body>
 <div class="wrap">
 
-  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
-  <h1>JSON整形・検証</h1>
-  <p class="lead">整形・圧縮・検証を1画面で。<strong>壊れている場所を「何行目の何文字目」で指して、その行を実際に表示します。</strong></p>
+  <a class="hl-back" href="./">&larr; Claude&#39;s Daytime Lab &mdash; tools</a>
+  <h1>JSON Formatter &amp; Validator</h1>
+  <p class="lead">Format, minify and validate on one screen. <strong>When something is broken it says which line and which column, and shows you that line.</strong></p>
 
   <div class="privacy">
-    <strong>このページは通信を一切行いません。</strong>
-    貼り付けたJSONはブラウザの中だけで処理されます。読み込んだあとは機内モードでも動きます。
-    APIのレスポンスにはトークンや個人情報が混ざりがちなので、そこを気にせず使えるように作りました。
+    <strong>This page makes no network requests at all.</strong>
+    JSON you paste is handled entirely inside your browser. Once the page has loaded it keeps working in airplane mode.
+    API responses tend to carry tokens and personal data, so it is built to be used without having to think about that.
   </div>
 
   <div class="panel">
-    <label class="h" for="src">JSON を貼り付け</label>
-    <textarea id="src" spellcheck="false" placeholder='{"name": "クロードの昼ラボ", "tools": 7, "free": true}'></textarea>
+    <label class="h" for="src">Paste your JSON</label>
+    <textarea id="src" spellcheck="false" placeholder='{"name": "Claude&#39;s Daytime Lab", "tools": 7, "free": true}'></textarea>
     <div class="row">
-      <button class="primary" id="fmt">整形する</button>
-      <button id="min">1行に圧縮</button>
-      <select id="indent" aria-label="インデント">
-        <option value="2">スペース2</option>
-        <option value="4">スペース4</option>
-        <option value="tab">タブ</option>
+      <button class="primary" id="fmt">Format</button>
+      <button id="min">Minify to one line</button>
+      <select id="indent" aria-label="Indent">
+        <option value="2">2 spaces</option>
+        <option value="4">4 spaces</option>
+        <option value="tab">tab</option>
       </select>
       <label style="font-size:.83rem;color:var(--sub)">
-        <input type="checkbox" id="sortkeys"> キーを名前順に
+        <input type="checkbox" id="sortkeys"> Sort keys by name
       </label>
       <label style="font-size:.83rem;color:var(--sub)">
-        <input type="checkbox" id="strip"> コメント・末尾カンマを許す
+        <input type="checkbox" id="strip"> Allow comments and trailing commas
       </label>
       <span class="sep"></span>
-      <button id="sample">例を入れる</button>
-      <button id="clear">消す</button>
+      <button id="sample">Load an example</button>
+      <button id="clear">Clear</button>
     </div>
   </div>
 
@@ -172,11 +172,11 @@
 
   <div class="panel" id="resultPanel" style="display:none">
     <div class="tabs">
-      <button id="tab-text" aria-selected="true">整形結果</button>
-      <button id="tab-tree" aria-selected="false">ツリー</button>
+      <button id="tab-text" aria-selected="true">Formatted</button>
+      <button id="tab-tree" aria-selected="false">Tree</button>
       <span class="sep"></span>
-      <button id="copy">コピー</button>
-      <button id="dl">ファイルに保存</button>
+      <button id="copy">Copy</button>
+      <button id="dl">Save to a file</button>
     </div>
     <pre class="out" id="out"></pre>
     <div class="tree hide" id="tree"></div>
@@ -184,46 +184,37 @@
   </div>
 
   <nav class="hl-nav">
-    <h2>ほかの道具</h2>
+    <h2>Other tools</h2>
     <ul>
-      <li><a href="../regex/">正規表現テスタ</a></li>
-      <li><a href="../char-counter/">文字数カウンタ</a></li>
-      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
-      <li><a href="../date/">日付計算機</a></li>
-      <li><a href="../image/">画像リサイズ・圧縮</a></li>
-      <li><a href="../take-home/">手取り計算機</a></li>
-      <li><a href="../diff/">テキスト差分（diff）</a></li>
-      <li><a href="../unit/">単位換算</a></li>
-      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
-      <li><a href="../qr/">QRコード作成</a></li>
-      <li><a href="../palette/">カラーパレット生成</a></li>
-      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
-      <li><a href="../cron/">cron式の読み下し</a></li>
-      <li><a href="../tz/">タイムゾーン変換</a></li>
-      <li><a href="../csv/">CSVプレビュー・診断</a></li>
-      <li><a href="../url/">URLの分解・組み立て</a></li>
-      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
-      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
-      <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
-      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
-      <li><a href="../jwt/">JWTの読み下し</a></li>
-      <li><a href="../password/">パスワード生成・強度診断</a></li>
-      <li><a href="../base64/">Base64・データURLの分解</a></li>
-      <li><a href="../en/json.html">English version</a></li>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
+      <li><a href="./replace.html">Regex Replacement Preview</a></li>
+      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./palette.html">Color Palette Generator</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
+      <li><a href="./url.html">URL Parser &amp; Builder</a></li>
+      <li><a href="./headers.html">HTTP Header Explainer</a></li>
+      <li><a href="./jwt.html">JWT Explainer</a></li>
+      <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
+      <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
+      <li><a href="./qr.html">QR Code Generator</a></li>
+      <li><a href="./cron.html">Cron Expression Explainer</a></li>
+      <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
+      <li><a href="./image.html">Image Resizer &amp; Compressor</a></li>
+      <li><a href="./page-contrast.html">Whole-Page Contrast Audit</a></li>
+      <li><a href="./diff.html">Text Diff</a></li>
+      <li><a href="../json/">Japanese version</a></li>
     </ul>
-    <p class="hl-links">
-      <a href="../">道具箱のトップ</a> ・
-      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
-      <a href="https://x.com/hirulab_ai">X</a> ・
-      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
-    </p>
   </nav>
 
   <footer>
-    検証はこのページ独自のパーサで行っています（ブラウザ標準の <code>JSON.parse</code> はエラー文言が
-    ブラウザごとに違い、位置も分かりにくいためです）。仕様は RFC 8259 に合わせています。
-    「コメント・末尾カンマを許す」を有効にすると、JSONC / JSON5 でよくある書き方を取り除いてから解釈します。
-    <br>作: <strong>クロードの昼ラボ</strong>(AIのClaudeが書いています) — このページは通信を一切行いません。
+    Validation is done by this page&#39;s own parser (the browser&#39;s built-in <code>JSON.parse</code> words its
+    errors differently in every browser, and does not make the position easy to find). It follows RFC 8259.
+    With &ldquo;Allow comments and trailing commas&rdquo; turned on, the writing habits common in JSONC / JSON5
+    are stripped out before the text is read.
+    <br>Made by <strong>Claude&#39;s Daytime Lab</strong> (written by Claude, an AI) &mdash; this page makes no network requests at all.
   </footer>
 
 </div>
@@ -264,18 +255,18 @@ function parseJSON(text) {
     return null;
   }
   function str() {
-    if (text[i] !== '"') fail("文字列は \" で始める必要があります");
+    if (text[i] !== '"') fail("A string has to start with a \"");
     const start = i;
     i++;
     let out = "";
     while (true) {
-      if (i >= n) fail("文字列が閉じられていません（\" が足りません）", start);
+      if (i >= n) fail("This string is never closed (a \" is missing)", start);
       const c = text[i];
       if (c === '"') { i++; return out; }
       if (c === "\\") {
         i++;
         const e = text[i];
-        if (e === undefined) fail("エスケープ記号 \\ の後に文字がありません");
+        if (e === undefined) fail("There is no character after the escape \\");
         if (e === '"') out += '"';
         else if (e === "\\") out += "\\";
         else if (e === "/") out += "/";
@@ -286,15 +277,15 @@ function parseJSON(text) {
         else if (e === "t") out += "\t";
         else if (e === "u") {
           const hex = text.substr(i + 1, 4);
-          if (!/^[0-9a-fA-F]{4}$/.test(hex)) fail("\\u の後には16進4桁が必要です（例: \\u3042）", i - 1);
+          if (!/^[0-9a-fA-F]{4}$/.test(hex)) fail("\\u has to be followed by 4 hexadecimal digits (for example \\u0041)", i - 1);
           out += String.fromCharCode(parseInt(hex, 16));
           i += 4;
-        } else fail("JSONで使えないエスケープ \\" + e + " です", i - 1);
+        } else fail("The escape \\" + e + " is not one JSON allows", i - 1);
         i++;
       } else if (c === "\n") {
-        fail("文字列の途中で改行しています。改行は \\n と書きます", i);
+        fail("This string has a line break inside it. Write a line break as \\n", i);
       } else if (c < " ") {
-        fail("文字列に制御文字が入っています（コード " + c.charCodeAt(0) + "）", i);
+        fail("This string contains a control character (code " + c.charCodeAt(0) + ")", i);
       } else { out += c; i++; }
     }
   }
@@ -303,24 +294,24 @@ function parseJSON(text) {
     if (text[i] === "-") i++;
     if (text[i] === "0") i++;
     else if (text[i] >= "1" && text[i] <= "9") { while (text[i] >= "0" && text[i] <= "9") i++; }
-    else fail("数値になっていません", start);
+    else fail("This is not a number", start);
     if (text[i] === ".") {
       i++;
-      if (!(text[i] >= "0" && text[i] <= "9")) fail("小数点の後に数字がありません", i);
+      if (!(text[i] >= "0" && text[i] <= "9")) fail("There is no digit after the decimal point", i);
       while (text[i] >= "0" && text[i] <= "9") i++;
     }
     if (text[i] === "e" || text[i] === "E") {
       i++;
       if (text[i] === "+" || text[i] === "-") i++;
-      if (!(text[i] >= "0" && text[i] <= "9")) fail("指数部に数字がありません", i);
+      if (!(text[i] >= "0" && text[i] <= "9")) fail("There is no digit in the exponent", i);
       while (text[i] >= "0" && text[i] <= "9") i++;
     }
     return Number(text.slice(start, i));
   }
   function value(depth) {
-    if (depth > 500) fail("入れ子が深すぎます（500段を超えました）");
+    if (depth > 500) fail("The nesting is too deep (past 500 levels)");
     ws();
-    if (i >= n) fail("値が来るはずの場所で入力が終わっています");
+    if (i >= n) fail("The input ends where a value was expected");
     const c = text[i];
     if (c === "{") return obj(depth);
     if (c === "[") return arr(depth);
@@ -328,14 +319,14 @@ function parseJSON(text) {
     if (c === "-" || (c >= "0" && c <= "9")) return num();
     let l = lit("true", true) || lit("false", false) || lit("null", null);
     if (l) return l.v;
-    if (c === "'") fail("JSONの文字列はシングルクォートではなくダブルクォート \" を使います");
+    if (c === "'") fail("JSON strings use double quotes \", not single quotes");
     if (/[A-Za-z_$]/.test(c)) {
       const w = text.slice(i).match(/^[A-Za-z_$][\w$]*/)[0];
       if (w === "NaN" || w === "Infinity" || w === "undefined")
-        fail(w + " はJSONでは使えません");
-      fail("クォートで囲われていない語 " + JSON.stringify(w) + " があります");
+        fail(w + " cannot be used in JSON");
+      fail("The unquoted word " + JSON.stringify(w) + " is not allowed here");
     }
-    fail("ここに来られない文字 " + JSON.stringify(c) + " があります");
+    fail("The character " + JSON.stringify(c) + " is not allowed here");
   }
   function obj(depth) {
     const open = i;
@@ -345,21 +336,21 @@ function parseJSON(text) {
     if (text[i] === "}") { i++; return o; }
     while (true) {
       ws();
-      if (i >= n) fail("{ が閉じられていません（} が足りません）", open);
+      if (i >= n) fail("This { is never closed (a } is missing)", open);
       if (text[i] !== '"') {
-        if (text[i] === "}") fail("要素の後に , があるのに次の項目がありません（末尾のカンマ）");
-        fail("オブジェクトのキーは \" で囲む必要があります");
+        if (text[i] === "}") fail("There is a , after an item but nothing follows it (a trailing comma)");
+        fail("Object keys have to be wrapped in \"");
       }
       const k = str();
       ws();
-      if (text[i] !== ":") fail("キーの後には : が必要です");
+      if (text[i] !== ":") fail("A key has to be followed by a :");
       i++;
       o[k] = value(depth + 1);
       ws();
       if (text[i] === ",") { i++; continue; }
       if (text[i] === "}") { i++; return o; }
-      if (i >= n) fail("{ が閉じられていません（} が足りません）", open);
-      fail("ここには , か } が必要です");
+      if (i >= n) fail("This { is never closed (a } is missing)", open);
+      fail("A , or a } is needed here");
     }
   }
   function arr(depth) {
@@ -370,21 +361,21 @@ function parseJSON(text) {
     if (text[i] === "]") { i++; return a; }
     while (true) {
       ws();
-      if (text[i] === "]") fail("要素の後に , があるのに次の項目がありません（末尾のカンマ）");
+      if (text[i] === "]") fail("There is a , after an item but nothing follows it (a trailing comma)");
       a.push(value(depth + 1));
       ws();
       if (text[i] === ",") { i++; continue; }
       if (text[i] === "]") { i++; return a; }
-      if (i >= n) fail("[ が閉じられていません（] が足りません）", open);
-      fail("ここには , か ] が必要です");
+      if (i >= n) fail("This [ is never closed (a ] is missing)", open);
+      fail("A , or a ] is needed here");
     }
   }
 
   ws();
-  if (i >= n) fail("入力が空です");
+  if (i >= n) fail("The input is empty");
   const v = value(0);
   ws();
-  if (i < n) fail("JSONは1つの値で終わりますが、この後にまだ文字が残っています");
+  if (i < n) fail("JSON ends after a single value, but there are more characters after this one");
   return v;
 }
 
@@ -423,7 +414,7 @@ function sortDeep(v) {
   if (Array.isArray(v)) return v.map(sortDeep);
   if (v && typeof v === "object") {
     const o = {};
-    Object.keys(v).sort((a, b) => a.localeCompare(b, "ja")).forEach(k => { o[k] = sortDeep(v[k]); });
+    Object.keys(v).sort((a, b) => a.localeCompare(b, "en")).forEach(k => { o[k] = sortDeep(v[k]); });
     return o;
   }
   return v;
@@ -477,7 +468,7 @@ function buildTree(v) {
     const entries = isArr ? x.map((e, idx) => [idx, e]) : Object.keys(x).map(k => [k, x[k]]);
     const brace = isArr ? "[ ]" : "{ }";
     const count = '<span class="muted">' + brace[0] + " " + entries.length +
-                  (isArr ? " 要素" : " キー") + " " + brace[2] + "</span>";
+                  (isArr ? " items" : " keys") + " " + brace[2] + "</span>";
     if (!entries.length) return "<li>" + '<span class="tog"></span>' + kx + count + "</li>";
     return "<li><span class=\"tog\">▾</span>" + kx + count + "<ul>" +
            entries.map(([k, e]) => node(isArr ? "[" + k + "]" : k, e)).join("") + "</ul></li>";
@@ -516,7 +507,7 @@ function run(mode) {
   const st = $("status");
   if (!raw.trim()) {
     st.className = "status ng";
-    st.innerHTML = "<b>入力が空です。</b> JSONを貼り付けてください。";
+    st.innerHTML = "<b>The input is empty.</b> Paste some JSON.";
     $("resultPanel").style.display = "none";
     return;
   }
@@ -540,20 +531,20 @@ function run(mode) {
 
   const s = stats(value);
   st.className = "status ok";
-  st.innerHTML = "<b>正しいJSONです。</b> " +
+  st.innerHTML = "<b>This is valid JSON.</b> " +
     (mode === "min"
-      ? "1行に圧縮しました（" + raw.length.toLocaleString() + " → " + text.length.toLocaleString() + " 文字）。"
-      : "整形しました（" + text.split("\n").length.toLocaleString() + " 行）。");
+      ? "Minified to one line (" + raw.length.toLocaleString() + " → " + text.length.toLocaleString() + " characters)."
+      : "Formatted (" + text.split("\n").length.toLocaleString() + " lines).");
 
   $("out").innerHTML = highlight(text);
   $("tree").innerHTML = buildTree(value);
   $("stats").innerHTML = [
-    ["キー", s.keys], ["オブジェクト", s.objects], ["配列", s.arrays],
-    ["値の総数", s.nodes], ["最大の深さ", s.maxDepth], ["文字数", text.length]
+    [" keys", s.keys], [" objects", s.objects], [" arrays", s.arrays],
+    [" values in total", s.nodes], [" deepest level", s.maxDepth], [" characters", text.length]
   ].map(([k, v]) => '<div class="stat"><b>' + v.toLocaleString() + "</b>" + k + "</div>").join("");
   $("resultPanel").style.display = "";
 }
-const at2s = at => "【" + at.line + "行目 " + at.col + "文字目】";
+const at2s = at => "[line " + at.line + ", column " + at.col + "]";
 
 $("fmt").onclick = () => run("fmt");
 $("min").onclick = () => run("min");
@@ -566,21 +557,21 @@ $("sample").onclick = () => {
   // 英語版を作るときの「画面に出る日本語が残っていないか」の検査を素通りするため
   // （その検査は文字列リテラルしか見ない）。2026-08-31 に気づいて直した。
   $("src").value = JSON.stringify({
-    "lab": "クロードの昼ラボ",
-    "運営": "AI（Claude）",
+    "lab": "Claude's Daytime Lab",
+    "operator": "AI (Claude)",
     "tools": [
-      { "name": "正規表現テスタ", "path": "/regex/", "free": true },
-      { "name": "文字数カウンタ", "path": "/char-counter/", "free": true },
-      { "name": "JSON整形・検証", "path": "/json/", "free": true }
+      { "name": "Regex Tester", "path": "/regex/", "free": true },
+      { "name": "Character Counter", "path": "/char-counter/", "free": true },
+      { "name": "JSON Formatter & Validator", "path": "/json/", "free": true }
     ],
-    "公開日": "2026-08-19",
-    "収益": { "円": 0, "備考": "まだ1円も稼げていません", "送信するデータ": null }
+    "published": "2026-08-19",
+    "revenue": { "yen": 0, "note": "not a single yen so far", "dataSent": null }
   }, null, 2);
   run("fmt");
 };
 $("copy").onclick = async () => {
-  try { await navigator.clipboard.writeText(lastText); showToast("コピーしました"); }
-  catch (e) { showToast("コピーできませんでした"); }
+  try { await navigator.clipboard.writeText(lastText); showToast("Copied"); }
+  catch (e) { showToast("Could not copy"); }
 };
 $("dl").onclick = () => {
   const blob = new Blob([lastText], { type: "application/json" });

@@ -266,6 +266,9 @@ EN_NAV = '''  <nav class="hl-nav">
       <li><a href="./qr.html">QR Code Generator</a></li>
       <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
       <li><a href="./image.html">Image Resizer &amp; Compressor</a></li>
+      <li><a href="./page-contrast.html">Whole-Page Contrast Audit</a></li>
+      <li><a href="./diff.html">Text Diff</a></li>
+      <li><a href="./json.html">JSON Formatter &amp; Validator</a></li>
       <li><a href="../cron/">Japanese version</a></li>
     </ul>
     <p class="hl-links">

@@ -34,8 +34,12 @@ HTML_PARTS = [
     ('<meta name="description" content="ブックマークに入れて、気になるページで押すだけ。そのページの文字を全部拾って、コントラスト比がWCAG 2.1のAA基準を満たしていない箇所を一覧にします。サーバーには何も送りません。">',
      '<meta name="description" content="Keep it in your bookmarks bar and press it on any page. It collects every piece of text on that page and lists the ones whose contrast ratio falls short of WCAG 2.1 level AA. Nothing is sent to any server.">'),
 
-    # 日本語版には hreflang がまだ無いので、canonical だけを差し替える
-    ('<link rel="canonical" href="%s/page-contrast/">' % SITE,
+    # ⚠ 2026-08-31 昼に直した。書いた当初は日本語版に hreflang が無かったので
+    #   canonical だけを差し替えていたが、**同じ枠で日本語版にも hreflang を足した**ため、
+    #   次に走らせると hreflang が2組になる(実際に重複を出した)。日本語版の3行ごと差し替える。
+    ('<link rel="canonical" href="%s/page-contrast/">\n'
+     '<link rel="alternate" hreflang="ja" href="%s/page-contrast/">\n'
+     '<link rel="alternate" hreflang="en" href="%s/en/page-contrast.html">' % (SITE, SITE, SITE),
      '<link rel="canonical" href="%s/en/page-contrast.html">\n'
      '<link rel="alternate" hreflang="en" href="%s/en/page-contrast.html">\n'
      '<link rel="alternate" hreflang="ja" href="%s/page-contrast/">' % (SITE, SITE, SITE)),

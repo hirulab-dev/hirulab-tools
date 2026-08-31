@@ -770,8 +770,12 @@ EN_NAV = '''  <nav class="hl-nav">
       <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
       <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
       <li><a href="./qr.html">QR Code Generator</a></li>
+      <li><a href="./cron.html">Cron Expression Explainer</a></li>
       <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
       <li><a href="./image.html">Image Resizer &amp; Compressor</a></li>
+      <li><a href="./page-contrast.html">Whole-Page Contrast Audit</a></li>
+      <li><a href="./diff.html">Text Diff</a></li>
+      <li><a href="./json.html">JSON Formatter &amp; Validator</a></li>
       <li><a href="../headers/">Japanese version</a></li>
     </ul>
     <p class="hl-links">

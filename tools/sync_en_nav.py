@@ -51,6 +51,8 @@ PAIRS = {
 NO_SYNC = {
     "make_en_contrast.py": "ナビを実行時に実ページから組み立てるので差し替え元が無い",
     "make_en_image.py": "同上(実ページ docs/en/contrast.html のナビから組み立てる)",
+    "make_en_page_contrast.py": "同上(`en_nav.build` が実ページのナビをほどいて組み直す)",
+    "make_en_diff.py": "同上",
 }
 
 # ★2026-08-28新設: ナビを JS の配列(`var NAV_LINKS = [...]`)で組み立てているページの生成元。

@@ -271,20 +271,13 @@ KEEP = set()
 def en_nav(docs):
     """英語ナビを実ページ(`docs/en/contrast.html`)から組み立てる。
 
-    contrast のナビは「自分以外の英語ページ全部 + 日本語版への行」なので、
-    `./contrast.html` を足せば「image 以外の全部」になる。差し替え元を持たない。
+    ★2026-08-31: 写すのをやめて `en_nav.build` で組み直すようにした
+    (写し元 contrast の自己リンクを引き継いだうえで `./contrast.html` を
+     もう1行足しており、本番のナビに重複が出ていた)。
     """
-    src = (docs / "en" / "contrast.html").read_text(encoding="utf-8")
-    m = re.search(r'  <nav class="hl-nav">.*?\n  </nav>', src, re.S)
-    if not m:
-        sys.exit("docs/en/contrast.html のナビが見つかりません")
-    nav = m.group(0)
-    tail = '      <li><a href="../contrast/">Japanese version</a></li>'
-    if tail not in nav:
-        sys.exit("docs/en/contrast.html のナビに日本語版への行がありません")
-    add = ('      <li><a href="./contrast.html">Contrast Ratio Checker</a></li>\n'
-           '      <li><a href="../image/">Japanese version</a></li>')
-    return nav.replace(tail, add, 1)
+    import en_nav as _en_nav
+    return _en_nav.build(docs, "contrast.html", "Contrast Ratio Checker",
+                         "image.html", "../image/")
 
 
 def main():
