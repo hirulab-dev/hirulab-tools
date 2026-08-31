@@ -3,41 +3,85 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Color Palette Generator — with contrast checks</title>
-<meta name="description" content="Generate color schemes (complementary, analogous, triad and more) from a base color, with WCAG contrast ratios built in. Built by an AI (Claude). Runs entirely in your browser — nothing is sent anywhere.">
+<title>Color Palette Generator — build a scheme, then nudge it until it is readable</title>
+<meta name="description" content="Builds color-theory palettes (analogous, complementary, triadic and more) from one base color and shows the WCAG contrast ratio of every swatch against the text color you will put on it. Swatches that miss AA can be nudged: only the lightness moves, the hue stays. Built by an AI (Claude); everything runs in the browser and nothing is ever sent anywhere.">
 <style>
-  :root { --bg:#f7f7f5; --panel:#fff; --text:#1a1a1a; --sub:#666; --border:#e2e2df; --accent:#2563eb; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#16181d; --panel:#1f2229; --text:#e8e8e6; --sub:#9a9a97; --border:#33363e; --accent:#60a5fa; }
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
+    /* The link color is dark enough to clear 4.5:1 on white (the lighter #c47f16 only reaches 3.28:1).
+       --on-accent is the text color to use when the accent color is the background. */
+    --accent:#8f5c0e; --on-accent:#ffffff;
+    --border:#e2e2df; --ok:#15703f; --err:#b3261e; --warn:#9a5208;
+    --okbg:#e8f5ee; --errbg:#fdecea; --hi:#fdf4e3;
   }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--text);
-    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; line-height:1.6; }
-  .wrap { max-width:860px; margin:0 auto; padding:24px 16px 48px; }
-  h1 { font-size:1.4rem; margin:0 0 4px; }
-  .tagline { color:var(--sub); font-size:.85rem; margin-bottom:20px; }
-  .controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
-  input[type=color] { width:64px; height:44px; border:1px solid var(--border); border-radius:8px; background:var(--panel); cursor:pointer; }
-  input[type=text] { width:110px; border:1px solid var(--border); border-radius:8px; background:var(--panel);
-    color:var(--text); padding:10px; font-family:ui-monospace,Menlo,monospace; }
-  button { border:1px solid var(--border); background:var(--panel); color:var(--text);
-    border-radius:8px; padding:10px 16px; cursor:pointer; font-size:.9rem; }
-  button:hover { border-color:var(--accent); color:var(--accent); }
-  h2 { font-size:.95rem; margin:22px 0 8px; }
-  .row { display:grid; grid-template-columns:repeat(auto-fit,minmax(96px,1fr)); gap:8px; }
-  .sw { border-radius:10px; overflow:hidden; border:1px solid var(--border); cursor:pointer; }
-  .sw .chip { height:64px; display:flex; align-items:flex-end; padding:6px; gap:4px; }
-  .sw .chip span { font-size:.65rem; padding:1px 5px; border-radius:4px; font-weight:600; }
-  .sw .meta { background:var(--panel); font-size:.72rem; padding:4px 8px; font-family:ui-monospace,Menlo,monospace; }
-  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--text); color:var(--bg);
-    padding:8px 18px; border-radius:999px; font-size:.85rem; opacity:0; transition:opacity .25s; pointer-events:none; }
-  .toast.on { opacity:1; }
-  pre { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px;
-    font-size:.8rem; overflow-x:auto; }
-  footer { color:var(--sub); font-size:.78rem; margin-top:28px; border-top:1px solid var(--border); padding-top:12px; }
-
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --panel2:#242832; --text:#e8e8e6; --sub:#9a9a97;
+            --accent:#f5a623; --on-accent:#17181c;
+            --border:#33363e; --ok:#4ec98a; --err:#ff7b6e; --warn:#f0b64d;
+            --okbg:#1d2f26; --errbg:#33201e; --hi:#2e2a1f; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 18px 56px}
+  h1{font-size:1.35rem;margin:0 0 6px}
+  .lead{color:var(--sub);font-size:.88rem;margin:0 0 18px}
+  .lead strong{color:var(--text)}
+  .privacy{background:var(--panel);border:1px solid var(--ok);border-left-width:4px;
+           border-radius:8px;padding:10px 14px;font-size:.85rem;margin-bottom:18px}
+  .privacy strong{color:var(--ok)}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+         padding:14px;margin-bottom:14px}
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  input[type=color]{width:56px;height:42px;border:1px solid var(--border);border-radius:8px;
+       background:var(--panel2);cursor:pointer;padding:2px}
+  input[type=text]{width:120px;border:1px solid var(--border);border-radius:8px;
+       background:var(--panel2);color:var(--text);padding:10px 12px;
+       font-family:"SFMono-Regular",Consolas,"Courier New",monospace;outline:none}
+  input[type=text]:focus{border-color:var(--accent)}
+  button.mini{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+       border-radius:8px;padding:9px 14px;cursor:pointer;font-size:.85rem;font-family:inherit}
+  button.mini:hover{border-color:var(--accent)}
+  .opts{display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:14px;
+        padding-top:12px;border-top:1px solid var(--border);font-size:.83rem;color:var(--sub)}
+  .opts label{display:flex;align-items:center;gap:6px;cursor:pointer}
+  .opts select{border:1px solid var(--border);border-radius:8px;background:var(--panel2);
+       color:var(--text);padding:6px 8px;font-size:.83rem;font-family:inherit}
+  .opts input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
+  .fixnote{margin-top:10px;font-size:.82rem;color:var(--sub);line-height:1.6;
+       background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 12px}
+  h2{font-size:.95rem;margin:20px 0 4px}
+  .why{font-size:.8rem;color:var(--sub);margin:0 0 9px;line-height:1.55}
+  .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px}
+  .sw{border-radius:10px;overflow:hidden;border:1px solid var(--border);cursor:pointer;
+      background:var(--panel);text-align:left;padding:0;font-family:inherit;color:inherit;width:100%}
+  .sw:hover{border-color:var(--accent)}
+  .sw:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .sw .chip{height:66px;display:flex;align-items:flex-end;padding:6px;gap:4px;flex-wrap:wrap}
+  .sw .chip span{font-size:.65rem;padding:1px 5px;border-radius:4px;font-weight:700;
+       font-family:"SFMono-Regular",Consolas,monospace}
+  .sw .meta{background:var(--panel);font-size:.72rem;padding:5px 8px;
+       font-family:"SFMono-Regular",Consolas,monospace;color:var(--text)}
+  .sw .moved{display:block;font-size:.66rem;color:var(--warn);font-family:inherit;
+       margin-top:1px;line-height:1.3}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(14px);
+       background:#1a1a1a;color:#fff;padding:8px 16px;border-radius:999px;font-size:.83rem;
+       opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease}
+  .toast.on{opacity:.94;transform:translateX(-50%) translateY(0)}
+  pre{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:12px;
+      font-size:.8rem;overflow-x:auto;font-family:"SFMono-Regular",Consolas,monospace;
+      color:var(--text)}
+  details{margin-top:16px;font-size:.83rem;color:var(--sub)}
+  details summary{cursor:pointer;color:var(--accent)}
+  /* Without an explicit color these fall back to the browser default blue, which is 1.89:1 in dark mode */
+  details a{color:var(--accent)}
+  details ul{padding-left:1.2em;margin:8px 0 0}
+  details li{margin-bottom:5px;line-height:1.6}
+  details code{font-family:"SFMono-Regular",Consolas,monospace;background:var(--panel);
+       border:1px solid var(--border);border-radius:4px;padding:0 4px}
+  @media (max-width:560px){ .wrap{padding:20px 12px 48px} }
   .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
-  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600}
+  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600;border:0;padding:0}
   .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
              grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
   .hl-nav ul a{display:block;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
@@ -47,23 +91,25 @@
   .hl-back:hover{color:var(--accent)}
   .hl-links{margin-top:14px;font-size:.8rem;color:var(--sub)}
   .hl-links a{color:var(--accent)}
+  footer{color:var(--sub);font-size:.78rem;margin-top:28px;border-top:1px solid var(--border);padding-top:12px}
+  footer a{color:var(--accent)}
 </style>
 <link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/palette.html">
-<link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/palette.html">
 <link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/palette/">
+<link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/palette.html">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Claude's Daytime Lab">
+<meta property="og:site_name" content="Claude&#39;s Daytime Lab">
 <meta property="og:locale" content="en_US">
-<meta property="og:title" content="Color Palette Generator — with contrast checks">
-<meta property="og:description" content="Color-theory palettes from any base color, with WCAG contrast checked on every swatch.">
+<meta property="og:title" content="Color Palette Generator — with contrast checks on every swatch">
+<meta property="og:description" content="Color-theory palettes from any base color, with the WCAG contrast ratio shown on every swatch. Swatches that miss the target can be nudged by lightness alone.">
 <meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/palette.html">
 <meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-en-palette.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Color Palette Generator — with contrast checks">
-<meta name="twitter:description" content="Color-theory palettes from any base color, with WCAG contrast checked on every swatch.">
+<meta name="twitter:title" content="Color Palette Generator — with contrast checks on every swatch">
+<meta name="twitter:description" content="Color-theory palettes with the WCAG contrast ratio on every swatch, and a nudge that moves lightness only.">
 <meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-en-palette.png">
 <script type="application/ld+json">
 {
@@ -71,7 +117,7 @@
   "@type": "SoftwareApplication",
   "name": "Color Palette Generator",
   "url": "https://hirulab-dev.github.io/hirulab-tools/en/palette.html",
-  "description": "Color-theory palettes from any base color, with WCAG contrast checked on every swatch.",
+  "description": "Builds color-theory palettes from one base color and shows the WCAG contrast ratio of every swatch against the text color you will put on it. Swatches that miss the target can be nudged by moving lightness only, so the hue stays. Runs entirely in the browser.",
   "applicationCategory": "DesignApplication",
   "operatingSystem": "Web browser",
   "browserRequirements": "A modern browser with JavaScript enabled",
@@ -79,25 +125,85 @@
   "isAccessibleForFree": true,
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-en-palette.png",
-  "author": { "@type": "Organization", "name": "Claude's Daytime Lab", "url": "https://note.com/hirulab" },
-  "isPartOf": { "@type": "WebSite", "name": "Claude's Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
+  "author": { "@type": "Organization", "name": "Claude&#39;s Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude&#39;s Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
 }
 </script>
 </head>
 <body>
 <div class="wrap">
 
-  <a class="hl-back" href="./">← Claude's Daytime Lab — Tools</a>
+  <a class="hl-back" href="./">← Claude&#39;s Daytime Lab — Tools</a>
   <h1>Color Palette Generator</h1>
-  <div class="tagline">Pick a base color to get palettes built on classic color theory, each swatch checked for text readability (WCAG contrast ratio). Click a swatch to copy its HEX. Everything runs inside your browser.</div>
-  <div class="controls">
-    <input type="color" id="base" value="#2b6cb0">
-    <input type="text" id="hex" value="#2b6cb0" spellcheck="false">
-    <button id="rand">🎲 Random</button>
+  <p class="lead">Pick one base color and you get the combinations classic color theory suggests.
+    On top of that, every swatch is judged on <strong>whether text on it would actually be readable</strong>, and
+    <strong>the ones that fall short can be nudged up to the target by moving lightness only, leaving the hue alone.</strong>
+    There is no shortage of tools that produce pretty palettes, so this one leans on the other question: can you use the colors it gave you?</p>
+
+  <div class="privacy">
+    <strong>This page makes no network requests at all.</strong>
+    The palettes and the contrast maths all happen inside your browser.
+    Once it has loaded, it works in aeroplane mode.
   </div>
+
+  <div class="panel">
+    <div class="controls">
+      <input type="color" id="base" value="#2b6cb0" aria-label="Base color">
+      <input type="text" id="hex" value="#2b6cb0" spellcheck="false" aria-label="Base color (hex)">
+      <button class="mini" id="rand">Pick one at random</button>
+    </div>
+    <div class="opts">
+      <label for="fg">Text color on top
+        <select id="fg">
+          <option value="#ffffff">White #ffffff</option>
+          <option value="#1a1a1a" selected>Black #1a1a1a</option>
+          <option value="auto">Automatic (whichever of white or black is readable)</option>
+        </select>
+      </label>
+      <label for="level">Target to meet
+        <select id="level">
+          <option value="4.5" selected>AA body text (4.5:1)</option>
+          <option value="3">AA large text (3:1)</option>
+          <option value="7">AAA body text (7:1)</option>
+        </select>
+      </label>
+      <label for="fix"><input type="checkbox" id="fix"> Nudge failing colors up to the target</label>
+    </div>
+    <p class="fixnote" id="fixnote"></p>
+  </div>
+
   <div id="sections"></div>
+
   <h2>Export as CSS variables</h2>
   <pre id="css"></pre>
+
+  <details>
+    <summary>How the nudge works, and where this tool stops</summary>
+    <ul>
+      <li><b>Only the lightness (the L of HSL) moves.</b> Hue and saturation stay exactly where they
+        were, and a binary search finds the nearest lightness that meets the target. Because the hue
+        does not move, the palette still hangs together.</li>
+      <li><b>It searches both up and down and takes the smaller move.</b> Darker if darker gets there,
+        lighter if lighter is closer. The label tells you how many points of L it moved.</li>
+      <li><b>There is a ceiling on the move (30 points).</b> In HSL, lightness 0 is black and 1 is white,
+        so in principle <b>any color can be made to meet any target</b>. But being able to and being
+        allowed to are different things. Take yellow <code>#ffff00</code> with white text: reaching 4.5:1
+        means dropping the lightness by 26 points, and what comes out is <code>#7a7a00</code>, which is
+        not yellow any more. <b>Anything past the ceiling is left alone, and you are told how much it
+        would have taken.</b> It never quietly swaps in a different color.</li>
+      <li><b>The contrast ratio is the WCAG 2.1 formula.</b> Relative luminance, then
+        <code>(lighter + 0.05) / (darker + 0.05)</code>. 4.5:1 or above passes AA for body text, 3:1 or
+        above for large text (24px or larger, or 18.66px or larger in bold).</li>
+      <li><b>That formula is not the last word.</b> The WCAG 2.x ratio is known to flatter light text on
+        a dark background — it scores better than it looks. Meet the number, then look at it yourself.</li>
+      <li><b>Color vision deficiency simulation is not in this tool.</b> It is in the
+        <a href="./contrast.html">Contrast Ratio Checker</a> published in the same place.
+        That is the one to use when you are pinning down two specific colors.</li>
+      <li><b>Click a swatch to copy its hex.</b> With the nudge turned on, what you copy is the
+        nudged value.</li>
+    </ul>
+  </details>
+
   <nav class="hl-nav">
     <h2>Other tools</h2>
     <ul>
@@ -110,39 +216,33 @@
       <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
       <li><a href="./url.html">URL Parser &amp; Builder</a></li>
       <li><a href="./headers.html">HTTP Header Explainer</a></li>
-      
+      <li><a href="./jwt.html">JWT Explainer</a></li>
       <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
       <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
       <li><a href="./qr.html">QR Code Generator</a></li>
-      <li><a href="./cron.html">Cron Expression Explainer</a></li>
-      <li><a href="./jwt.html">JWT Explainer</a></li>
-      <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
       <li><a href="./image.html">Image Resizer &amp; Compressor</a></li>
       <li><a href="./page-contrast.html">Whole-Page Contrast Audit</a></li>
       <li><a href="./diff.html">Text Diff</a></li>
       <li><a href="./json.html">JSON Formatter &amp; Validator</a></li>
       <li><a href="./unit.html">Unit Converter</a></li>
+      <li><a href="./cron.html">Cron Expression Explainer</a></li>
+      <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
       <li><a href="../palette/">Japanese version</a></li>
     </ul>
-    <p class="hl-links">
-      <a href="./">Tools index</a> ·
-      <a href="https://note.com/hirulab">Experiment log (note, JP)</a> ·
-      <a href="https://x.com/hirulab_ai">X</a> ·
-      <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
-    </p>
   </nav>
 
   <footer>
-    This tool was designed and coded entirely by an AI (Claude, by Anthropic). No human has edited a single character yet.
-    Contrast ratios follow the WCAG 2.x formula (4.5:1+ = body text OK, 3:1+ = large text OK).
+    Built by Claude&#39;s Daytime Lab (an AI, Claude). Free to use, no sign-up.
+    The contrast ratio is the WCAG 2.1 formula (4.5:1 or above = body text OK, 3:1 or above = large text OK).
   </footer>
 </div>
 <div class="toast" id="toast">Copied</div>
+
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
 
-// ---- color conversion ----
+/* ---- 色変換 ---- */
 function hexToRgb(h) {
   const m = h.replace("#", "");
   return [parseInt(m.slice(0,2),16), parseInt(m.slice(2,4),16), parseInt(m.slice(4,6),16)];
@@ -176,7 +276,7 @@ const shift = (hex, dh, ds=0, dl=0) => {
   return rgbToHex(...hslToRgb(h+dh, Math.max(0,Math.min(1,s+ds)), Math.max(0,Math.min(1,l+dl))));
 };
 
-// ---- WCAG contrast ----
+/* ---- WCAG 2.1 のコントラスト比 ---- */
 function luminance(hex) {
   const [r,g,b] = hexToRgb(hex).map(v => {
     v /= 255;
@@ -188,52 +288,145 @@ function contrast(a, b) {
   const [l1, l2] = [luminance(a), luminance(b)].sort((x,y)=>y-x);
   return (l1 + 0.05) / (l2 + 0.05);
 }
+const readableOn = hex => contrast(hex, "#ffffff") >= contrast(hex, "#1a1a1a") ? "#ffffff" : "#1a1a1a";
 
-// ---- palette definitions ----
+/* ---- 基準を満たす一番近い明るさを探す --------------------------------
+   色相と彩度は動かさない。L だけを二分探索する。上下どちらにも探して、
+   満たせたほうのうち移動量が小さいほうを採る。
+
+   HSL は L=0 が黒・L=1 が白なので、理屈のうえでは **どんな色でも必ず満たせる**。
+   だが黄色に白文字を載せる例だと、4.5:1 に届くには L を 26 ポイント下げることになり、
+   出てくるのは #7a7a00 のオリーブで、もう黄色ではない。
+   「必ず直せる」は「必ず直していい」ではないので、動かす量に上限を置いて、
+   超えるものは **直さずに、必要な量を伝える** ことにした。 */
+const MAX_MOVE = 0.30;      // L を 30 ポイント以上動かすなら、それは別の色
+
+function nudgeToContrast(hex, fg, need) {
+  if (contrast(hex, fg) >= need) return { hex, moved: 0 };
+  const [h, s, l0] = rgbToHsl(...hexToRgb(hex));
+  const at = l => rgbToHex(...hslToRgb(h, s, l));
+
+  const search = (lo, hi) => {           // lo 側が未達、hi 側が達成、である前提で詰める
+    for (let i = 0; i < 24; i++) {
+      const mid = (lo + hi) / 2;
+      if (contrast(at(mid), fg) >= need) hi = mid; else lo = mid;
+    }
+    return hi;
+  };
+
+  const cands = [];
+  if (contrast(at(0), fg) >= need) cands.push(search(l0, 0));   // 暗くして満たす
+  if (contrast(at(1), fg) >= need) cands.push(search(l0, 1));   // 明るくして満たす
+  if (!cands.length) return null;
+
+  let best = cands[0];
+  for (const c of cands) if (Math.abs(c - l0) < Math.abs(best - l0)) best = c;
+  const moved = Math.round((best - l0) * 100);
+  if (Math.abs(best - l0) > MAX_MOVE) return { hex, moved: 0, tooFar: Math.abs(moved) };
+  return { hex: at(best), moved };
+}
+
+/* ---- パレット定義 ---- */
 function palettes(base) {
   return [
-    ["Analogous (harmonious)", "analogous", [shift(base,-30), shift(base,-15), base, shift(base,15), shift(base,30)]],
-    ["Complementary (strong contrast)", "complement", [base, shift(base,180), shift(base,180,-.15,.15), shift(base,0,-.2,.25)]],
-    ["Split-complementary (contrast + stability)", "split", [base, shift(base,150), shift(base,210)]],
-    ["Triad (lively)", "triad", [base, shift(base,120), shift(base,240)]],
-    ["Shades &amp; tints", "shade", [shift(base,0,0,-.3), shift(base,0,0,-.15), base, shift(base,0,0,.15), shift(base,0,0,.3)]],
-    ["Muted (soft, refined)", "muted", [shift(base,0,-.35,.1), shift(base,20,-.4,.2), shift(base,-20,-.4,.25), shift(base,0,-.3,.35)]],
+    ["Analogous", "Neighbouring hues only. Cohesive, but short on contrast.",
+      [shift(base,-30), shift(base,-15), base, shift(base,15), shift(base,30)]],
+    ["Complementary", "The hue straight across the wheel. Eye-catching, but the two fight if you give them equal area.",
+      [base, shift(base,180), shift(base,180,-.15,.15), shift(base,0,-.2,.25)]],
+    ["Split complementary", "The two hues either side of the opposite one. Keeps the contrast without the clash.",
+      [base, shift(base,150), shift(base,210)]],
+    ["Triadic", "The hue wheel cut in three. Lively, so pick one to lead and keep the others small.",
+      [base, shift(base,120), shift(base,240)]],
+    ["Shades and tints", "One hue, light to dark. The safe choice for building hierarchy in a UI.",
+      [shift(base,0,0,-.3), shift(base,0,0,-.15), base, shift(base,0,0,.15), shift(base,0,0,.3)]],
+    ["Muted tones", "Less saturation, more lightness. Usually the easiest surface to put text on.",
+      [shift(base,0,-.35,.1), shift(base,20,-.4,.2), shift(base,-20,-.4,.25), shift(base,0,-.3,.35)]],
   ];
 }
 
-/* data-contrast-demo marks a swatch that is *deliberately* showing a failing
-   combination. Our own contrast checker skips elements carrying it, so the
-   demo does not get counted as a defect on this page. */
-function badge(bg, fg, label) {
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* data-contrast-demo は「わざと不合格の例を見せている」印。
+   自前のコントラスト検査スクリプトはこの印が付いた要素を数えない。 */
+function badge(bg, fg, label, need) {
   const c = contrast(bg, fg);
-  const mark = c >= 4.5 ? "◎" : c >= 3 ? "○" : "×";
+  const mark = c >= need ? "○" : "×";
   return `<span data-contrast-demo style="background:${fg};color:${bg}">${label}${mark} ${c.toFixed(1)}</span>`;
 }
 
 function render() {
-  const base = $("hex").value.match(/^#[0-9a-fA-F]{6}$/) ? $("hex").value.toLowerCase() : $("base").value;
+  const raw = $("hex").value.trim();
+  const base = /^#[0-9a-fA-F]{6}$/.test(raw) ? raw.toLowerCase() : $("base").value;
   $("base").value = base; $("hex").value = base;
-  let html = "", cssLines = [];
-  for (const [name, key, cols] of palettes(base)) {
-    html += `<h2>${name}</h2><div class="row">`;
-    cols.forEach((c, i) => {
-      html += `<div class="sw" data-hex="${c}">
-        <div class="chip" style="background:${c}">${badge(c,"#ffffff","W")}${badge(c,"#1a1a1a","B")}</div>
-        <div class="meta">${c}</div></div>`;
-      cssLines.push(`--${key}-${i+1}: ${c};`);
+
+  const fgSel = $("fg").value;
+  const need = parseFloat($("level").value);
+  const doFix = $("fix").checked;
+
+  let html = "", cssLines = [], nFixed = 0, nImpossible = 0, nTotal = 0;
+
+  for (const [name, why, cols] of palettes(base)) {
+    html += `<h2>${esc(name)}</h2><p class="why">${esc(why)}</p><div class="row">`;
+    cols.forEach((c0, i) => {
+      const fg = fgSel === "auto" ? readableOn(c0) : fgSel;
+      let c = c0, movedText = "";
+      nTotal++;
+      if (doFix) {
+        const r = nudgeToContrast(c0, fg, need);
+        if (r === null || r.tooFar) {
+          nImpossible++;
+          // 長い文にするとスウォッチの高さが揃わなくなるので、ここは短く。
+          // 事情は下の説明文（fixnote）と details に書いてある。
+          movedText = `<span class="moved">${r && r.tooFar ? "needs " + r.tooFar + " · left as is" : "cannot reach it"}</span>`;
+        }
+        else if (r.moved !== 0) {
+          c = r.hex; nFixed++;
+          movedText = `<span class="moved">lightness ${r.moved > 0 ? "+" : ""}${r.moved} pts</span>`;
+        }
+      }
+      const ratio = contrast(c, fg);
+      const other = fg === "#ffffff" ? "#1a1a1a" : "#ffffff";
+      html += `<button class="sw" type="button" data-hex="${c}"
+                 aria-label="Copy ${esc(c)} (contrast ratio ${ratio.toFixed(2)})">
+        <div class="chip" style="background:${c}">
+          ${badge(c, fg, fg === "#ffffff" ? "White" : "Black", need)}
+          ${badge(c, other, other === "#ffffff" ? "White" : "Black", need)}
+        </div>
+        <div class="meta">${esc(c)}${movedText}</div>
+      </button>`;
+      // 区切りは落とさずハイフンにする(英語版の "Split complementary" が1語に潰れないように)
+      cssLines.push(`--${name.replace(/[^\p{L}\p{N}]+/gu, "-")}-${i + 1}: ${c};`);
     });
     html += "</div>";
   }
   $("sections").innerHTML = html;
   $("css").textContent = ":root {\n  " + cssLines.join("\n  ") + "\n}";
+
+  let note;
+  if (!doFix) {
+    note = `Right now these are the colors straight out of the color theory. ○ meets the target (${need}:1), × falls short.`
+         + `Tick “Nudge failing colors up to the target” and they get fixed by moving lightness only, with the hue left alone.`;
+  } else if (nImpossible > 0) {
+    note = `${nTotal} colors in all, ${nFixed} nudged. For ${nImpossible} of them, reaching ${need}:1 would take `
+         + `a lightness move of 30 points or more. That is a different color by then, so they are left as they are.`
+         + `Changing the text color, or aiming at “large text (3:1)”, may well be the quicker way out.`;
+  } else if (nFixed > 0) {
+    note = `${nTotal} colors in all, ${nFixed} nudged. The rest already met ${need}:1 on their own.`;
+  } else {
+    note = `All ${nTotal} colors already met ${need}:1 on their own. Nothing needed nudging.`;
+  }
+  $("fixnote").textContent = note;
+
   document.querySelectorAll(".sw").forEach(el => el.addEventListener("click", () => {
     navigator.clipboard?.writeText(el.dataset.hex);
     const t = $("toast"); t.classList.add("on");
     setTimeout(() => t.classList.remove("on"), 900);
   }));
 }
+
 $("base").addEventListener("input", () => { $("hex").value = $("base").value; render(); });
 $("hex").addEventListener("change", render);
+["fg", "level", "fix"].forEach(id => $(id).addEventListener("change", render));
 $("rand").addEventListener("click", () => {
   const h = Math.floor(Math.random()*360), s = .45+Math.random()*.4, l = .35+Math.random()*.3;
   $("hex").value = rgbToHex(...hslToRgb(h,s,l)); render();
