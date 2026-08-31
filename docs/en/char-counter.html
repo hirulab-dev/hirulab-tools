@@ -98,10 +98,14 @@
     <div class="card"><div class="label">Words</div><div class="value" id="c-words">0</div></div>
     <div class="card"><div class="label">Book pages (~250 words)</div><div class="value" id="c-pages">0</div></div>
     <div class="card wide">
-      <div class="label">X (Twitter) weighted count — CJK/full-width = 2, others = 1, any URL = flat 23</div>
+      <div class="label">X (Twitter) weighted count — the official rule (any URL = flat 23, an emoji = 2)</div>
       <div class="value"><span id="c-x">0</span> / 280 <span class="note" id="x-over"></span></div>
       <div class="bar" id="x-bar"><div style="width:0%"></div></div>
       <div class="note">280 is the limit for free accounts (CJK text effectively 140). Split your draft if you are over. Rules may change.</div>
+      <div class="note">★<strong>It is not &ldquo;full-width counts 2&rdquo;.</strong> Only code points 0&ndash;4351 and the
+        three ranges 8192&ndash;8205 / 8208&ndash;8223 / 8242&ndash;8247 weigh 1 (X&rsquo;s published configuration v3).
+        So <code>&hellip;</code>, <code>&euro;</code>, <code>&rarr;</code> and Vietnamese <code>&#7871;</code>
+        weigh 2 even though they look narrow. An emoji weighs 2 per grapheme cluster &mdash; skin tone, ZWJ and flags do not add.</div>
     </div>
     <div class="card wide">
       <div class="label">Estimated reading time (200 words/min English, 500 chars/min CJK)</div>
@@ -152,18 +156,30 @@
 const $ = id => document.getElementById(id);
 const URL_RE = /https?:\/\/[^\s]+/g;
 
+// How X counts (twitter-text published configuration v3). It is NOT "full-width counts 2".
+// Only code points in these four ranges weigh 1; everything else weighs 2.
+// An emoji weighs 2 per grapheme cluster (skin tone, ZWJ and flags do not add). A URL is always 23.
+const W1 = [[0, 4351], [8192, 8205], [8208, 8223], [8242, 8247]];
+const EMOJI_RE = /\p{Emoji_Presentation}|\uFE0F|\u20E3|\p{Regional_Indicator}|\p{Emoji_Modifier}/u;
+const SEG = (typeof Intl !== "undefined" && Intl.Segmenter)
+  ? new Intl.Segmenter("und", { granularity: "grapheme" }) : null;
+
+function clusters(t) {
+  if (!SEG) { return [...t]; }        // older browsers: per code point (emoji come out high)
+  const out = [];
+  for (const s of SEG.segment(t)) { out.push(s.segment); }
+  return out;
+}
+
 function xWeight(text) {
-  // simplified t.co rule: URLs count a flat 23; CJK/full-width chars count 2; the rest 1
-  let t = text.replace(URL_RE, " ".repeat(23));
+  const t = text.replace(URL_RE, "U".repeat(23)); // stand-in of 23 slots for the URL
   let w = 0;
-  for (const ch of t) {
-    if (ch === " ") { w += 1; continue; }
-    const cp = ch.codePointAt(0);
-    const wide = (cp >= 0x1100 && cp <= 0x115F) || (cp >= 0x2E80 && cp <= 0xA4CF) ||
-      (cp >= 0xAC00 && cp <= 0xD7A3) || (cp >= 0xF900 && cp <= 0xFAFF) ||
-      (cp >= 0xFE30 && cp <= 0xFE4F) || (cp >= 0xFF00 && cp <= 0xFF60) ||
-      (cp >= 0xFFE0 && cp <= 0xFFE6) || (cp >= 0x3000 && cp <= 0x303E) || cp > 0xFFFF;
-    w += wide ? 2 : 1;
+  for (const cl of clusters(t)) {
+    if (EMOJI_RE.test(cl)) { w += 2; continue; }
+    for (const ch of cl) {
+      const cp = ch.codePointAt(0);
+      w += W1.some(r => cp >= r[0] && cp <= r[1]) ? 1 : 2;
+    }
   }
   return w;
 }

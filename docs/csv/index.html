@@ -705,7 +705,7 @@ function render() {
 
   var seenRow = Object.create(null), dupRows = 0, dupFirst = null;
   body.forEach(function (r, i) {
-    var k = r.join("");
+    var k = r.join("\u0001");
     if (seenRow[k] !== undefined) { dupRows++; if (dupFirst === null) dupFirst = i; }
     else seenRow[k] = i;
   });

@@ -109,10 +109,14 @@
     <div class="card"><div class="label">英単語数</div><div class="value" id="c-words">0</div></div>
     <div class="card"><div class="label">原稿用紙(400字)</div><div class="value" id="c-genko">0枚</div></div>
     <div class="card wide">
-      <div class="label">X(旧Twitter)の重み付きカウント — 全角=2・半角=1・URL=一律23</div>
+      <div class="label">X(旧Twitter)の重み付きカウント — 公式の数え方(URLは一律23・絵文字は1つで2)</div>
       <div class="value"><span id="c-x">0</span> / 280 <span class="note" id="x-jp"></span></div>
       <div class="bar" id="x-bar"><div style="width:0%"></div></div>
       <div class="note">無料アカウントの上限280(日本語だと実質140字)。超過分は下書きを分割。※仕様変更がありえます</div>
+      <div class="note">★<strong>「全角なら2」ではありません。</strong>重みが1になるのは符号位置 0–4351 と、
+        8192–8205 / 8208–8223 / 8242–8247 の3つの区間だけです(Xが公開している設定 v3)。
+        だから <code>…</code> <code>€</code> <code>→</code> やベトナム語の <code>ế</code> は、
+        半角に見えても2で数えられます。絵文字は書記素クラスタ1つで2(肌の色・ZWJ・国旗をつないでも増えません)。</div>
     </div>
     <div class="card wide">
       <div class="label">読了時間の目安(日本語 500字/分・英語 200語/分で計算)</div>
@@ -164,18 +168,30 @@
 const $ = id => document.getElementById(id);
 const URL_RE = /https?:\/\/[^\s]+/g;
 
+// Xの数え方(twitter-text の公開設定 v3)。「全角なら2」ではない。
+// 重みが1になるのはこの4つの範囲の符号位置だけで、それ以外はすべて2。
+// 絵文字は書記素クラスタ1つで2(肌の色・ZWJ・国旗をつないでも増えない)。URLは長さによらず23。
+const W1 = [[0, 4351], [8192, 8205], [8208, 8223], [8242, 8247]];
+const EMOJI_RE = /\p{Emoji_Presentation}|\uFE0F|\u20E3|\p{Regional_Indicator}|\p{Emoji_Modifier}/u;
+const SEG = (typeof Intl !== "undefined" && Intl.Segmenter)
+  ? new Intl.Segmenter("und", { granularity: "grapheme" }) : null;
+
+function clusters(t) {
+  if (!SEG) { return [...t]; }        // 古いブラウザでは符号位置ごと(絵文字は多めに出る)
+  const out = [];
+  for (const s of SEG.segment(t)) { out.push(s.segment); }
+  return out;
+}
+
 function xWeight(text) {
-  // t.co仕様の簡易版: URLは一律23、CJK・全角は2、それ以外は1
-  let t = text.replace(URL_RE, " ".repeat(23)); // URLを23枠のプレースホルダに
+  const t = text.replace(URL_RE, "U".repeat(23)); // URLを23枠のプレースホルダに
   let w = 0;
-  for (const ch of t) {
-    if (ch === " ") { w += 1; continue; }
-    const cp = ch.codePointAt(0);
-    const wide = (cp >= 0x1100 && cp <= 0x115F) || (cp >= 0x2E80 && cp <= 0xA4CF) ||
-      (cp >= 0xAC00 && cp <= 0xD7A3) || (cp >= 0xF900 && cp <= 0xFAFF) ||
-      (cp >= 0xFE30 && cp <= 0xFE4F) || (cp >= 0xFF00 && cp <= 0xFF60) ||
-      (cp >= 0xFFE0 && cp <= 0xFFE6) || (cp >= 0x3000 && cp <= 0x303E) || cp > 0xFFFF;
-    w += wide ? 2 : 1;
+  for (const cl of clusters(t)) {
+    if (EMOJI_RE.test(cl)) { w += 2; continue; }
+    for (const ch of cl) {
+      const cp = ch.codePointAt(0);
+      w += W1.some(r => cp >= r[0] && cp <= r[1]) ? 1 : 2;
+    }
   }
   return w;
 }

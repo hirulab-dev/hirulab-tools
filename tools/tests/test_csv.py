@@ -70,6 +70,39 @@ def python_roundtrip(text, delim):
     return [r for r in csv.reader(io.StringIO(text, newline=""), delimiter=delim)]
 
 
+ISSUE_COUNT = """(bytes) => {
+  window.__csvTool.loadBytes(bytes);
+  if (typeof decodeAndRender === 'function') decodeAndRender(); else render();
+  // ⚠ 「壊れているところは見つかりませんでした」も li で出る(class="i")ので、
+  //    警告(class="w")だけ数える。文言を見ないので日英どちらでも同じに測れる。
+  return document.querySelectorAll('#issues li.w').length;
+}"""
+
+
+def check_dup_rows(page):
+    """★「まったく同じ内容の行」の名指しを、**言語に依らない形**で見る(2026-09-01 追加)。
+
+    踏んだ実バグ: 行をつなげる区切りが、日本語版は U+0001、**英語版は空文字**だった。
+    そのため英語版だけ `["ab","c"]` と `["a","bc"]` を「同じ行」と言っていた。
+    どちらもソースの見た目は `r.join("…")` で、生の制御文字は画面にも diff にも出ない。
+
+    文言は言語で違うので、**指摘の本数の差**で測る(3通りを同じページに食わせる)。
+    """
+    def n_issues(text):
+        return page.evaluate(ISSUE_COUNT, list(text.encode("utf-8")))
+
+    base = n_issues("a,b\nx,y\nz,w\n")            # 何も起きない
+    same = n_issues("a,b\nx,y\nx,y\n")            # 同じ行が2つ → 1件増える
+    split = n_issues("a,b\nxy,z\nx,yz\n")         # つなげると同じだが行としては違う
+    out = []
+    if same != base + 1:
+        out.append("同じ行を名指ししていない(指摘の数 %d → %d)" % (base, same))
+    if split != base:
+        out.append("つなげると同じなだけの行を「同じ」と言っている(指摘の数 %d → %d)"
+                   % (base, split))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--page", required=True, help="docs/csv/index.html のパス")
@@ -151,9 +184,13 @@ def main():
             if python_roundtrip(text, delim) != rows:
                 failures.append("参照側が壊れている(csv.reader で戻らない): %r" % (rows[:2],))
 
+        dup_problems = check_dup_rows(page)
+        failures += dup_problems
+
         browser.close()
 
     print("試した件数: %d / 一致したセル: %d" % (stats["cases"], stats["cells"]))
+    print("行の重複の名指し: %s" % ("OK" if not dup_problems else "★NG"))
     print("解析の不一致: %d" % stats["parse_ng"])
     print("文字コードの誤判定: %d (ASCIIのみで判定不要だったもの: %d)"
           % (stats["enc_ng"], stats["enc_ascii"]))
@@ -161,7 +198,7 @@ def main():
           % (stats["delim_ng"], stats["delim_skip"]))
     for f in failures[:30]:
         print("  ★ " + f)
-    ng = stats["parse_ng"] + stats["enc_ng"] + stats["delim_ng"]
+    ng = stats["parse_ng"] + stats["enc_ng"] + stats["delim_ng"] + len(dup_problems)
     return 1 if ng else 0
 
 

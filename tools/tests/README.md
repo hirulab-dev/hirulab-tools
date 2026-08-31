@@ -6,7 +6,7 @@
 | スクリプト | 何と突き合わせるか |
 |---|---|
 | `test_timezone.py` | [タイムゾーン変換](https://hirulab-dev.github.io/hirulab-tools/tz/) と Python の `zoneinfo`。72ゾーン × 2015〜2030年で 132,996 件 |
-| `test_csv.py` | [CSVプレビュー・診断](https://hirulab-dev.github.io/hirulab-tools/csv/) と Python の `csv`。ランダムに作った 2,300 ファイル・52,353 セル。文字コードと区切り文字の判定も同時に採点 |
+| `test_csv.py` | [CSVプレビュー・診断](https://hirulab-dev.github.io/hirulab-tools/csv/) と Python の `csv`。ランダムに作った 2,300 ファイル・52,353 セル。文字コードと区切り文字の判定も同時に採点 。★2026-09-01 追加: **「まったく同じ内容の行」の名指し**を、指摘の本数の差で見る(文言を読まないので日英どちらにも当たる)。英語版だけ行をつなぐ区切りが空文字になっていて、`ab,c` と `a,bc` を「同じ行」と言っていた実バグを見つけた回 |
 | `test_railroad.py` | [正規表現を鉄道図にする](https://hirulab-dev.github.io/hirulab-tools/railroad/) とブラウザの `RegExp` + Python の `re`。ランダム生成した式をのべ 12,148 本、図から作った例文字列を 16,968 件 |
 | `test_regex_why.py` | [なぜマッチしないか診断](https://hirulab-dev.github.io/hirulab-tools/regex-why/) とブラウザの `RegExp`。自前の照合器の結果（マッチするか・範囲・各グループ）を 7,697 件突き合わせ、さらに「止まった位置」の主張を 6,174 個検算し、**正解の分かる欠陥を仕込んで直し方を名指しできるか**を 83 件で確認 |
 | `test_replace.py` | [正規表現の置換プレビュー](https://hirulab-dev.github.io/hirulab-tools/replace/) と ブラウザの `String.prototype.replace`。置換後の文字列を 5,822 件突き合わせ、さらに **「この文字はこのトークンから来た」という主張を、`replace` に関数を渡して本物のエンジンが返す値で 15,191 個検算**。仕込んだ落とし穴 26 件の名指しも確認 |
@@ -21,6 +21,7 @@
 | `test_diff.py` | [テキスト差分（diff）](https://hirulab-dev.github.io/hirulab-tools/diff/) の**参照を5つの出どころに分ける**。(1) 書き出した unified diff を **本物の `git apply`（第三者の実装）** に食わせて当てる (1b) **パッチの見出しが本文と合っているか**を現物の行に照らす — ★ **git はハンクの開始行がずれていても前後を探して当ててしまう**ので、これは git apply では見えない (2) **手数が最小か**を、Myers とはまったく別のアルゴリズム（最長共通部分列の動的計画法）で出した理論値と照合（行の単位と、行の中の文字の単位の両方） (3) ops を順に当てると変更前が変更後になるか (4) 行の分け方と「無視する」設定は Python で書き下した規則と照合。`--sabotage` つき（6種すべて検出）。英語版にもそのまま当たる |
 | `test_json.py` | [JSON整形・検証](https://hirulab-dev.github.io/hirulab-tools/json/) の**参照を出どころで分ける**。(1) **Python の `json`（第三者の実装）** と、受け付ける/拒む が **iff で** 一致するか・読み取った値が一致するか。★ `json.loads` は既定で `NaN` / `Infinity` を受け取るので `parse_constant` で拒ませてから参照にする (2) エラー位置は **道具が返す添字から行と「何文字目」を数え直して**照合し、Python の `JSONDecodeError` の行・列とも比べる (3) 正解の分かる壊れ方29件で位置を名指しできるか — **符号（`data-code`）が無い道具なので、英語版には位置だけで当てる** (4) 統計は Python で独立に書き下した規則 (5) 整形結果は Python に読み返させる（往復） (6) 色付けがタグを外すと元に戻るか (7) コメント・末尾カンマの除去は、元の値を正解にした往復で見る。`--sabotage` つき（8種すべて検出）。英語版にもそのまま当たる |
 | `test_unit.py` | [単位換算](https://hirulab-dev.github.io/hirulab-tools/unit/) の**参照を役目で2つに分ける**。(1) **pint（第三者の単位ライブラリ）** に基準単位まで換算させて 103 件 — ★ただし pint は換算を何段も掛けるので **最後の1ビットがずれる**（`ft` を 0.30479999999999996 と出す）。だから許容つきでしか使えない (2) **条約・法令の言葉から Python の `Fraction` で組み立てた有理数** と **1ビットも違わない**ことを 101 件 — 表の float を写すのではなく「1ヤード＝0.9144m ちょうど」「1尺＝10/33m」「1坪＝1間四方」から掛け算する。★**この道具は「定義値か近似値か」を1件ずつ出すのが売りなので、そのラベル自体を測る**（`定義` と名乗る行は有理数と完全一致であること）。★ **pint とわざと食い違う3行**（acre は国際/米国測量、mmHg は Torr との違い、BTU は定義が複数）は**差が出ること自体**を検査する。ほかに 全ペアの往復 1,348 件 / 温度を pint と 80 件 / 燃費（mile と gallon の係数は pint、式は独立）/ 勾配の atan / 入力の読み取りを Python で独立に / **表示を読み戻して丸めた真値と照合**（桁区切りと `×10ⁿ` をほどく）/ 画面のバッジと `d` の一致。`--sabotage` つき（7種すべて検出）。英語版にもそのまま当たる |
+| `test_char_counter.py` | [文字数カウンタ](https://hirulab-dev.github.io/hirulab-tools/char-counter/) の**参照を出どころで分ける**。(1) **X の重み付きカウントは twitter-text の公開設定 v3**(重み1は符号位置 0–4351 / 8192–8205 / 8208–8223 / 8242–8247 だけ、URL は一律23、絵文字は書記素クラスタ1つで2)を Python に書き下したもの。★**「全角なら2」ではない** — `…` `€` `→` やベトナム語は半角に見えても2 (2) **書記素クラスタの切り方は第三者の `regex` モジュール(UAX #29 の `\X`)**。道具側はブラウザの `Intl.Segmenter`(ICU)なので、別々の実装で同じ切れ方になるかを見る (3) **空白の集合は ECMAScript の規定を `unicodedata` から組み立てる**(JS の `\s` は Python の `isspace()` と違う。U+FEFF は JS だけ・U+0085 は Python だけ) (4) 文字数・行数・段落数・単語数・原稿用紙・読了時間は Python で独立に書き下した規則 (5) **画面の表示を読み戻す**(桁区切りをほどく)+バーの幅と状態。見本300通り × 日英2版 + 符号位置1,236個。`--sabotage` つき(8種すべて検出) |
 
 ⚠ `test_qr.py` は Chromium ではなく **dukpy（Duktape）** で JS を走らせます。
 参照データを作るときの segno は、**詰めビットの処理を1か所だけ規格どおりに直してから**使っています
@@ -30,7 +31,7 @@
 ## 使い方
 
 ```
-pip install playwright tzdata pint
+pip install playwright tzdata pint regex
 python -m playwright install chromium
 python tools/tests/test_timezone.py docs/tz/index.html --n 250
 python tools/tests/test_csv.py --page docs/csv/index.html --cases 800
@@ -48,6 +49,8 @@ python tools/tests/test_page_contrast.py               # 日英ともに当た�
 python tools/tests/test_diff.py --n 300                # 日英ともに当たる（git が要る）
 python tools/tests/test_diff.py --sabotage
 python tools/tests/test_json.py --n 400                # 日英ともに当たる
+python tools/tests/test_char_counter.py --n 300         # 日英ともに当たる
+python tools/tests/test_char_counter.py --sabotage
 python tools/tests/test_json.py --sabotage
 python tools/tests/test_unit.py --n 300              # 日英ともに当たる（pint が要る）
 python tools/tests/test_unit.py --sabotage

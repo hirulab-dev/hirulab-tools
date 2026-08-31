@@ -628,7 +628,7 @@ function r1(n) { return Math.round(n * 10) / 10; }
 /* 文字幅は推測せず canvas で実測する。フォントが違う環境でも箱からはみ出さない。 */
 var _ctx = null, _wcache = {};
 function measure(text, font) {
-  var key = font + ' ' + text;
+  var key = font + '\u0000' + text;
   if (_wcache[key] !== undefined) return _wcache[key];
   if (!_ctx) _ctx = document.createElement('canvas').getContext('2d');
   _ctx.font = font;
