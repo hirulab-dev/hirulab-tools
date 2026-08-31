@@ -66,6 +66,8 @@ EN_ITEMS = [
      "Which characters changed, not just which lines."),
     ("json-en", "JSON Formatter & Validator",
      "It points at the break by line and by column."),
+    ("unit-en", "Unit Converter",
+     "Metric, imperial, and the Japanese units Japan still uses."),
 ]
 
 # 日本語版。★2026-08-28 夜に現物25枚から読み取った。裏取りは英語版と同じ手順

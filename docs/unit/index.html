@@ -114,6 +114,8 @@
   footer a{color:var(--accent)}
 </style>
 <link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/unit/">
+<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/unit/">
+<link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/unit.html">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="クロードの昼ラボ">
@@ -251,10 +253,11 @@
       <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
       <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
       <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
-      <li><a href="../replace/">正規表現の置換プレビュー</a></li>      <li><a href="../jwt/">JWTの読み下し</a></li>
-
+      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
+      <li><a href="../jwt/">JWTの読み下し</a></li>
       <li><a href="../password/">パスワード生成・強度診断</a></li>
       <li><a href="../base64/">Base64・データURLの分解</a></li>
+      <li><a href="../en/unit.html">English version</a></li>
     </ul>
     <p class="hl-links">
       <a href="../">道具箱のトップ</a> ・
@@ -431,7 +434,10 @@ const C = [
     {s:'bar', nm:'バール', f:1e5, d:true},
     {s:'atm', nm:'気圧', f:101325, d:true, n:'標準大気圧。ちょうど101325Pa と定義されています。'},
     {s:'mmHg',nm:'水銀柱ミリメートル', f:101325/760, d:true, n:'Torr と同じ。血圧の単位。'},
-    {s:'psi', nm:'重量ポンド毎平方インチ', f:6894.757293168361, d:true, n:'タイヤの空気圧。日本のスタンドは kPa 表示のことが多い。'}
+    /* psi = 1ポンド重 / 1平方インチ = 0.45359237kg × 9.80665m/s² ÷ (0.0254m)²
+       ちょうど 8896443230521/1290320000 Pa。小数で書き下すと最後の1ビットがずれるので、
+       割り算のままにして倍精度に丸めさせる（2026-08-31 修正） */
+    {s:'psi', nm:'重量ポンド毎平方インチ', f:8896443230521/1290320000, d:true, n:'タイヤの空気圧。日本のスタンドは kPa 表示のことが多い。'}
   ]
 },
 {
@@ -476,7 +482,9 @@ const C = [
 /* ---------- 換算の中身（ここだけ独立してテストできるようにしてある） ---------- */
 function toBase(u, x){ return u.to ? u.to(x) : x * u.f; }
 function fromBase(u, b){ return u.from ? u.from(b) : b / u.f; }
-function convert(u1, u2, x){ return fromBase(u2, toBase(u1, x)); }
+/* 同じ単位どうしは基準を経由しない。温度のように往復で誤差が出る式だと、
+   0℉ の行に 1.06581×10⁻¹⁴ のような値が出てしまうため（2026-08-31 修正）。 */
+function convert(u1, u2, x){ return u1 === u2 ? x : fromBase(u2, toBase(u1, x)); }
 
 /* ---------- 数値の入力（分数・カンマ・全角に対応） ---------- */
 function parseNum(src){
@@ -565,7 +573,7 @@ function buildUnits(keep){
   sel.innerHTML = '';
   unitsOf(cat).forEach((u, i) => {
     const o = document.createElement('option');
-    o.value = String(i); o.textContent = u.s + ' — ' + u.nm;
+    o.value = String(i); o.textContent = u.nm === u.s ? u.s : u.s + ' — ' + u.nm;
     sel.appendChild(o);
   });
   const list = unitsOf(cat);
@@ -595,8 +603,8 @@ function run(){
 
   list.forEach(u => {
     if (jpOnly && !u.jp && u !== src) return;
-    const v = fromBase(u, base);
     const self = (u.s === src.s);
+    const v = self ? p.v : fromBase(u, base);
     const tr = document.createElement('tr');
     tr.className = (self ? 'self ' : '') + (u.jp ? 'jp' : '');
 
@@ -605,8 +613,12 @@ function run(){
 
     const td2 = document.createElement('td'); td2.className = 'unit';
     const sy = document.createElement('span'); sy.className = 'sym'; sy.textContent = u.s;
-    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = u.nm;
-    td2.appendChild(sy); td2.appendChild(nm); tr.appendChild(td2);
+    td2.appendChild(sy);
+    if (u.nm !== u.s) {   // 「日 日」のように記号と名前が同じ行では名前を出さない
+      const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = u.nm;
+      td2.appendChild(nm);
+    }
+    tr.appendChild(td2);
 
     const td3 = document.createElement('td'); td3.className = 'note';
     const bg = document.createElement('span');

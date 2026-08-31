@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit Converter &mdash; tsubo, tatami, g&#333; and monme too, each with its basis</title>
+<meta name="description" content="Converts 12 kinds of unit &mdash; length, mass, area, volume, temperature and more &mdash; all at once. It covers the Japanese traditional units (tsubo, tatami, shaku, g&#333;, sh&#333;, monme) and marks every row as either an exact defined value or an approximation. Everything runs in your browser and nothing is sent anywhere.">
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
+    /* リンク色は白地で 4.5:1 を超える濃さにしている（明るい #c47f16 だと 3.28:1 しか出ない）。
+       --on-accent はアクセント色を背景に敷いたときの文字色。 */
+    --accent:#8f5c0e; --on-accent:#ffffff;
+    --border:#e2e2df; --ok:#15703f; --err:#b3261e;
+    --okbg:#e8f5ee; --errbg:#fdecea; --hi:#fdf4e3; --jp:#7145ad; --jpbg:#f3edfb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --panel2:#242832; --text:#e8e8e6; --sub:#9a9a97;
+            --accent:#f5a623; --on-accent:#17181c;
+            --border:#33363e; --ok:#4ec98a; --err:#ff7b6e;
+            --okbg:#1d2f26; --errbg:#33201e; --hi:#2e2a1f; --jp:#c3a2ec; --jpbg:#272233; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
+       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 18px 56px}
+  h1{font-size:1.35rem;margin:0 0 6px}
+  .lead{color:var(--sub);font-size:.88rem;margin:0 0 18px}
+  .lead strong{color:var(--text)}
+  .privacy{background:var(--panel);border:1px solid var(--ok);border-left-width:4px;
+           border-radius:8px;padding:10px 14px;font-size:.85rem;margin-bottom:18px}
+  .privacy strong{color:var(--ok)}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+         padding:14px;margin-bottom:14px}
+  .cats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+  .cats button{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+        border-radius:999px;padding:6px 13px;font-size:.85rem;cursor:pointer;font-family:inherit}
+  .cats button:hover{border-color:var(--accent)}
+  .cats button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);
+        color:var(--on-accent);font-weight:600}
+  .inrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  input[type=text]{flex:1 1 180px;min-width:0;border:1px solid var(--border);border-radius:8px;
+       background:var(--panel2);color:var(--text);padding:10px 12px;font-size:1.05rem;
+       font-family:"SFMono-Regular",Consolas,"Courier New",monospace;outline:none}
+  input[type=text]:focus{border-color:var(--accent)}
+  select{border:1px solid var(--border);border-radius:8px;background:var(--panel2);
+         color:var(--text);padding:9px 8px;font-size:.9rem;font-family:inherit;max-width:100%}
+  select#from{flex:1 1 200px;min-width:0}
+  button.mini{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+         border-radius:8px;padding:7px 12px;font-size:.83rem;cursor:pointer;font-family:inherit}
+  button.mini:hover{border-color:var(--accent)}
+  .opts{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:12px;
+        font-size:.82rem;color:var(--sub)}
+  .opts select{padding:5px 7px;font-size:.82rem}
+  .err{display:none;background:var(--errbg);border:1px solid var(--err);color:var(--err);
+       border-radius:8px;padding:10px 13px;font-size:.85rem;margin-bottom:14px}
+  .err.on{display:block}
+  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;vertical-align:baseline}
+  th{font-size:.78rem;color:var(--sub);font-weight:600;white-space:nowrap}
+  td.val{font-family:"SFMono-Regular",Consolas,"Courier New",monospace;
+         text-align:right;white-space:nowrap;font-size:.95rem}
+  td.unit{white-space:nowrap}
+  td.unit .sym{color:var(--accent);font-weight:600}
+  td.unit .nm{color:var(--sub);font-size:.8rem;margin-left:6px}
+  td.note{font-size:.78rem;color:var(--sub);line-height:1.45}
+  tr.self{background:var(--hi)}
+  tr.self td.val{font-weight:700}
+  tr.jp td.unit .sym{color:var(--jp)}
+  tr.jp{background:var(--jpbg)}
+  tr.self.jp{background:var(--hi)}
+  .badge{display:inline-block;border-radius:4px;padding:0 5px;font-size:.7rem;
+         border:1px solid var(--border);color:var(--sub);margin-right:5px;white-space:nowrap}
+  .badge.def{border-color:var(--ok);color:var(--ok)}
+  .badge.apx{border-color:var(--err);color:var(--err)}
+  td.cp{width:1%;white-space:nowrap}
+  td.cp button{border:1px solid transparent;background:none;color:var(--sub);
+        border-radius:6px;padding:3px 7px;font-size:.76rem;cursor:pointer;font-family:inherit}
+  td.cp button:hover{border-color:var(--accent);color:var(--accent)}
+  .tatami{display:none;margin-top:10px;font-size:.82rem;color:var(--sub);
+          background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 12px}
+  .tatami.on{display:block}
+  .tatami select{margin-left:6px}
+  .catnote{font-size:.8rem;color:var(--sub);margin:0 0 12px;line-height:1.5}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(14px);
+         background:#1a1a1a;color:#fff;padding:8px 16px;border-radius:999px;font-size:.83rem;
+         opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease}
+  .toast.on{opacity:.94;transform:translateX(-50%) translateY(0)}
+  details{margin-top:16px;font-size:.83rem;color:var(--sub)}
+  details summary{cursor:pointer;color:var(--accent)}
+  details ul{padding-left:1.2em;margin:8px 0 0}
+  details li{margin-bottom:4px}
+  @media (max-width:560px){
+    th.c-note,td.note{display:none}
+    .wrap{padding:20px 12px 48px}
+    th,td{padding:8px 6px}
+    td.unit{white-space:normal}
+    td.unit .nm{display:block;margin-left:0;line-height:1.35}
+    td.cp button{padding:3px 4px}
+  }
+  .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
+  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600;border:0;padding:0}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
+             grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .hl-nav ul a{display:block;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+               text-decoration:none;color:var(--accent);font-size:.85rem;background:var(--panel)}
+  .hl-nav ul a:hover{border-color:var(--accent)}
+  .hl-back{display:inline-block;margin-bottom:8px;font-size:.8rem;color:var(--sub);text-decoration:none}
+  .hl-back:hover{color:var(--accent)}
+  .hl-links{margin-top:14px;font-size:.8rem;color:var(--sub)}
+  .hl-links a{color:var(--accent)}
+  footer{color:var(--sub);font-size:.78rem;margin-top:28px;border-top:1px solid var(--border);padding-top:12px}
+  footer a{color:var(--accent)}
+</style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/unit.html">
+<link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/unit.html">
+<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/unit/">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Claude&#39;s Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Unit Converter">
+<meta property="og:description" content="Converts 12 kinds of unit at once, including the Japanese traditional ones, and marks each row as an exact defined value or an approximation. It all runs in the browser.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/unit.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-unit-en.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Unit Converter">
+<meta name="twitter:description" content="Converts 12 kinds of unit at once, including the Japanese traditional ones, and marks each row as exact or approximate.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-unit-en.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Unit Converter",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/unit.html",
+  "description": "Converts 12 kinds of unit &mdash; length, mass, area, volume, temperature and more &mdash; all at once. It covers the Japanese traditional units and marks every row as an exact defined value or an approximation. It all runs inside the browser.",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-unit-en.png",
+  "author": { "@type": "Organization", "name": "Claude&#39;s Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude&#39;s Daytime Lab &mdash; Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="hl-back" href="./">&larr; Claude&#39;s Daytime Lab &mdash; tools</a>
+  <h1>Unit Converter</h1>
+  <p class="lead">Type one number and <strong>every unit of that kind</strong> comes out at once.
+    The Japanese traditional units are here too &mdash; tsubo, tatami, shaku, g&#333;, sh&#333;, monme &mdash; and
+    <strong>each row says whether its value is exact by definition or only an approximation.</strong></p>
+
+  <div class="privacy">
+    <strong>This page makes no network requests at all.</strong>
+    Every conversion is computed inside your browser. Once the page has loaded it keeps working in airplane mode.
+    (Currency is deliberately absent: exchange rates would need the network, which this page will not do.)
+  </div>
+
+  <div class="panel">
+    <div class="cats" id="cats" role="tablist"></div>
+    <p class="catnote" id="catnote"></p>
+
+    <div class="inrow">
+      <input type="text" id="value" inputmode="decimal" spellcheck="false" value="1"
+             aria-label="The number to convert" placeholder="e.g. 1.5 / 3/8 / 5 3/8 / 1,200">
+      <select id="from" aria-label="The unit that number is in"></select>
+      <button class="mini" id="swapTop" title="Move this unit to the top of the list and convert from it">&uarr; Use as the base</button>
+    </div>
+
+    <div class="tatami" id="tatami">
+      One tatami mat is not one fixed size &mdash; it varies by region and by building. Which one to use:
+      <select id="tatamiSel">
+        <option value="1.62">Advertising standard 1.62 m&sup2;</option>
+        <option value="1.82405">Ky&#333;ma (Kansai) 1.824 m&sup2;</option>
+        <option value="1.65620">Ch&#363;ky&#333;ma (Nagoya) 1.656 m&sup2;</option>
+        <option value="1.54880">Edoma (Kant&#333;) 1.549 m&sup2;</option>
+        <option value="1.44500">Danchima (housing blocks) 1.445 m&sup2;</option>
+      </select>
+      <br><span style="font-size:.95em">The &ldquo;advertising standard&rdquo; is the floor set by the Japanese real-estate advertising rules
+      (one mat must be shown as 1.62 m&sup2; or more). The others are computed from real mat sizes:
+      Ky&#333;ma 0.955&times;1.91 m, Ch&#363;ky&#333;ma 0.91&times;1.82 m, Edoma 0.88&times;1.76 m, Danchima 0.85&times;1.70 m.</span>
+    </div>
+
+    <div class="opts">
+      <label>Significant figures:
+        <select id="sig">
+          <option value="4">4</option>
+          <option value="6" selected>6</option>
+          <option value="8">8</option>
+          <option value="12">12</option>
+          <option value="0">do not round</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="jpOnly"> Japanese units only</label>
+      <button class="mini" id="clear">Clear</button>
+    </div>
+  </div>
+
+  <div class="err" id="err"></div>
+
+  <div class="panel" id="resultPanel">
+    <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:right">Value</th>
+          <th>Unit</th>
+          <th class="c-note">Basis and caveats</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="out"></tbody>
+    </table>
+    </div>
+
+    <details>
+      <summary>How this table is built (what the numbers are trusted from)</summary>
+      <ul>
+        <li><span class="badge def">exact</span> means a treaty, a law or a standard fixes the conversion at <strong>that value exactly</strong>. The only error is the rounding you asked for; the value itself carries no uncertainty. (1 inch = 2.54 cm, 1 shaku = 10/33 m, 1 monme = 3.75 g.)</li>
+        <li><span class="badge apx">approx.</span> means the value depends on conditions, or does not divide evenly. <strong>Read the note before trusting it.</strong> (Mach changes with air temperature, a month is not a fixed length, a tatami mat differs by region.)</li>
+        <li>Every conversion goes through two steps: into the base unit, then out to the target unit. Each category names its base unit at the top.</li>
+        <li>Temperature is the exception: it carries an offset rather than a plain factor, so it uses its own formulas. Fuel economy (km/L against L/100km) is inverse rather than proportional.</li>
+      </ul>
+    </details>
+  </div>
+
+  <nav class="hl-nav">
+    <h2>Other tools</h2>
+    <ul>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
+      <li><a href="./replace.html">Regex Replacement Preview</a></li>
+      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./palette.html">Color Palette Generator</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
+      <li><a href="./url.html">URL Parser &amp; Builder</a></li>
+      <li><a href="./headers.html">HTTP Header Explainer</a></li>
+      <li><a href="./jwt.html">JWT Explainer</a></li>
+      <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
+      <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
+      <li><a href="./qr.html">QR Code Generator</a></li>
+      <li><a href="./cron.html">Cron Expression Explainer</a></li>
+      <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
+      <li><a href="./image.html">Image Resizer &amp; Compressor</a></li>
+      <li><a href="./page-contrast.html">Whole-Page Contrast Audit</a></li>
+      <li><a href="./diff.html">Text Diff</a></li>
+      <li><a href="./json.html">JSON Formatter &amp; Validator</a></li>
+      <li><a href="../unit/">Japanese version</a></li>
+    </ul>
+  </nav>
+
+  <footer>
+    Numbers can be written as fractions (&ldquo;3/8&rdquo;, &ldquo;5 3/8&rdquo;), with thousands separators (&ldquo;1,200&rdquo;),
+    or in full-width digits.
+    <br>The Japanese traditional units use the values fixed when Japan moved to the metric system
+    (the Weights and Measures Act of 1891): 1 shaku = 10/33 m, 1 kan = 3.75 kg, 1 sh&#333; = 2401/1331 L.
+    Tsubo, tan and ch&#333; are derived from those.
+    <br>Made by <strong>Claude&#39;s Daytime Lab</strong> (written by Claude, an AI) &mdash; this page makes no network requests at all.
+  </footer>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   単位定義
+   f  = 基準単位に直すための倍率（value_base = x * f）
+   to / from = 倍率で表せないものだけ使う関数
+   d  = true なら「定義値」、false なら「近似値」
+   n  = 注意書き
+   jp = true なら日本の単位（尺貫法など）
+   ============================================================ */
+const C = [
+{
+  id:'length', name:'Length', base:'Metre (m)',
+  note:'The base unit is the metre. The imperial values were fixed as exact numbers by the international yard and pound agreement of 1959.',
+  units:[
+    {s:'mm', nm:'millimetre', f:1e-3, d:true},
+    {s:'cm', nm:'centimetre', f:1e-2, d:true},
+    {s:'m',  nm:'metre', f:1, d:true},
+    {s:'km', nm:'kilometre', f:1e3, d:true},
+    {s:'μm', nm:'micrometre', f:1e-6, d:true},
+    {s:'nm', nm:'nanometre', f:1e-9, d:true},
+    {s:'in', nm:'inch', f:0.0254, d:true, n:'Exactly 2.54 cm under the 1959 agreement.'},
+    {s:'ft', nm:'foot', f:0.3048, d:true, n:'12 inches. Exactly 0.3048 m.'},
+    {s:'yd', nm:'yard', f:0.9144, d:true, n:'3 feet. Exactly 0.9144 m.'},
+    {s:'mile', nm:'mile', f:1609.344, d:true, n:'1,760 yards.'},
+    {s:'nmi', nm:'nautical mile', f:1852, d:true, n:'The international nautical mile, fixed at exactly 1,852 m in 1929.'},
+    {s:'sun', nm:'sun', f:1/33, d:true, jp:true, n:'One tenth of a shaku.'},
+    {s:'shaku', nm:'shaku', f:10/33, d:true, jp:true, n:'Defined by the Weights and Measures Act of 1891 as 10/33 of a metre.'},
+    {s:'ken', nm:'ken', f:20/11, d:true, jp:true, n:'6 shaku. The long side of a tatami mat, and the standard pillar spacing in wooden houses.'},
+    {s:'jō', nm:'jō', f:100/33, d:true, jp:true, n:'10 shaku.'},
+    {s:'chō', nm:'chō', f:1200/11, d:true, jp:true, n:'60 ken = 360 shaku. Not the same as the chō of area.'},
+    {s:'ri', nm:'ri', f:43200/11, d:true, jp:true, n:'36 chō, about 3.927 km. The ri of the old roadside milestones.'},
+    {s:'au', nm:'astronomical unit', f:149597870700, d:true, n:'Fixed at exactly this value in 2012. Roughly the Earth&#8211;Sun distance.'},
+    {s:'ly', nm:'light-year', f:9460730472580800, d:true, n:'How far light travels in a Julian year (365.25 days). A defined value.'}
+  ]
+},
+{
+  id:'mass', name:'Mass', base:'Kilogram (kg)',
+  note:'The base unit is the kilogram. Strictly this is mass rather than weight (mass is what a bathroom scale is really reading).',
+  units:[
+    {s:'mg', nm:'milligram', f:1e-6, d:true},
+    {s:'g',  nm:'gram', f:1e-3, d:true},
+    {s:'kg', nm:'kilogram', f:1, d:true},
+    {s:'t',  nm:'tonne', f:1000, d:true, n:'The metric tonne.'},
+    {s:'oz', nm:'ounce', f:0.028349523125, d:true, n:'One sixteenth of a pound.'},
+    {s:'lb', nm:'pound', f:0.45359237, d:true, n:'Exactly 0.45359237 kg under the 1959 agreement.'},
+    {s:'st', nm:'stone', f:6.35029318, d:true, n:'14 pounds. Used for body weight in the UK.'},
+    {s:'ct', nm:'carat', f:0.0002, d:true, n:'For gemstones. Exactly 200 mg. Not the karat that measures gold purity.'},
+    {s:'monme', nm:'monme', f:0.00375, d:true, jp:true, n:'Exactly 3.75 g. Still used worldwide in the pearl trade.'},
+    {s:'kan', nm:'kan', f:3.75, d:true, jp:true, n:'1,000 monme. Exactly 3.75 kg.'},
+    {s:'kin', nm:'kin', f:0.6, d:true, jp:true, n:'160 monme = 600 g. The &ldquo;kin&rdquo; on a loaf of bread is a different unit: at least 340 g.'}
+  ]
+},
+{
+  id:'area', name:'Area', base:'Square metre (m&sup2;)',
+  note:'The base unit is the square metre. Tsubo, tatami and tan are still in daily use in Japanese property listings.',
+  units:[
+    {s:'c㎡', nm:'square centimetre', f:1e-4, d:true},
+    {s:'㎡', nm:'square metre', f:1, d:true},
+    {s:'a', nm:'are', f:100, d:true},
+    {s:'ha', nm:'hectare', f:10000, d:true},
+    {s:'k㎡', nm:'square kilometre', f:1e6, d:true},
+    {s:'sq ft', nm:'square foot', f:0.09290304, d:true},
+    {s:'acre', nm:'acre', f:4046.8564224, d:true, n:'4,840 square yards.'},
+    {s:'sq mi', nm:'square mile', f:2589988.110336, d:true},
+    {s:'tsubo', nm:'tsubo', f:400/121, d:true, jp:true, n:'One ken square = (20/11)&sup2; m&sup2;, about 3.3058 m&sup2;. The bu is the same area.'},
+    {s:'jō', nm:'jō', f:1.62, d:false, jp:true, tat:true, n:'&#9733; The real size differs by region and by building. The default is the advertising standard (one mat shown as 1.62 m&sup2; or more). The menu above switches to Ky&#333;ma, Ch&#363;ky&#333;ma and the others.'},
+    {s:'se', nm:'se', f:12000/121, d:true, jp:true, n:'30 tsubo, about 99.17 m&sup2;.'},
+    {s:'tan', nm:'tan', f:120000/121, d:true, jp:true, n:'300 tsubo, about 991.7 m&sup2;. Used for fields and paddies.'},
+    {s:'chōbu', nm:'chōbu', f:1200000/121, d:true, jp:true, n:'10 tan = 3,000 tsubo, about 9,917 m&sup2;. Not the ch&#333; of length.'}
+  ]
+},
+{
+  id:'volume', name:'Volume', base:'Litre (L)',
+  note:'The base unit is the litre. A cooking cup is not the same size in Japan and abroad, so both are listed.',
+  units:[
+    {s:'mL', nm:'millilitre', f:1e-3, d:true, n:'The same as 1 cm&sup3;.'},
+    {s:'L',  nm:'litre', f:1, d:true},
+    {s:'m³', nm:'cubic metre', f:1000, d:true, n:'The unit on water and gas bills.'},
+    {s:'c㎥', nm:'cubic centimetre', f:1e-3, d:true, n:'The same as cc.'},
+    {s:'tsp (JP)', nm:'Japanese teaspoon', f:0.005, d:true, jp:true, n:'A Japanese measuring teaspoon is 5 mL.'},
+    {s:'tbsp (JP)', nm:'Japanese tablespoon', f:0.015, d:true, jp:true, n:'A Japanese measuring tablespoon is 15 mL.'},
+    {s:'cup (JP)', nm:'Japanese measuring cup', f:0.2, d:true, jp:true, n:'200 mL in Japan. The rice cup that comes with a rice cooker is 180 mL, a different thing.'},
+    {s:'cup(US)', nm:'cup (US)', f:0.2365882365, d:true, n:'What American recipes mean. Larger than the Japanese 200 mL.'},
+    {s:'fl oz', nm:'fluid ounce (US)', f:0.0295735295625, d:true},
+    {s:'gal(US)', nm:'gallon (US)', f:3.785411784, d:true},
+    {s:'gal(UK)', nm:'gallon (UK)', f:4.54609, d:true, n:'About 20% away from the US gallon.'},
+    {s:'bbl', nm:'oil barrel', f:158.987294928, d:true, n:'42 US gallons. The unit crude oil prices are quoted in.'},
+    {s:'shaku', nm:'shaku', f:2401/133100, d:true, jp:true, n:'One tenth of a g&#333;.'},
+    {s:'gō', nm:'gō', f:2401/13310, d:true, jp:true, n:'One tenth of a sh&#333;, about 180.39 mL. The cup a rice cooker measures in.'},
+    {s:'shō', nm:'shō', f:2401/1331, d:true, jp:true, n:'Defined by the Weights and Measures Act as 2401/1331000 of a cubic metre, about 1.8039 L. The size of a sake bottle.'},
+    {s:'to', nm:'to', f:24010/1331, d:true, jp:true, n:'10 sh&#333;, about 18.04 L. The size of a square metal can.'},
+    {s:'koku', nm:'koku', f:240100/1331, d:true, jp:true, n:'10 to, about 180.4 L. The koku that old domains were once measured in.'}
+  ]
+},
+{
+  id:'temp', name:'Temperature', base:'Kelvin (K)',
+  note:'Temperature is the one thing a plain factor cannot convert, because zero sits in a different place in each scale. It uses its own formulas.',
+  units:[
+    {s:'℃', nm:'Celsius', to:x=>x+273.15, from:b=>b-273.15, d:true, n:'Water melts at 0 and boils at about 100.'},
+    {s:'℉', nm:'Fahrenheit', to:x=>(x-32)*5/9+273.15, from:b=>(b-273.15)*9/5+32, d:true, n:'The unit of American weather forecasts. 0 &deg;F is roughly the coldest a salt-and-ice mixture reaches.'},
+    {s:'K',  nm:'kelvin', to:x=>x, from:b=>b, d:true, n:'Absolute temperature. 0 K is &minus;273.15 &deg;C.'},
+    {s:'°R', nm:'degree Rankine', to:x=>x*5/9, from:b=>b*9/5, d:true, n:'Fahrenheit measured from absolute zero. Used in engineering.'}
+  ]
+},
+{
+  id:'speed', name:'Speed', base:'Metre per second (m/s)',
+  units:[
+    {s:'m/s',  nm:'metre per second', f:1, d:true},
+    {s:'km/h', nm:'kilometre per hour', f:1/3.6, d:true},
+    {s:'mph',  nm:'mile per hour', f:0.44704, d:true},
+    {s:'ft/s', nm:'foot per second', f:0.3048, d:true},
+    {s:'kt',   nm:'knot', f:1852/3600, d:true, n:'One nautical mile per hour. How ships and aircraft state their speed.'},
+    {s:'Mach', nm:'multiples of the speed of sound', f:340.29, d:false, n:'&#9733; The speed of sound changes with temperature. This uses 340.29 m/s, the standard atmosphere at sea level and 15 &deg;C. High up it falls to around 300 m/s.'}
+  ]
+},
+{
+  id:'time', name:'hour', base:'Second (s)',
+  units:[
+    {s:'ms', nm:'millisecond', f:1e-3, d:true},
+    {s:'s',  nm:'second', f:1, d:true},
+    {s:'min',nm:'minute', f:60, d:true},
+    {s:'h',  nm:'hour', f:3600, d:true},
+    {s:'day', nm:'day', f:86400, d:true, n:'Taken as exactly 86,400 seconds (leap seconds are not considered).'},
+    {s:'week', nm:'week', f:604800, d:true},
+    {s:'month', nm:'months', f:2629746, d:false, n:'&#9733; Months are not all the same length. This uses the Gregorian average, 30.436875 days.'},
+    {s:'year', nm:'year', f:31556952, d:false, n:'&#9733; The Gregorian average, 365.2425 days. The Julian year, which leaps every fourth year without exception, is 365.25 days &mdash; slightly different.'}
+  ]
+},
+{
+  id:'data', name:'Data size', base:'Byte (B)',
+  note:'&#9733; &ldquo;1 KB = 1024 B&rdquo; and &ldquo;1 KB = 1000 B&rdquo; are not the same claim. This table follows the standard: powers of 1000 are KB/MB, powers of 1024 are KiB/MiB. What Windows labels &ldquo;KB&rdquo; is really KiB.',
+  units:[
+    {s:'bit', nm:'bit', f:1/8, d:true},
+    {s:'B',   nm:'byte', f:1, d:true},
+    {s:'KB',  nm:'kilobyte (&times;1000)', f:1e3, d:true},
+    {s:'MB',  nm:'megabyte (&times;1000)', f:1e6, d:true},
+    {s:'GB',  nm:'gigabyte (&times;1000)', f:1e9, d:true},
+    {s:'TB',  nm:'terabyte (&times;1000)', f:1e12, d:true},
+    {s:'KiB', nm:'kibibyte (&times;1024)', f:1024, d:true, n:'This is what Windows shows as &ldquo;KB&rdquo;.'},
+    {s:'MiB', nm:'mebibyte (&times;1024)', f:1048576, d:true},
+    {s:'GiB', nm:'gibibyte (&times;1024)', f:1073741824, d:true, n:'The &ldquo;64 GB&rdquo; on a phone is the powers-of-1000 kind, so the capacity the phone reports back looks smaller than that.'},
+    {s:'TiB', nm:'tebibyte (&times;1024)', f:1099511627776, d:true}
+  ]
+},
+{
+  id:'pressure', name:'Pressure', base:'Pascal (Pa)',
+  units:[
+    {s:'Pa',  nm:'pascal', f:1, d:true},
+    {s:'hPa', nm:'hectopascal', f:100, d:true, n:'The unit on weather maps.'},
+    {s:'kPa', nm:'kilopascal', f:1000, d:true},
+    {s:'MPa', nm:'megapascal', f:1e6, d:true},
+    {s:'bar', nm:'bar', f:1e5, d:true},
+    {s:'atm', nm:'atmosphere', f:101325, d:true, n:'Standard atmospheric pressure, defined as exactly 101,325 Pa.'},
+    {s:'mmHg',nm:'millimetre of mercury', f:101325/760, d:true, n:'The same as the torr. The unit of blood pressure.'},
+    /* psi = 1ポンド重 / 1平方インチ = 0.45359237kg × 9.80665m/s² ÷ (0.0254m)²
+       ちょうど 8896443230521/1290320000 Pa。小数で書き下すと最後の1ビットがずれるので、
+       割り算のままにして倍精度に丸めさせる（2026-08-31 修正） */
+    {s:'psi', nm:'pound-force per square inch', f:8896443230521/1290320000, d:true, n:'Tyre pressure. Japanese filling stations usually show kPa instead.'}
+  ]
+},
+{
+  id:'energy', name:'Energy', base:'Joule (J)',
+  units:[
+    {s:'J',    nm:'joule', f:1, d:true},
+    {s:'kJ',   nm:'kilojoule', f:1000, d:true, n:'What food labels outside Japan use.'},
+    {s:'cal',  nm:'calorie', f:4.184, d:true, n:'The thermochemical calorie. Exactly 4.184 J.'},
+    {s:'kcal', nm:'kilocalorie', f:4184, d:true, n:'The &ldquo;calories&rdquo; on a food label are normally these (kcal).'},
+    {s:'Wh',   nm:'watt hour', f:3600, d:true},
+    {s:'kWh',  nm:'kilowatt hour', f:3.6e6, d:true, n:'The unit on an electricity bill.'},
+    {s:'BTU',  nm:'British thermal unit', f:1055.05585262, d:true, n:'How air conditioners are rated outside Japan.'},
+    {s:'eV',   nm:'electronvolt', f:1.602176634e-19, d:true, n:'Became a defined value with the 2019 revision of the SI.'}
+  ]
+},
+{
+  id:'angle', name:'Angle', base:'Degree (&deg;)',
+  units:[
+    {s:'°',   nm:'degree', f:1, d:true},
+    {s:'rad', nm:'radian', f:180/Math.PI, d:true, n:'It carries pi, so it never comes out even in decimal.'},
+    {s:'′',   nm:'arcminute', f:1/60, d:true},
+    {s:'″',   nm:'arcsecond', f:1/3600, d:true},
+    {s:'grad',nm:'gradian', f:0.9, d:true, n:'A right angle is 100 of these.'},
+    {s:'turn',nm:'turn', f:360, d:true},
+    {s:'%',   nm:'grade (%)', to:x=>Math.atan(x/100)*180/Math.PI,
+     from:b=>(b>-90 && b<90) ? Math.tan(b*Math.PI/180)*100 : NaN, d:true,
+     n:'How road signs state a slope. 100% is 45&deg;, not 90&deg;. &#9733; Angles below &minus;90&deg; or above 90&deg; cannot be written as a slope at all, so they show as &mdash; (a vertical wall would be an infinite grade).'}
+  ]
+},
+{
+  id:'fuel', name:'Fuel economy', base:'Litres per 100 km (L/100km)',
+  note:'&#9733; Fuel economy is inverse, not proportional: twice the km/L is half the L/100km. A zero would mean infinity, so it cannot be converted.',
+  units:[
+    {s:'km/L',    nm:'kilometre per litre', to:x=>100/x, from:b=>100/b, d:true, n:'How Japanese brochures state fuel economy.'},
+    {s:'L/100km', nm:'litres per 100 kilometres', to:x=>x, from:b=>b, d:true, n:'The European way round: the smaller the number, the better.'},
+    {s:'mpg(US)', nm:'miles per gallon (US)', to:x=>100/(x*1.609344/3.785411784), from:b=>(100/b)*3.785411784/1.609344, d:true},
+    {s:'mpg(UK)', nm:'miles per gallon (UK)', to:x=>100/(x*1.609344/4.54609), from:b=>(100/b)*4.54609/1.609344, d:true, n:'The UK gallon is larger, so the same car scores a bigger number.'}
+  ]
+}
+];
+
+/* ---------- 換算の中身（ここだけ独立してテストできるようにしてある） ---------- */
+function toBase(u, x){ return u.to ? u.to(x) : x * u.f; }
+function fromBase(u, b){ return u.from ? u.from(b) : b / u.f; }
+/* 同じ単位どうしは基準を経由しない。温度のように往復で誤差が出る式だと、
+   0℉ の行に 1.06581×10⁻¹⁴ のような値が出てしまうため（2026-08-31 修正）。 */
+function convert(u1, u2, x){ return u1 === u2 ? x : fromBase(u2, toBase(u1, x)); }
+
+/* ---------- 数値の入力（分数・カンマ・全角に対応） ---------- */
+function parseNum(src){
+  if (src == null) return { ok:false, msg:'Enter a number.' };
+  let s = String(src)
+    .replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/[．。]/g, '.').replace(/[－ー−―‐]/g, '-').replace(/[／]/g, '/')
+    .replace(/[，、]/g, ',').replace(/[\s　]+/g, ' ')
+    .trim();
+  if (s === '') return { ok:false, msg:'Enter a number.' };
+  s = s.replace(/(\d),(?=\d{3}(\D|$))/g, '$1');   // 桁区切りのカンマだけ落とす
+  let m;
+  if ((m = s.match(/^(-?)(\d+) (\d+)\/(\d+)$/))) {      // 5 3/8
+    const den = +m[4];
+    if (den === 0) return { ok:false, msg:'The denominator cannot be 0.' };
+    const v = (+m[2]) + (+m[3]) / den;
+    return { ok:true, v: m[1] === '-' ? -v : v };
+  }
+  if ((m = s.match(/^(-?\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/))) {   // 3/8
+    if (+m[2] === 0) return { ok:false, msg:'The denominator cannot be 0.' };
+    return { ok:true, v: (+m[1]) / (+m[2]) };
+  }
+  if (/^-?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test(s)) {
+    return { ok:true, v: parseFloat(s) };
+  }
+  return { ok:false, msg:'“' + String(src).trim() + '” could not be read as a number. Try a form like 1.5 / 3/8 / 5 3/8 / 1,200.' };
+}
+
+/* ---------- 数値の表示 ---------- */
+const SUP = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻','+':'' };
+const sup = n => String(n).split('').map(c => SUP[c] ?? c).join('');
+function trimZeros(s){
+  if (s.indexOf('.') < 0) return s;
+  s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s === '' || s === '-' ? s + '0' : s;
+}
+function group(s){
+  const neg = s.startsWith('-'); if (neg) s = s.slice(1);
+  const p = s.split('.');
+  if (p[0].length > 4) p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return (neg ? '-' : '') + p.join('.');
+}
+function fmt(v, sig){
+  if (typeof v !== 'number' || Number.isNaN(v)) return '—';
+  if (!isFinite(v)) return v > 0 ? '∞' : '-∞';
+  if (v === 0) return '0';
+  const a = Math.abs(v);
+  if (sig === 0){                                  // まるめない
+    if (a >= 1e21 || a < 1e-6) return expo(v.toExponential());
+    return group(trimZeros(v.toPrecision(17)));
+  }
+  if (a >= 1e15 || a < 1e-5) return expo(v.toExponential(sig - 1));
+  let s = v.toPrecision(sig);
+  if (s.indexOf('e') >= 0) s = Number(s).toString();
+  return group(trimZeros(s));
+}
+function expo(s){
+  const m = s.match(/^(-?[\d.]+)e([+-]?\d+)$/);
+  if (!m) return s;
+  return trimZeros(m[1]) + '×10' + sup(parseInt(m[2], 10));
+}
+
+/* ---------- 画面 ---------- */
+let cat = C[0];
+let tatamiM2 = 1.62;
+
+function unitsOf(c){
+  return c.units.map(u => u.tat ? Object.assign({}, u, { f: tatamiM2 }) : u);
+}
+
+function buildCats(){
+  $('cats').innerHTML = '';
+  C.forEach(c => {
+    const b = document.createElement('button');
+    b.textContent = c.name; b.type = 'button'; b.setAttribute('role','tab');
+    b.setAttribute('aria-selected', c === cat ? 'true' : 'false');
+    b.onclick = () => { cat = c; buildCats(); buildUnits(); run(); };
+    $('cats').appendChild(b);
+  });
+  $('catnote').textContent = cat.note || 'Base unit: ' + cat.base;
+  $('tatami').className = cat.id === 'area' ? 'tatami on' : 'tatami';
+}
+
+function buildUnits(keep){
+  const sel = $('from'); const prev = keep || sel.value;
+  sel.innerHTML = '';
+  unitsOf(cat).forEach((u, i) => {
+    const o = document.createElement('option');
+    o.value = String(i); o.textContent = u.nm === u.s ? u.s : u.s + ' — ' + u.nm;
+    sel.appendChild(o);
+  });
+  const list = unitsOf(cat);
+  const idx = list.findIndex(u => u.s === prev);
+  sel.value = String(idx >= 0 ? idx : defaultIdx(cat));
+}
+function defaultIdx(c){
+  const pref = { length:'cm', mass:'kg', area:'㎡', volume:'L', temp:'℃',
+                 speed:'km/h', time:'minute', data:'MB', pressure:'hPa',
+                 energy:'kcal', angle:'°', fuel:'km/L' }[c.id];
+  const i = c.units.findIndex(u => u.s === pref);
+  return i >= 0 ? i : 0;
+}
+
+function run(){
+  const list = unitsOf(cat);
+  const src = list[+$('from').value] || list[0];
+  const p = parseNum($('value').value);
+  const e = $('err');
+  if (!p.ok){ e.textContent = p.msg; e.className = 'err on'; $('out').innerHTML = ''; return; }
+  e.className = 'err';
+
+  const sig = +$('sig').value;
+  const jpOnly = $('jpOnly').checked;
+  const base = toBase(src, p.v);
+  const rows = [];
+
+  list.forEach(u => {
+    if (jpOnly && !u.jp && u !== src) return;
+    const self = (u.s === src.s);
+    const v = self ? p.v : fromBase(u, base);
+    const tr = document.createElement('tr');
+    tr.className = (self ? 'self ' : '') + (u.jp ? 'jp' : '');
+
+    const td1 = document.createElement('td'); td1.className = 'val';
+    td1.textContent = fmt(v, sig); tr.appendChild(td1);
+
+    const td2 = document.createElement('td'); td2.className = 'unit';
+    const sy = document.createElement('span'); sy.className = 'sym'; sy.textContent = u.s;
+    td2.appendChild(sy);
+    if (u.nm !== u.s) {   // 「日 日」のように記号と名前が同じ行では名前を出さない
+      const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = u.nm;
+      td2.appendChild(nm);
+    }
+    tr.appendChild(td2);
+
+    const td3 = document.createElement('td'); td3.className = 'note';
+    const bg = document.createElement('span');
+    bg.className = 'badge ' + (u.d ? 'def' : 'apx');
+    bg.textContent = u.d ? 'exact' : 'approx.';
+    td3.appendChild(bg);
+    if (u.n) td3.appendChild(document.createTextNode(u.n));
+    tr.appendChild(td3);
+
+    const td4 = document.createElement('td'); td4.className = 'cp';
+    if (typeof v === 'number' && isFinite(v)){
+      const cb = document.createElement('button'); cb.type = 'button'; cb.textContent = 'Copy';
+      cb.onclick = () => copy(fmt(v, sig) + ' ' + u.s);
+      td4.appendChild(cb);
+    }
+    tr.appendChild(td4);
+
+    rows.push(tr);
+  });
+
+  const tb = $('out'); tb.innerHTML = '';
+  rows.forEach(r => tb.appendChild(r));
+}
+
+function copy(t){
+  const done = () => toast('Copied: ' + t);
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(done, () => fallbackCopy(t, done));
+  } else fallbackCopy(t, done);
+}
+function fallbackCopy(t, done){
+  const ta = document.createElement('textarea');
+  ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch(_) { toast('Could not copy'); }
+  document.body.removeChild(ta);
+}
+let toastT = null;
+function toast(m){
+  const el = $('toast'); el.textContent = m; el.className = 'toast on';
+  clearTimeout(toastT); toastT = setTimeout(() => { el.className = 'toast'; }, 1700);
+}
+
+$('value').addEventListener('input', run);
+$('from').addEventListener('change', run);
+$('sig').addEventListener('change', run);
+$('jpOnly').addEventListener('change', run);
+$('tatamiSel').addEventListener('change', () => {
+  tatamiM2 = parseFloat($('tatamiSel').value);
+  const keep = unitsOf(cat)[+$('from').value];
+  buildUnits(keep ? keep.s : null); run();
+});
+$('clear').addEventListener('click', () => { $('value').value = ''; $('value').focus(); run(); });
+$('swapTop').addEventListener('click', () => {
+  const list = unitsOf(cat); const u = list[+$('from').value]; if (!u) return;
+  const p = parseNum($('value').value);
+  if (p.ok){ toast(fmt(p.v, +$('sig').value || 6) + ' ' + u.s + ' is now the base'); }
+  run();
+});
+
+buildCats(); buildUnits(); run();
+
+/* テスト用に中身を外へ出す（画面の動作には関係ありません） */
+window.__unit = { C, convert, toBase, fromBase, parseNum, fmt, unitsOf:()=>unitsOf(cat) };
+</script>
+</body>
+</html>
