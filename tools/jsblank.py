@@ -30,6 +30,50 @@ def _regex_allowed(out_prefix):
     return bool(m) and m.group() in _KEYWORD_BEFORE_REGEX
 
 
+def _skip_string(src, i):
+    """`src[i]` の引用符から始まる文字列を読み飛ばし、閉じた次の位置を返す。
+
+    テンプレートリテラルの `${…}` の中に文字列が入れ子で出るので、
+    閉じ `}` を探すときに「文字列の中の `}`」を数えないために要る。
+    """
+    q, n = src[i], len(src)
+    j = i + 1
+    while j < n:
+        if src[j] == "\\":
+            j += 2
+            continue
+        if src[j] == q:
+            return j + 1
+        if src[j] == "`" and q == "`":
+            return j + 1
+        if src[j] == "$" and q == "`" and j + 1 < n and src[j + 1] == "{":
+            j = _skip_expr(src, j + 2)
+            continue
+        if src[j] == "\n" and q != "`":
+            return j          # 閉じないまま行が終わった＝壊れている
+        j += 1
+    return n
+
+
+def _skip_expr(src, i):
+    """`${` の直後 `i` から、対応する `}` の次の位置を返す。"""
+    n, depth = len(src), 1
+    while i < n and depth:
+        c = src[i]
+        if c == "\\":
+            i += 2
+            continue
+        if c in ("'", '"', "`"):
+            i = _skip_string(src, i)
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+        i += 1
+    return i
+
+
 def blank(src, keep_quotes=True, blank_regex=False):
     """文字列の中身を空にし、コメントを消したソースを返す。
 
@@ -37,12 +81,49 @@ def blank(src, keep_quotes=True, blank_regex=False):
     2026-08-31 追加。英語版のコードに「文字列でもコメントでもない日本語」——
     つまり**識別子として書かれた日本語**（`収益: { 円: 0 }` のような object のキー）が
     残っていないかを見るために使う。既定を変えていないので、日英のバイト一致の検査には影響しない。
+
+    ★**2026-09-02 修正: テンプレートリテラルの `${…}` の中は「文字列」ではなくコードなので残す。**
+    それまでは `` `…` `` を丸ごと空にしていたので、**`${…}` の中のコードが検査から消えていた**。
+    実際にこうなる（直す前は下の2行が一致すると出た）:
+
+        `${a.getFullYear()}年${a.getMonth()+1}月`
+        `${b.getFullYear()}-${b.getMonth()+9}`
+
+    日英のバイト一致は英語版の生成が立っている土台そのものなので、
+    **そこに「見ていない範囲」があると、主張のほうが実際より強くなる**。
+    実測では公開中の22ページのうち3ページ（palette 401 / image 382 / contrast 114 バイト）
+    にしか隠れた範囲が無かったが、次に作ろうとしていた日付計算機の英語版は
+    テンプレートリテラルだらけなので、そこで初めて大穴になるところだった。
     """
     out = []
     i, n = 0, len(src)
     while i < n:
         c = src[i]
-        if c in ("'", '"', "`"):
+        if c == "`":
+            # テンプレートリテラル: 文字の部分だけ空にして、`${…}` の中は中身を残す
+            # （そこはコードなので、日英で違えば違うと出てほしい）
+            parts, j, ok = [], i + 1, False
+            while j < n:
+                if src[j] == "\\":
+                    j += 2
+                    continue
+                if src[j] == "$" and j + 1 < n and src[j + 1] == "{":
+                    k = _skip_expr(src, j + 2)
+                    parts.append("${" + blank(src[j + 2:k - 1], keep_quotes, blank_regex) + "}")
+                    j = k
+                    continue
+                if src[j] == "`":
+                    ok = True
+                    break
+                j += 1
+            if ok:
+                out.append("`" + "".join(parts) + "`" if keep_quotes else "".join(parts))
+                i = j + 1
+                continue
+            out.append(c)
+            i += 1
+            continue
+        if c in ("'", '"'):
             q = c
             j = i + 1
             while j < n:
@@ -51,7 +132,7 @@ def blank(src, keep_quotes=True, blank_regex=False):
                     continue
                 if src[j] == q:
                     break
-                if src[j] == "\n" and q != "`":
+                if src[j] == "\n":
                     break            # 閉じないまま行が終わった＝壊れている。そのまま出す
                 j += 1
             if j < n and src[j] == q:
