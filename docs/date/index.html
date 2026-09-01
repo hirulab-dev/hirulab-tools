@@ -120,7 +120,7 @@
 <div class="wrap">
   <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
   <h1>日付計算機</h1>
-  <div class="tagline">期間・営業日・年齢・和暦をまとめて計算します。日本の祝日(春分秋分の計算、振替休日、国民の休日)に対応。すべてブラウザ内で完結し、入力した日付はどこにも送信されません。</div>
+  <div class="tagline">期間・営業日・年齢・和暦をまとめて計算します。日本の祝日は<b>その年の規則で</b>出します(1949年からの法改正・五輪の移動・一日限りの休日まで)。すべてブラウザ内で完結し、入力した日付はどこにも送信されません。</div>
 
   <div class="tabs" role="tablist">
     <button role="tab" id="tab-diff"  aria-selected="true"  aria-controls="s-diff">期間を測る</button>
@@ -216,6 +216,13 @@
       </div>
       <span class="hint" style="margin:0">1949年〜2099年に対応</span>
     </div>
+    <div class="hint" style="margin-top:8px;line-height:1.5">
+      <b>その年の規則で計算します。</b>祝日は何度も法律が変わっているので、いまの規則を昔の年に当てると違う日が出ます。
+      成人の日は1999年まで1月15日、天皇誕生日は平成のあいだ12月23日、海の日は1995年まで無く、
+      体育の日は1999年まで10月10日でした。2020・2021年は五輪で海の日・山の日・スポーツの日が動いています。
+      振替休日は1973年4月12日から、国民の休日は1986年から。一日限りの休日(即位の礼など)も6つ入れてあります。
+      <b>ここは期間タブの「営業日」の数にも効きます。</b>
+    </div>
     <table id="h-out"></table>
     <div class="msg" id="h-msg"></div>
   </section>
@@ -294,10 +301,44 @@ const nthMonday = (y, m, n) => {
   const offset = (8 - first.getDay()) % 7;          // 最初の月曜までの日数
   return mk(y, m, 1 + offset + (n-1)*7);
 };
-const vernal  = y => Math.floor(20.8431 + 0.242194*(y-1980) - Math.floor((y-1980)/4));
-const autumnal = y => Math.floor(23.2488 + 0.242194*(y-1980) - Math.floor((y-1980)/4));
+/* 春分・秋分は「その年の何日か」を近似式で出す。★1980年の前後で定数が違う
+   (2026-09-01 まではあとの式だけを全部の年に当てていて、1979年以前が1日ずれていた)。
+   Math.trunc であって Math.floor ではない: 負の年差で 0 のほうに丸める式なので、
+   floor にすると 1979年以前がまた1日ずれる。 */
+const vernal  = y => y <= 1979
+  ? Math.floor(20.8357 + 0.242194*(y-1980) - Math.trunc((y-1983)/4))
+  : Math.floor(20.8431 + 0.242194*(y-1980) - Math.trunc((y-1980)/4));
+const autumnal = y => y <= 1979
+  ? Math.floor(23.2588 + 0.242194*(y-1980) - Math.trunc((y-1983)/4))
+  : Math.floor(23.2488 + 0.242194*(y-1980) - Math.trunc((y-1980)/4));
 
-/** その年の祝日を {キー: 名称} で返す(振替休日・国民の休日を含む) */
+/* 一日限りの休日(その日のためだけに法律が作られたもの) */
+const ONE_OFF = [
+  [1959, 4, 10, "皇太子明仁親王の結婚の儀"],
+  [1989, 2, 24, "昭和天皇の大喪の礼"],
+  [1990, 11, 12, "即位礼正殿の儀"],
+  [1993, 6, 9, "皇太子徳仁親王の結婚の儀"],
+  [2019, 5, 1, "天皇の即位の日"],
+  [2019, 10, 22, "即位礼正殿の儀"]
+];
+
+/** その年の祝日を {キー: 名称} で返す(振替休日・国民の休日を含む)
+ *
+ * ★2026-09-01: それまで**いまの規則を1949年から2099年まで全部の年に当てていた**。
+ *   画面は1949年から受け付けるので、1949〜2021年の73年ぶんが黙って間違っていた
+ *   (成人の日は1999年まで1月15日、天皇誕生日は平成のあいだ12月23日、
+ *    海の日は1995年まで無く、2020・2021年は五輪で動いた、など)。
+ *   祝日は期間の「営業日」の数にも効くので、間違いは日数計算にも回っていた。
+ *   → 改正の年で切り替える形に直した。
+ *
+ * ⚠ 2つだけ、よく使われている参照実装(Python の jpholiday)と食い違う。
+ *   どちらもこちらが法律どおりで、向こうが**規則を過去にさかのぼって当てている**:
+ *   - 国民の休日は昭和60年法律第103号(1985-12-27施行)なので、**最初は1986年5月4日**。
+ *     jpholiday は1949年からの5月4日を全部そう呼ぶ(31日ぶん)
+ *   - 振替休日は昭和48年法律第10号(1973-04-12施行)なので、**最初は1973年4月30日**。
+ *     jpholiday は同じ年の2月12日も振替休日にする
+ *   この2つを除けば1949〜2099年の151年ぶんが完全に一致する(`test_date.py` で毎回確かめている)。
+ */
 const holidayCache = {};
 function holidays(y) {
   if (holidayCache[y]) return holidayCache[y];
@@ -305,42 +346,65 @@ function holidays(y) {
   const push = (dt, name) => base.push([dt, name]);
 
   push(mk(y,1,1), "元日");
-  push(nthMonday(y,1,2), "成人の日");
-  push(mk(y,2,11), "建国記念の日");
-  if (y >= 2020) push(mk(y,2,23), "天皇誕生日");
+  push(y < 2000 ? mk(y,1,15) : nthMonday(y,1,2), "成人の日");          // 2000年からハッピーマンデー
+  if (y >= 1967) push(mk(y,2,11), "建国記念の日");
+  if (y <= 1988) push(mk(y,4,29), "天皇誕生日");                        // 昭和
+  else if (y <= 2018) push(mk(y,12,23), "天皇誕生日");                  // 平成
+  else if (y >= 2020) push(mk(y,2,23), "天皇誕生日");                   // 令和(2019年は無い)
   push(mk(y, 3, vernal(y)), "春分の日");
-  push(mk(y,4,29), "昭和の日");
+  if (y >= 1989 && y <= 2006) push(mk(y,4,29), "みどりの日");           // 4月29日だった時期
+  else if (y >= 2007) { push(mk(y,5,4), "みどりの日"); push(mk(y,4,29), "昭和の日"); }
   push(mk(y,5,3), "憲法記念日");
-  push(mk(y,5,4), "みどりの日");
   push(mk(y,5,5), "こどもの日");
-  push(nthMonday(y,7,3), "海の日");
-  if (y >= 2016) push(mk(y,8,11), "山の日");
-  push(nthMonday(y,9,3), "敬老の日");
+  if (y === 2020) push(mk(y,7,23), "海の日");                           // 東京五輪で移動
+  else if (y === 2021) push(mk(y,7,22), "海の日");
+  else if (y >= 1996 && y <= 2002) push(mk(y,7,20), "海の日");          // 新設時は7月20日
+  else if (y >= 2003) push(nthMonday(y,7,3), "海の日");
+  if (y === 2020) push(mk(y,8,10), "山の日");
+  else if (y === 2021) push(mk(y,8,8), "山の日");
+  else if (y >= 2016) push(mk(y,8,11), "山の日");
+  if (y >= 1966 && y <= 2002) push(mk(y,9,15), "敬老の日");
+  else if (y >= 2003) push(nthMonday(y,9,3), "敬老の日");
   push(mk(y, 9, autumnal(y)), "秋分の日");
-  push(nthMonday(y,10,2), "スポーツの日");
+  if (y === 2020) push(mk(y,7,24), "スポーツの日");
+  else if (y === 2021) push(mk(y,7,23), "スポーツの日");
+  else if (y >= 1966 && y <= 1999) push(mk(y,10,10), "体育の日");
+  else if (y >= 2000 && y <= 2019) push(nthMonday(y,10,2), "体育の日");
+  else if (y >= 2022) push(nthMonday(y,10,2), "スポーツの日");
   push(mk(y,11,3), "文化の日");
   push(mk(y,11,23), "勤労感謝の日");
+  ONE_OFF.forEach(([oy, om, od, name]) => { if (oy === y) push(mk(oy, om, od), name); });
 
   const map = {};
   base.forEach(([dt, name]) => { map[key(dt)] = name; });
 
-  // 振替休日: 日曜が祝日なら、次の「祝日でない日」を休日にする
-  base.slice().sort((a,b) => a[0]-b[0]).forEach(([dt]) => {
-    if (dt.getDay() !== 0) return;
-    let c = addDays(dt, 1);
-    while (map[key(c)]) c = addDays(c, 1);
-    map[key(c)] = "振替休日";
-  });
+  // 振替休日(1973-04-12 施行。最初に効いたのは同年4月30日)
+  // 2007年からは「その日より後の、いちばん近い祝日でない日」。それより前は「翌日」だけ。
+  if (y >= 1973) {
+    base.slice().sort((a,b) => a[0]-b[0]).forEach(([dt]) => {
+      if (dt.getDay() !== 0) return;
+      if (y === 1973 && dt < mk(1973,4,12)) return;
+      let c = addDays(dt, 1);
+      if (y >= 2007) {
+        while (map[key(c)]) c = addDays(c, 1);
+        map[key(c)] = "振替休日";
+      } else if (!map[key(c)]) {
+        map[key(c)] = "振替休日";
+      }
+    });
+  }
 
-  // 国民の休日: 祝日に挟まれた平日(実際に発生するのは9月の敬老の日〜秋分の日の間)
-  const sorted = Object.keys(map).map(Number).sort((a,b)=>a-b);
-  sorted.forEach(k => {
-    const dt = mk(Math.floor(k/10000), Math.floor(k/100)%100, k%100);
-    const gap = addDays(dt, 1), next = addDays(dt, 2);
-    if (!map[key(gap)] && map[key(next)] && gap.getDay() !== 0 && gap.getDay() !== 6) {
-      map[key(gap)] = "国民の休日";
-    }
-  });
+  // 国民の休日: 祝日に挟まれた日(1985-12-27 施行。最初に効いたのは1986年5月4日)
+  if (y >= 1986) {
+    const sorted = Object.keys(map).map(Number).sort((a,b)=>a-b);
+    sorted.forEach(k => {
+      const dt = mk(Math.floor(k/10000), Math.floor(k/100)%100, k%100);
+      const gap = addDays(dt, 1), next = addDays(dt, 2);
+      if (!map[key(gap)] && map[key(next)] && gap.getDay() !== 0) {
+        map[key(gap)] = "国民の休日";
+      }
+    });
+  }
 
   holidayCache[y] = map;
   return map;
@@ -399,12 +463,18 @@ function calcDiff() {
   const rawDays = Math.round((e - s) / MS);
   const days = rawDays + (incl ? 1 : 0);
 
-  // 年月日の内訳
-  let yy = e.getFullYear() - s.getFullYear();
-  let mm = e.getMonth() - s.getMonth();
-  let dd = e.getDate() - s.getDate();
-  if (dd < 0) { mm--; const pm = new Date(e.getFullYear(), e.getMonth(), 0); dd += pm.getDate(); }
-  if (mm < 0) { yy--; mm += 12; }
+  /* 年月日の内訳。★2026-09-01 是正: 前は「終了日の前の月の日数を借りて引く」形だったが、
+     **月末から数え始めたときに、この道具自身の加減算タブと答えが合わなかった**。
+     例: 2008-10-31 → 2009-12-23 を「1年1か月22日」と出すが、
+     加減算タブで 2008-10-31 に1年1か月を足すと 2009-11-30(存在しない日は末日に丸める)で、
+     そこから22日は 2009-12-22。1日ずれる。
+     → **足し戻すと元に戻る形**に変えた。まず「足しても行き過ぎない月数」を出し、
+     残りを日数で数える。addMonths と同じ丸め方を通るので、ずれようがない。 */
+  let total = (e.getFullYear()*12 + e.getMonth()) - (s.getFullYear()*12 + s.getMonth());
+  if (addMonths(s, total) > e) total--;
+  const anchor = addMonths(s, total);
+  const yy = Math.floor(total / 12), mm = total % 12;
+  const dd = Math.round((e - anchor) / MS);
 
   // 営業日・週末・祝日を数える(終了日を含むかは incl に従う)
   let biz = 0, wknd = 0, hol = 0;
@@ -470,9 +540,15 @@ function calcAge() {
   if (!b) { $("g-out").innerHTML = ""; $("g-msg").textContent = "生年月日を入れてください。"; return; }
   if (b > at) { $("g-out").innerHTML = ""; $("g-msg").textContent = "生年月日が基準日より後になっています。"; return; }
 
+  /* ★2026-09-01 是正: 前は月日をそのまま比べていたので、**2月29日生まれの平年**だけ
+     「次の誕生日まで: 今日です」と出しているのに満年齢が1つ足りない、という食い違いが出た
+     (次の誕生日の欄は 2月28日に丸めていて、こちらは丸めていなかった)。
+     → 応当日を同じように末日に丸めてから比べる。民法143条2項の「応当する日がないときは
+     その月の末日に満了する」とも同じ側になる。 */
+  const anniv = mk(at.getFullYear(), b.getMonth()+1,
+                   Math.min(b.getDate(), daysInMonth(at.getFullYear(), b.getMonth()+1)));
+  const hadBirthday = at >= anniv;
   let age = at.getFullYear() - b.getFullYear();
-  const hadBirthday = (at.getMonth() > b.getMonth()) ||
-    (at.getMonth() === b.getMonth() && at.getDate() >= b.getDate());
   if (!hadBirthday) age--;
 
   const kazoe = at.getFullYear() - b.getFullYear() + 1;   // 数え年
