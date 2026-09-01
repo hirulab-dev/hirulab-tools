@@ -120,10 +120,16 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--docs", default="docs")
     ap.add_argument("--jp-link", required=True)
-    ap.add_argument("--en-link", required=True)
+    # ★2026-09-01追記: 25本目(和柄パターン)が**英語版を持たない初めての道具**だった。
+    # それまでの24本は必ず日英そろえて出していたので、この引数は必須で書いてあった。
+    # 英語版が無い道具のリンクを EN ページのナビに足すと、そこだけリンク切れになる。
+    ap.add_argument("--en-link", help="ENページのナビに足す行(--no-en のときは不要)")
+    ap.add_argument("--no-en", action="store_true", help="英語版がまだ無い道具。ENページには足さない")
     ap.add_argument("--skip", action="append", default=[], help="このスラッグのJPページは対象外(自分自身)")
     ap.add_argument("--skip-en", action="append", default=[], help="このファイル名のENページは対象外(自分自身)")
     args = ap.parse_args()
+    if not args.no_en and not args.en_link:
+        ap.error("--en-link は必須です(英語版がまだ無いなら --no-en を付ける)")
 
     docs = pathlib.Path(args.docs)
     n_jp = n_en = 0
@@ -138,7 +144,9 @@ def main():
             n_jp += 1
 
     en_dir = docs / "en"
-    if en_dir.exists():
+    if args.no_en:
+        print("EN: --no-en のため対象外(英語版を出したら、そのとき足すこと)")
+    elif en_dir.exists():
         for p in sorted(en_dir.glob("*.html")):
             if p.name in ("index.html",) or p.name in args.skip_en:
                 continue

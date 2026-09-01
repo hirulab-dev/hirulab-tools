@@ -307,6 +307,7 @@ NAV_LINKS_JA = '''var NAV_LINKS = [
   ["../frima-profit/", "フリマ手取り計算機"], ["../cron/", "cron式の読み下し"],
   ["../tz/", "タイムゾーン変換"], ["../csv/", "CSVプレビュー・診断"],
   ["../base64/", "Base64・データURLの分解"],
+  ["../pattern/", "和柄シームレスパターン作成"],
   ["../en/password.html", "English version"]
 ];'''
 
@@ -325,6 +326,8 @@ NAV_LINKS_EN = '''var NAV_LINKS = [
   ["./page-contrast.html", "Whole-Page Contrast Audit"],
   ["./diff.html", "Text Diff"],
   ["./json.html", "JSON Formatter &amp; Validator"],
+  ["./unit.html", "Unit Converter"],
+  ["./pattern.html", "Japanese Pattern Generator"],
   ["../password/", "Japanese version"]
 ];'''
 

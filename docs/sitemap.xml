@@ -230,9 +230,15 @@
   </url>
   <url>
     <loc>https://hirulab-dev.github.io/hirulab-tools/pattern/</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-02</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hirulab-dev.github.io/hirulab-tools/en/pattern.html</loc>
+    <lastmod>2026-09-02</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://hirulab-dev.github.io/hirulab-tools/en/base64.html</loc>

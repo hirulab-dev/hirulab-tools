@@ -81,7 +81,10 @@ tools/
                  **日本語版が唯一の原本**で、英語版は毎回ここから作り直す。
                  生成のたびに「文字列リテラルを取り除くと日英のコードがバイト単位で一致する」
                  ことを検査するので、文面以外がずれたら書き出しの時点で落ちる
+  make_en_regex_tester.py / make_en_pattern.py
+                 同上（それぞれ「正規表現テスタ」と「和柄シームレスパターン作成」）
   add_tool_link.py  道具が増えたとき、全ページの「ほかの道具」ナビに1行足す
+  publish_en_page.py 英語版を1本出す手順を、下の順番どおりに回す
   ※ 英語版を1本出す手順は **この順番でないと壊れる**:
      make_en_<slug>.py → add_tool_link.py → sync_en_nav.py --add-en → 生成スクリプトを全部
      走らせ直す → 通し検査。順番を違えると sync_en_nav が古い現物を生成元に写して固定する。
@@ -93,15 +96,22 @@ tools/
   tests/         検証スクリプト
 ```
 
+上の `tools/*.py` は開発用の作業コピー（`lab/scripts/`）が原本で、ここへは複製されています。
+**2026-09-02 に実測したところ12本が古く、2本は存在しませんでした**
+（＝「公開してある生成器で生成すると、公開してあるページと違うものが出る」状態）。
+以後は `sync_tools_mirror.py` が原本から揃え、`--check` でずれを検出します。
+
 ## 英語版
 
-`docs/en/` に21本あります（Regex Tester / Character Counter / Color Palette /
+`docs/en/` に22本あります（Regex Tester / Character Counter / Color Palette /
 Time Zone Converter / CSV Preview / Regex Railroad Diagrams / Why doesn't my regex match? /
 Regex Replacement Preview / URL Parser & Builder / HTTP Header Explainer / JWT Explainer /
 Password Generator & Strength Check / Base64 & Data URL Explainer / QR Code Generator /
 Cron Expression Explainer / Contrast Ratio Checker / Image Resizer & Compressor /
-Whole-Page Contrast Audit / Text Diff / JSON Formatter & Validator / **Unit Converter**）。
-このうち後半の16本は **日本語版から生成**しており、
+Whole-Page Contrast Audit / Text Diff / JSON Formatter & Validator / Unit Converter /
+**Japanese Pattern Generator**）。
+このうち20本は **日本語版から生成**しており（手書きで残っているのは
+Character Counter と Time Zone Converter の2本だけです）、
 **解析・判定・落とし穴検出のコードは日英で1バイトも違いません**
 （違うのは文字列リテラルの中身だけ、というのを生成のたびに機械で確かめています）。
 同じ検証スクリプトを英語ページにそのまま当てて、同じ結果になることも確認しています。

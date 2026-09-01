@@ -49,6 +49,7 @@ PAIRS = {
     "page-contrast.html": "page-contrast/index.html",
     "palette.html": "palette/index.html",
     "password.html": "password/index.html",
+    "pattern.html": "pattern/index.html",
     "qr.html": "qr/index.html",
     "railroad.html": "railroad/index.html",
     "regex-tester.html": "regex/index.html",
@@ -63,8 +64,9 @@ PAIRS = {
 GENERATED = {
     "base64.html", "contrast.html", "cron.html", "csv.html", "diff.html", "headers.html",
     "image.html", "json.html", "jwt.html", "page-contrast.html", "palette.html",
-    "password.html", "qr.html", "railroad.html", "regex-why.html", "replace.html",
-    "unit.html", "url.html",
+    "password.html", "pattern.html", "qr.html", "railroad.html", "regex-tester.html",
+    "regex-why.html",
+    "replace.html", "unit.html", "url.html",
 }
 
 

@@ -46,6 +46,7 @@ PAIRS = {
     "regex-why": "regex-why.html",
     "replace": "replace.html",
     "cron": "cron.html",
+    "pattern": "pattern.html",
 }
 
 JA_NAV = re.compile(r'(  <nav class="hl-nav">\n    <h2>ほかの道具</h2>\n    <ul>\n)(.*?)(\n    </ul>)', re.S)

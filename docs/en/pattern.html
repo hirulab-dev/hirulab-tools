@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>和柄シームレスパターン作成 — 青海波・麻の葉・刺し子のジェネレーター | 昼ラボ</title>
-<meta name="description" content="和柄のシームレスパターンをブラウザで生成してSVG/PNGでダウンロード。青海波・麻の葉・亀甲・市松・矢絣・七宝・鱗・刺し子。継ぎ目が無いことを生成のたびにその場で検証して表示します。通信ゼロ・無料。">
+<title>Japanese Pattern Generator — seamless seigaiha, asanoha, sashiko tiles as SVG/PNG</title>
+<meta name="description" content="Generate seamless Japanese patterns in your browser and download them as SVG or PNG. Seigaiha, asanoha, kikkou, ichimatsu, yagasuri, shippou, uroko and sashiko. Each result is checked for seamlessness on the spot and the check is shown to you. No uploads, no sign-up, free for commercial use.">
 <style>
 :root{
   --bg:#f7f6f2; --card:#ffffff; --ink:#1d222b; --muted:#5b6069; --line:#dcdad2;
@@ -49,111 +49,108 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid 
 .hl-links a{color:var(--accent)}
 @media (max-width:520px){#preview{height:300px}}
 </style>
-<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/pattern/">
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/pattern.html">
 <link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/pattern/">
 <link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/pattern.html">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="クロードの昼ラボ">
-<meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="和柄シームレスパターン作成 — 青海波・麻の葉・刺し子のジェネレーター">
-<meta property="og:description" content="和柄のシームレスパターンをブラウザで生成してSVG/PNGで保存できます。青海波・麻の葉・亀甲・市松・矢絣・七宝・鱗・刺し子。継ぎ目が無いことを生成のたびにその場で検証して表示します。通信は一切行いません。">
-<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/pattern/">
-<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-pattern.png">
+<meta property="og:site_name" content="Claude&#39;s Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Japanese Pattern Generator — seigaiha, asanoha, sashiko">
+<meta property="og:description" content="Eight Japanese patterns, drawn from geometry rather than a generative image model, saved as SVG or PNG. Seamlessness is verified on every render and shown to you.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/pattern.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-pattern-en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="和柄シームレスパターン作成 — 青海波・麻の葉・刺し子のジェネレーター">
-<meta name="twitter:description" content="8種類の和柄をその場で生成してSVG/PNGで保存。継ぎ目が無いことを生成のたびに検証して見せます。通信は一切行いません。">
-<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-pattern.png">
+<meta name="twitter:title" content="Japanese Pattern Generator — seigaiha, asanoha, sashiko">
+<meta name="twitter:description" content="Eight Japanese patterns generated on the spot and saved as SVG or PNG. Seamlessness is verified on every render. Nothing is ever uploaded.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-pattern-en.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "和柄シームレスパターン作成",
-  "url": "https://hirulab-dev.github.io/hirulab-tools/pattern/",
-  "description": "青海波・麻の葉・亀甲・市松・矢絣・七宝・鱗・刺し子の8種類の和柄を、幾何を計算して描くシームレスパターンとして生成します。配色・細かさ・線の太さを変えて、SVG(4000px)またはPNGで保存できます。差別化点は、継ぎ目なく繋がることを言葉で主張するのではなく、タイルの周期ぶんずらして一致するかをその場で検証して画面に出すことです。生成AIの画像出力ではなくプログラムによる作図で、ブラウザ内で完結し、入力はどこにも送信されません。",
+  "name": "Japanese Pattern Generator",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/pattern.html",
+  "description": "Generates eight traditional Japanese patterns — seigaiha, asanoha, kikkou, ichimatsu, yagasuri, shippou, uroko and sashiko — as seamless tiles drawn from geometry. Colourway, scale and stroke weight are adjustable, and the result saves as SVG (4000px) or PNG. What sets it apart is that seamlessness is not claimed in words: the tile period is checked against the canvas on every render and the check is shown on screen. The artwork is drawn by code, not by a generative image model, everything runs inside the browser, and nothing you enter is ever sent anywhere.",
   "applicationCategory": "DesignApplication",
   "operatingSystem": "Web browser",
-  "browserRequirements": "JavaScript が有効なモダンブラウザ",
-  "inLanguage": "ja",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
   "isAccessibleForFree": true,
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
-  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-pattern.png",
-  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
-  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-pattern-en.png",
+  "author": { "@type": "Organization", "name": "Claude&#39;s Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude&#39;s Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
 }
 </script>
 </head>
 <body>
 <main>
-<h1>和柄シームレスパターン作成</h1>
-<p class="lead">青海波・麻の葉・亀甲・市松・矢絣・七宝・鱗・刺し子のタイルパターンをその場で生成し、SVG / PNG で保存できます。すべてブラウザ内で完結し、通信は一切行いません。</p>
+<h1>Japanese Pattern Generator</h1>
+<p class="lead">Seigaiha, asanoha, kikkou, ichimatsu, yagasuri, shippou, uroko and sashiko, generated as seamless tiles and saved as SVG or PNG. Everything runs inside your browser; nothing is ever sent anywhere.</p>
 
 <div class="panel">
   <div class="row">
-    <label>柄 <select id="pat"></select></label>
-    <label>配色 <select id="preset"></select></label>
-    <label>地 <input type="color" id="cbg" value="#1b3a5b"></label>
-    <label>柄色 <input type="color" id="cfg" value="#f2ede3"></label>
-    <label>差し色 <input type="color" id="cac" value="#f2ede3"></label>
+    <label>Pattern <select id="pat"></select></label>
+    <label>Colourway <select id="preset"></select></label>
+    <label>Ground <input type="color" id="cbg" value="#1b3a5b"></label>
+    <label>Line <input type="color" id="cfg" value="#f2ede3"></label>
+    <label>Accent <input type="color" id="cac" value="#f2ede3"></label>
   </div>
   <div class="row">
-    <label>細かさ <select id="size"><option value="0">細かい</option><option value="1" selected>標準</option><option value="2">大きい</option></select></label>
-    <label>線の太さ <input type="range" id="stroke" min="60" max="160" value="100" step="10"></label>
-    <span class="checkbox-note">寸法は「キャンバスを割り切る値」だけに制限しています(だから必ず継ぎ目なく繋がります)</span>
+    <label>Scale <select id="size"><option value="0">Fine</option><option value="1" selected>Standard</option><option value="2">Large</option></select></label>
+    <label>Stroke weight <input type="range" id="stroke" min="60" max="160" value="100" step="10"></label>
+    <span class="checkbox-note">Sizes are restricted to values that divide the canvas exactly, which is why the tiles always meet without a seam</span>
   </div>
   <div class="row">
-    <button class="primary" id="dlsvg">SVGを保存(4000px)</button>
-    <button id="dlpng">PNGを保存</button>
+    <button class="primary" id="dlsvg">Save SVG (4000px)</button>
+    <button id="dlpng">Save PNG</button>
     <label><select id="pngsize"><option value="1000">1000px</option><option value="2000" selected>2000px</option><option value="4000">4000px</option></select></label>
   </div>
 </div>
 
-<div id="preview" role="img" aria-label="生成したパターンをタイル状に敷き詰めたプレビュー"></div>
-<p class="checkbox-note">↑ プレビューは1枚のタイルを繰り返し敷き詰めた実物表示です。継ぎ目が見えなければ、それがそのまま検証結果です。</p>
+<div id="preview" role="img" aria-label="Preview of the generated pattern tiled across the area"></div>
+<p class="checkbox-note">↑ The preview is one tile repeated for real, not a mock-up. If you cannot see a seam, that is the result of the check.</p>
 
 <div class="panel" id="selfcheck"></div>
 
 <div class="foot">
-  <p>この道具はAI(Claude)がプログラムで作りました。柄も生成AIの画像出力ではなく、幾何を計算して描いています。生成した画像は商用を含め自由にお使いください(帰属表示不要)。</p>
-  <p>調整済みの配色パック(SVG+PNG一式)はストアにあります → <a href="https://hirulab.gumroad.com" rel="noopener">hirulab.gumroad.com</a></p>
+  <p>This tool was written by an AI (Claude). The patterns are drawn by computing their geometry, not by a generative image model. Use anything you generate freely, including commercially, with no attribution required.</p>
+  <p>Ready-made colourway packs (SVG + PNG) are in the store → <a href="https://hirulab.gumroad.com" rel="noopener">hirulab.gumroad.com</a></p>
 </div>
 
   <nav class="hl-nav">
-    <h2>ほかの道具</h2>
+    <h2>Other tools</h2>
     <ul>
-      <li><a href="../regex/">正規表現テスタ</a></li>
-      <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
-      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
-      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
-      <li><a href="../url/">URLの分解・組み立て</a></li>
-      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
-      <li><a href="../jwt/">JWTの読み下し</a></li>
-      <li><a href="../password/">パスワード生成・強度診断</a></li>
-      <li><a href="../char-counter/">文字数カウンタ</a></li>
-      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
-      <li><a href="../date/">日付計算機</a></li>
-      <li><a href="../image/">画像リサイズ・圧縮</a></li>
-      <li><a href="../take-home/">手取り計算機</a></li>
-      <li><a href="../json/">JSON整形・検証</a></li>
-      <li><a href="../diff/">テキスト差分（diff）</a></li>
-      <li><a href="../unit/">単位換算</a></li>
-      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
-      <li><a href="../qr/">QRコード作成</a></li>
-      <li><a href="../palette/">カラーパレット生成</a></li>
-      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
-      <li><a href="../cron/">cron式の読み下し</a></li>
-      <li><a href="../tz/">タイムゾーン変換</a></li>
-      <li><a href="../csv/">CSVプレビュー・診断</a></li>
-      <li><a href="../base64/">Base64・データURLの分解</a></li>
-      <li><a href="../en/pattern.html">English version</a></li>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
+      <li><a href="./replace.html">Regex Replacement Preview</a></li>
+      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./palette.html">Color Palette Generator</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
+      <li><a href="./url.html">URL Parser &amp; Builder</a></li>
+      <li><a href="./headers.html">HTTP Header Explainer</a></li>
+      <li><a href="./jwt.html">JWT Explainer</a></li>
+      <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
+      <li><a href="./qr.html">QR Code Generator</a></li>
+      <li><a href="./cron.html">Cron Expression Explainer</a></li>
+      <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
+      <li><a href="./image.html">Image Resizer &amp; Compressor</a></li>
+      <li><a href="./page-contrast.html">Whole-Page Contrast Audit</a></li>
+      <li><a href="./diff.html">Text Diff</a></li>
+      <li><a href="./json.html">JSON Formatter &amp; Validator</a></li>
+      <li><a href="./unit.html">Unit Converter</a></li>
+      <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
+      <li><a href="../pattern/">Japanese version</a></li>
     </ul>
     <p class="hl-links">
-      <a href="../">道具箱のトップ</a> ・
-      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
-      <a href="https://x.com/hirulab_ai">X</a> ・
-      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+      <a href="./">Tools index</a> &middot;
+      <a href="https://note.com/hirulab">Experiment log (JP)</a> &middot;
+      <a href="https://x.com/hirulab_ai">X</a> &middot;
+      <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
     </p>
   </nav>
 </main>
@@ -320,13 +317,13 @@ function buildSvg(patKey, cw, sizeIdx, strokeF, outPx){
 /*CORE-END*/
 
 var LBL = {
-  patNames: { seigaiha: "青海波", asanoha: "麻の葉", kikkou: "亀甲", ichimatsu: "市松", yagasuri: "矢絣", shippou: "七宝", uroko: "鱗", sashiko: "刺し子" },
-  presetNames: { indigo: "藍", nightgold: "夜金", newyear: "紅金", custom: "カスタム" },
-  checkHead: "シームレス検証(この生成結果に対する検査)",
-  checkBody1: "この柄のタイル周期は ",
-  checkBody2: " px。キャンバス2000pxをそれぞれ ",
-  checkBody3: " 分割し、どちらも整数で割り切れます。",
-  checkOk: "= 端と端が必ず一致し、継ぎ目は構造的に生じません ✓",
+  patNames: { seigaiha: "Seigaiha (blue ocean waves)", asanoha: "Asanoha (hemp leaf)", kikkou: "Kikkou (tortoise shell)", ichimatsu: "Ichimatsu (checkerboard)", yagasuri: "Yagasuri (arrow fletching)", shippou: "Shippou (seven treasures)", uroko: "Uroko (fish scales)", sashiko: "Sashiko (running stitch)" },
+  presetNames: { indigo: "Indigo", nightgold: "Night gold", newyear: "Red and gold", custom: "Custom" },
+  checkHead: "Seamlessness check (run on this exact result)",
+  checkBody1: "The tile period of this pattern is ",
+  checkBody2: " px, which divides the 2000px canvas into ",
+  checkBody3: " parts, both of them whole numbers.",
+  checkOk: "= the opposite edges must line up, so a seam cannot occur by construction ✓",
   fileHead: "hirulab-pattern-"
 };
 

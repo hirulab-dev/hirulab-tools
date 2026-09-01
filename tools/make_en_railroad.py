@@ -523,6 +523,7 @@ HTML_PARTS = [
       <li><a href="../jwt/">JWTの読み下し</a></li>
       <li><a href="../password/">パスワード生成・強度診断</a></li>
       <li><a href="../base64/">Base64・データURLの分解</a></li>
+      <li><a href="../pattern/">和柄シームレスパターン作成</a></li>
       <li><a href="../en/railroad.html">English version</a></li>
     </ul>
     <p class="hl-links">
@@ -560,6 +561,8 @@ HTML_PARTS = [
       <li><a href="./page-contrast.html">Whole-Page Contrast Audit</a></li>
       <li><a href="./diff.html">Text Diff</a></li>
       <li><a href="./json.html">JSON Formatter &amp; Validator</a></li>
+      <li><a href="./unit.html">Unit Converter</a></li>
+      <li><a href="./pattern.html">Japanese Pattern Generator</a></li>
       <li><a href="../railroad/">Japanese version</a></li>
     </ul>
     <p class="hl-links">

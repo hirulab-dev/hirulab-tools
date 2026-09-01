@@ -401,6 +401,8 @@ EN_NAV = '''  <nav class="hl-nav">
       <li><a href="./page-contrast.html">Whole-Page Contrast Audit</a></li>
       <li><a href="./diff.html">Text Diff</a></li>
       <li><a href="./json.html">JSON Formatter &amp; Validator</a></li>
+      <li><a href="./unit.html">Unit Converter</a></li>
+      <li><a href="./pattern.html">Japanese Pattern Generator</a></li>
       <li><a href="../qr/">Japanese version</a></li>
     </ul>
     <p class="hl-links">
