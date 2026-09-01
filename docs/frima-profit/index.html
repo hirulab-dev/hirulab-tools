@@ -90,11 +90,14 @@
     <div class="fields">
       <div class="full">
         <label>販売先(手数料プリセット)</label>
+        <!-- 販売先ごとに value を分け、料率は data-fee で持つ。3社が同じ 10% なので、
+             料率をそのまま value にすると選択肢が同じ値を3つ持つことになり、
+             `.value` で選択を戻す処理を足した瞬間に別の販売先が選ばれる(2026-09-01 に是正) -->
         <select id="preset">
-          <option value="10">メルカリ(10%)</option>
-          <option value="10">ヤフオク(10%)</option>
-          <option value="5">Yahoo!フリマ(5%)</option>
-          <option value="10">ラクマ(4.5〜10%・最初は10%)</option>
+          <option value="mercari" data-fee="10">メルカリ(10%)</option>
+          <option value="yahuoku" data-fee="10">ヤフオク(10%)</option>
+          <option value="paypayfleamarket" data-fee="5">Yahoo!フリマ(5%)</option>
+          <option value="rakuma" data-fee="10">ラクマ(4.5〜10%・最初は10%)</option>
           <option value="custom">手数料を自分で入力</option>
         </select>
       </div>
@@ -115,7 +118,7 @@
       <div class="res"><div class="label">時給1,000円換算の許容作業時間</div><div class="value" id="worktime">—</div></div>
     </div>
     <div class="breakdown" id="breakdown"></div>
-    <div class="note">※振込手数料は1回の振込にまとめる運用なら1個あたりの負担はもっと小さくなります(ここでは全額を1個に載せる保守的な計算)。手数料率は変更されることがあります。</div>
+    <div class="note">※振込手数料は1回の振込にまとめる運用なら1個あたりの負担はもっと小さくなります(ここでは全額を1個に載せる保守的な計算)。手数料率は変更されることがあります。<br>※販売手数料は<strong>円未満を切り捨て</strong>て計算しています。実際の丸め方は販売先の規約でご確認ください。</div>
   </div>
 
 
@@ -171,17 +174,29 @@ function update() {
   const pack = +$("pack").value || 0;
   const feePct = +$("feePct").value || 0;
   const payout = +$("payout").value || 0;
-  const fee = price * feePct / 100;
+  // 販売手数料は円未満を切り捨てる。小数のまま持つと、内訳の行を足しても合計に
+  // ならない(表示だけ四捨五入するので端数が合計にだけ乗る)。売値2,005円・10%なら
+  // 「¥2,005 − ¥201 − … = ¥895」と出るのに、左辺を足すと894 になっていた。
+  const fee = Math.floor(price * feePct / 100);
   const profit = price - fee - ship - cost - pack - payout;
   const margin = price > 0 ? profit / price * 100 : 0;
-  // 損益分岐: price*(1-fee%) = 固定費
+  // 損益分岐: price*(1-fee%) = 固定費 …だが、手数料を円未満で切り捨てるので
+  // 連続の式が出す売値は 1円ほど高く出ることがある(切り捨てのぶん実際は少し安く済む)。
+  // 式で当たりを付けてから、赤字にならない範囲で1円ずつ下げて詰める。
   const fixed = ship + cost + pack + payout;
-  const breakeven = feePct < 100 ? fixed / (1 - feePct / 100) : Infinity;
+  let breakeven = Infinity;
+  if (feePct < 100) {
+    breakeven = Math.ceil(fixed / (1 - feePct / 100));
+    while (breakeven > 0 &&
+           (breakeven - 1) - Math.floor((breakeven - 1) * feePct / 100) - fixed >= 0) {
+      breakeven--;
+    }
+  }
   const p = $("profit");
   p.textContent = yen(profit);
   p.className = "value " + (profit > 0 ? "plus" : profit < 0 ? "minus" : "");
   $("margin").textContent = price > 0 ? margin.toFixed(1) + "%" : "—";
-  $("breakeven").textContent = isFinite(breakeven) ? yen(Math.ceil(breakeven)) : "—";
+  $("breakeven").textContent = isFinite(breakeven) ? yen(breakeven) : "—";
   const mins = profit > 0 ? profit / 1000 * 60 : 0;
   $("worktime").textContent = profit > 0 ? Math.floor(mins) + "分" : "0分";
   $("breakdown").textContent =
@@ -189,8 +204,8 @@ function update() {
     (pack ? ` − 梱包材 ${yen(pack)}` : "") + (payout ? ` − 振込 ${yen(payout)}` : "") + ` = ${yen(profit)}`;
 }
 $("preset").addEventListener("change", () => {
-  const v = $("preset").value;
-  if (v !== "custom") $("feePct").value = v;
+  const fee = $("preset").selectedOptions[0].dataset.fee;
+  if (fee !== undefined) $("feePct").value = fee;
   update();
 });
 ["feePct","payout","price","cost","ship","pack"].forEach(id => $(id).addEventListener("input", update));
