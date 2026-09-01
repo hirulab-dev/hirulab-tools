@@ -111,7 +111,8 @@
         { "@type": "ListItem", "position": 21, "name": "HTTPヘッダの読み下し", "url": "https://hirulab-dev.github.io/hirulab-tools/headers/" },
         { "@type": "ListItem", "position": 22, "name": "JWTの読み下し", "url": "https://hirulab-dev.github.io/hirulab-tools/jwt/" },
         { "@type": "ListItem", "position": 23, "name": "パスワード生成・強度診断", "url": "https://hirulab-dev.github.io/hirulab-tools/password/" },
-        { "@type": "ListItem", "position": 24, "name": "Base64・データURLの分解", "url": "https://hirulab-dev.github.io/hirulab-tools/base64/" }
+        { "@type": "ListItem", "position": 24, "name": "Base64・データURLの分解", "url": "https://hirulab-dev.github.io/hirulab-tools/base64/" },
+        { "@type": "ListItem", "position": 25, "name": "和柄シームレスパターン作成", "url": "https://hirulab-dev.github.io/hirulab-tools/pattern/" }
       ]
     }
   ]
@@ -255,6 +256,11 @@
   <a class="card" href="./base64/">
     <h3>Base64・データURLの分解</h3>
     <p>Base64 の文字列や <code>data:</code> URL を部品に分けて読み下します。差別化点は<strong>「エラーにならないので気づけない」ところだけを名指しする</strong>こと。<code>image/png</code> と書いてあるのに中身は JPEG、<strong>余ったビットが0でないので別の文字列が同じバイト列に戻る</strong>、<code>;base64</code> を書き忘れて中身が文字列として扱われている、非base64のデータURLで <code>+</code> が空白にならない。復号は自前実装で、開くたびにブラウザの <code>atob</code> と突き合わせています。</p>
+  </a>
+
+  <a class="card" href="./pattern/">
+    <h3>和柄シームレスパターン作成</h3>
+    <p>青海波・麻の葉・亀甲・市松・矢絣・七宝・鱗・刺し子の8種を、その場で描いて SVG（4000px）や PNG で保存できます。柄は生成AIの画像出力ではなく<strong>幾何を計算して描いています</strong>。差別化点は<strong>「継ぎ目なく繋がります」を言葉で主張せず、その場で検証して見せる</strong>こと — タイルの周期ぶんずらして絵が一致するかを確かめ、結果を画面に出します。寸法はキャンバスを割り切る値だけに制限してあります。生成した画像は商用を含め自由に使えます（帰属表示不要）。</p>
   </a>
 
   <div class="card empty">

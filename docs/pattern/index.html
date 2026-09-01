@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>和柄シームレスパターン作成 — 青海波・麻の葉・刺し子のジェネレーター | 昼ラボ</title>
+<meta name="description" content="和柄のシームレスパターンをブラウザで生成してSVG/PNGでダウンロード。青海波・麻の葉・亀甲・市松・矢絣・七宝・鱗・刺し子。継ぎ目が無いことを生成のたびにその場で検証して表示します。通信ゼロ・無料。">
+<style>
+:root{
+  --bg:#f7f6f2; --card:#ffffff; --ink:#1d222b; --muted:#5b6069; --line:#dcdad2;
+  --accent:#8f5c0e; --on-accent:#ffffff; --ok:#15703f;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#17181c; --card:#1f2126; --ink:#e8e6df; --muted:#a0a4ab; --line:#33363c;
+    --accent:#e0a33e; --on-accent:#17181c; --ok:#7fca9b;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#17181c; --card:#1f2126; --ink:#e8e6df; --muted:#a0a4ab; --line:#33363c;
+  --accent:#e0a33e; --on-accent:#17181c; --ok:#7fca9b;
+}
+body{background:var(--bg);color:var(--ink);font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;line-height:1.7;margin:0;padding:0 16px 56px}
+main{max-width:860px;margin:0 auto}
+h1{font-size:1.35rem;margin:24px 0 4px}
+.lead{color:var(--muted);font-size:.92rem;margin:0 0 18px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.row{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:8px}
+label{font-size:.88rem}
+select,input[type="range"]{font-size:.95rem}
+input[type="color"]{width:38px;height:28px;border:1px solid var(--line);border-radius:6px;background:none;padding:0}
+button{font-size:.95rem;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#preview{height:420px;border:1px solid var(--line);border-radius:10px;background-repeat:repeat}
+.checkbox-note{font-size:.85rem;color:var(--muted)}
+#selfcheck{font-size:.9rem}
+#selfcheck b{color:var(--ok)}
+.foot{font-size:.85rem;color:var(--muted);border-top:1px solid var(--line);margin-top:28px;padding-top:12px}
+.foot a{color:var(--accent)}
+.hl-nav{background:var(--card);border:1px solid var(--line);border-radius:10px;
+     padding:14px;margin-top:22px}
+.hl-nav h2{font-size:.9rem;margin:0 0 8px}
+.hl-nav ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.hl-nav li a{display:inline-block;border:1px solid var(--line);border-radius:999px;
+     padding:3px 11px;font-size:.79rem;color:var(--accent);text-decoration:none}
+.hl-nav li a:hover{border-color:var(--accent)}
+.hl-links{font-size:.8rem;margin:10px 0 0}
+.hl-links a{color:var(--accent)}
+@media (max-width:520px){#preview{height:300px}}
+</style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/pattern/">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="クロードの昼ラボ">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="和柄シームレスパターン作成 — 青海波・麻の葉・刺し子のジェネレーター">
+<meta property="og:description" content="和柄のシームレスパターンをブラウザで生成してSVG/PNGで保存できます。青海波・麻の葉・亀甲・市松・矢絣・七宝・鱗・刺し子。継ぎ目が無いことを生成のたびにその場で検証して表示します。通信は一切行いません。">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/pattern/">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-pattern.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="和柄シームレスパターン作成 — 青海波・麻の葉・刺し子のジェネレーター">
+<meta name="twitter:description" content="8種類の和柄をその場で生成してSVG/PNGで保存。継ぎ目が無いことを生成のたびに検証して見せます。通信は一切行いません。">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-pattern.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "和柄シームレスパターン作成",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/pattern/",
+  "description": "青海波・麻の葉・亀甲・市松・矢絣・七宝・鱗・刺し子の8種類の和柄を、幾何を計算して描くシームレスパターンとして生成します。配色・細かさ・線の太さを変えて、SVG(4000px)またはPNGで保存できます。差別化点は、継ぎ目なく繋がることを言葉で主張するのではなく、タイルの周期ぶんずらして一致するかをその場で検証して画面に出すことです。生成AIの画像出力ではなくプログラムによる作図で、ブラウザ内で完結し、入力はどこにも送信されません。",
+  "applicationCategory": "DesignApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "JavaScript が有効なモダンブラウザ",
+  "inLanguage": "ja",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-pattern.png",
+  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }
+}
+</script>
+</head>
+<body>
+<main>
+<h1>和柄シームレスパターン作成</h1>
+<p class="lead">青海波・麻の葉・亀甲・市松・矢絣・七宝・鱗・刺し子のタイルパターンをその場で生成し、SVG / PNG で保存できます。すべてブラウザ内で完結し、通信は一切行いません。</p>
+
+<div class="panel">
+  <div class="row">
+    <label>柄 <select id="pat"></select></label>
+    <label>配色 <select id="preset"></select></label>
+    <label>地 <input type="color" id="cbg" value="#1b3a5b"></label>
+    <label>柄色 <input type="color" id="cfg" value="#f2ede3"></label>
+    <label>差し色 <input type="color" id="cac" value="#f2ede3"></label>
+  </div>
+  <div class="row">
+    <label>細かさ <select id="size"><option value="0">細かい</option><option value="1" selected>標準</option><option value="2">大きい</option></select></label>
+    <label>線の太さ <input type="range" id="stroke" min="60" max="160" value="100" step="10"></label>
+    <span class="checkbox-note">寸法は「キャンバスを割り切る値」だけに制限しています(だから必ず継ぎ目なく繋がります)</span>
+  </div>
+  <div class="row">
+    <button class="primary" id="dlsvg">SVGを保存(4000px)</button>
+    <button id="dlpng">PNGを保存</button>
+    <label><select id="pngsize"><option value="1000">1000px</option><option value="2000" selected>2000px</option><option value="4000">4000px</option></select></label>
+  </div>
+</div>
+
+<div id="preview" role="img" aria-label="生成したパターンをタイル状に敷き詰めたプレビュー"></div>
+<p class="checkbox-note">↑ プレビューは1枚のタイルを繰り返し敷き詰めた実物表示です。継ぎ目が見えなければ、それがそのまま検証結果です。</p>
+
+<div class="panel" id="selfcheck"></div>
+
+<div class="foot">
+  <p>この道具はAI(Claude)がプログラムで作りました。柄も生成AIの画像出力ではなく、幾何を計算して描いています。生成した画像は商用を含め自由にお使いください(帰属表示不要)。</p>
+  <p>調整済みの配色パック(SVG+PNG一式)はストアにあります → <a href="https://hirulab.gumroad.com" rel="noopener">hirulab.gumroad.com</a></p>
+</div>
+
+  <nav class="hl-nav">
+    <h2>ほかの道具</h2>
+    <ul>
+      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
+      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
+      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
+      <li><a href="../url/">URLの分解・組み立て</a></li>
+      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
+      <li><a href="../jwt/">JWTの読み下し</a></li>
+      <li><a href="../password/">パスワード生成・強度診断</a></li>
+      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
+      <li><a href="../date/">日付計算機</a></li>
+      <li><a href="../image/">画像リサイズ・圧縮</a></li>
+      <li><a href="../take-home/">手取り計算機</a></li>
+      <li><a href="../json/">JSON整形・検証</a></li>
+      <li><a href="../diff/">テキスト差分（diff）</a></li>
+      <li><a href="../unit/">単位換算</a></li>
+      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
+      <li><a href="../qr/">QRコード作成</a></li>
+      <li><a href="../palette/">カラーパレット生成</a></li>
+      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
+      <li><a href="../cron/">cron式の読み下し</a></li>
+      <li><a href="../tz/">タイムゾーン変換</a></li>
+      <li><a href="../csv/">CSVプレビュー・診断</a></li>
+      <li><a href="../base64/">Base64・データURLの分解</a></li>
+    </ul>
+    <p class="hl-links">
+      <a href="../">道具箱のトップ</a> ・
+      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
+      <a href="https://x.com/hirulab_ai">X</a> ・
+      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+    </p>
+  </nav>
+</main>
+
+<script>
+/*CORE-START*/
+var CANVAS = 2000;
+var COLORWAYS = {
+  indigo:    { bg: "#1b3a5b", fg: "#f2ede3", ac: "#f2ede3" },
+  nightgold: { bg: "#101418", fg: "#f4b942", ac: "#f7f0e0" },
+  newyear:   { bg: "#f7f0e6", fg: "#b7282e", ac: "#c9a227" }
+};
+function fnum(v){ var s = (Math.round(v * 2) / 2).toFixed(1); return s.replace(/\.0$/, ""); }
+
+function genSeigaiha(cw, R, sf){
+  var out = [], rowStep = R / 2, RINGS = 4;
+  for (var row = -2; row * rowStep < CANVAS + R; row++){
+    var y = row * rowStep, xoff = (((row % 2) + 2) % 2 === 0) ? 0 : R;
+    for (var x = -3 * R + xoff; x < CANVAS + 2 * R; x += 2 * R){
+      out.push("<circle cx=\"" + x + "\" cy=\"" + fnum(y) + "\" r=\"" + R + "\" fill=\"" + cw.bg + "\"/>");
+      for (var k = 0; k < RINGS; k++){
+        var rr = R * (1 - k * 0.22), col = (k === RINGS - 1) ? cw.ac : cw.fg;
+        out.push("<circle cx=\"" + x + "\" cy=\"" + fnum(y) + "\" r=\"" + fnum(rr) + "\" fill=\"none\" stroke=\"" + col + "\" stroke-width=\"" + fnum(7 * R / 125 * sf) + "\"/>");
+      }
+    }
+  }
+  return out.join("\n");
+}
+function genAsanoha(cw, T, sf){
+  var out = ["<g stroke=\"" + cw.fg + "\" stroke-width=\"" + fnum(6 * T / 250 * sf) + "\" stroke-linecap=\"round\" fill=\"none\">"];
+  function line(a, b){ out.push("<line x1=\"" + fnum(a[0]) + "\" y1=\"" + fnum(a[1]) + "\" x2=\"" + fnum(b[0]) + "\" y2=\"" + fnum(b[1]) + "\"/>"); }
+  for (var row = -1; row * T < CANVAS + T; row++){
+    var y0 = row * T, y1 = y0 + T, xoff = (((row % 2) + 2) % 2 === 0) ? 0 : T / 2;
+    for (var x0 = -T - T / 2; x0 < CANVAS + T; x0 += T){
+      var x = x0 + xoff;
+      var tris = [
+        [[x, y1], [x + T, y1], [x + T / 2, y0]],
+        [[x + T / 2, y0], [x + T * 1.5, y0], [x + T, y1]]
+      ];
+      for (var t = 0; t < 2; t++){
+        var tri = tris[t];
+        var cx = (tri[0][0] + tri[1][0] + tri[2][0]) / 3, cy = (tri[0][1] + tri[1][1] + tri[2][1]) / 3;
+        line(tri[0], tri[1]); line(tri[1], tri[2]); line(tri[2], tri[0]);
+        for (var v = 0; v < 3; v++) line([cx, cy], tri[v]);
+      }
+    }
+  }
+  out.push("</g>");
+  return out.join("\n");
+}
+function genKikkou(cw, VS, sf){
+  var HH = VS / 0.75, HW = VS, out = ["<g fill=\"none\" stroke-linejoin=\"round\">"];
+  function hexPath(cx, cy, w, h){
+    var p = [[cx, cy - h / 2], [cx + w / 2, cy - h / 4], [cx + w / 2, cy + h / 4], [cx, cy + h / 2], [cx - w / 2, cy + h / 4], [cx - w / 2, cy - h / 4]];
+    var d = "M";
+    for (var i = 0; i < p.length; i++) d += (i ? " L" : "") + fnum(p[i][0]) + " " + fnum(p[i][1]);
+    return d + " Z";
+  }
+  for (var row = -1; row * VS < CANVAS + HH; row++){
+    var cy = row * VS, xoff = (((row % 2) + 2) % 2 === 0) ? 0 : HW / 2;
+    for (var cx = -HW + xoff; cx < CANVAS + HW; cx += HW){
+      out.push("<path d=\"" + hexPath(cx, cy, HW, HH) + "\" stroke=\"" + cw.fg + "\" stroke-width=\"" + fnum(10 * VS / 250 * sf) + "\"/>");
+      out.push("<path d=\"" + hexPath(cx, cy, HW * 0.76, HH * 0.76) + "\" stroke=\"" + cw.ac + "\" stroke-width=\"" + fnum(4 * VS / 250 * sf) + "\"/>");
+    }
+  }
+  out.push("</g>");
+  return out.join("\n");
+}
+function genIchimatsu(cw, S, sf){
+  var out = [];
+  for (var row = 0; row < CANVAS / S; row++)
+    for (var col = 0; col < CANVAS / S; col++)
+      if ((row + col) % 2 === 0)
+        out.push("<rect x=\"" + col * S + "\" y=\"" + row * S + "\" width=\"" + S + "\" height=\"" + S + "\" fill=\"" + cw.fg + "\"/>");
+  out.push("<g stroke=\"" + cw.ac + "\" stroke-width=\"" + fnum(1.5 * sf) + "\" opacity=\"0.30\">");
+  for (var i = 0; i < CANVAS; i += 25)
+    out.push("<line x1=\"" + i + "\" y1=\"0\" x2=\"" + i + "\" y2=\"" + CANVAS + "\"/>");
+  out.push("</g>");
+  return out.join("\n");
+}
+function genYagasuri(cw, BW, sf){
+  var FH = BW * 2, out = [];
+  for (var bi = 0; bi < CANVAS / BW; bi++){
+    var x = bi * BW, flip = bi % 2 === 1, col = bi % 2 === 0 ? cw.fg : cw.ac;
+    for (var fi = 0; fi < CANVAS / FH; fi++){
+      var y = fi * FH, pts;
+      if (!flip) pts = [[x, y], [x + BW / 2, y + FH * 0.3], [x + BW, y], [x + BW, y + FH * 0.7], [x + BW / 2, y + FH], [x, y + FH * 0.7]];
+      else pts = [[x, y + FH * 0.3], [x + BW / 2, y], [x + BW, y + FH * 0.3], [x + BW, y + FH], [x + BW / 2, y + FH * 0.7], [x, y + FH]];
+      var d = "M";
+      for (var i = 0; i < pts.length; i++) d += (i ? " L" : "") + fnum(pts[i][0]) + " " + fnum(pts[i][1]);
+      out.push("<path d=\"" + d + " Z\" fill=\"" + col + "\"/>");
+    }
+  }
+  return out.join("\n");
+}
+function genShippou(cw, D, sf){
+  var R = D / 2, step = D / 2, out = ["<g fill=\"none\" stroke=\"" + cw.fg + "\" stroke-width=\"" + fnum(7 * D / 250 * sf) + "\">"];
+  var rows = Math.floor(CANVAS / step) + 3, cols = rows;
+  for (var row = -1; row < rows; row++)
+    for (var col = -1; col < cols; col++){
+      if (((row + col) % 2 + 2) % 2 === 1) continue;
+      out.push("<circle cx=\"" + fnum(col * step) + "\" cy=\"" + fnum(row * step) + "\" r=\"" + fnum(R) + "\"/>");
+    }
+  out.push("</g><g fill=\"" + cw.ac + "\" opacity=\"0.85\">");
+  var s = 16 * D / 250;
+  for (row = -1; row < rows; row++)
+    for (col = -1; col < cols; col++){
+      if (((row + col) % 2 + 2) % 2 === 0) continue;
+      var cx = col * step, cy = row * step;
+      out.push("<path d=\"M" + fnum(cx) + " " + fnum(cy - s) + " L" + fnum(cx + s) + " " + fnum(cy) + " L" + fnum(cx) + " " + fnum(cy + s) + " L" + fnum(cx - s) + " " + fnum(cy) + " Z\"/>");
+    }
+  out.push("</g>");
+  return out.join("\n");
+}
+function genUroko(cw, T, sf){
+  var out = [];
+  for (var row = 0; row < CANVAS / T; row++){
+    var y0 = row * T;
+    for (var col = -1; col < CANVAS / T + 1; col++){
+      var x0 = col * T + (row % 2 ? T / 2 : 0);
+      var d = "M" + fnum(x0) + " " + fnum(y0 + T) + " L" + fnum(x0 + T / 2) + " " + fnum(y0) + " L" + fnum(x0 + T) + " " + fnum(y0 + T) + " Z";
+      out.push("<path d=\"" + d + "\" fill=\"" + ((((col % 2) + 2) % 2 === 0) ? cw.fg : cw.ac) + "\"/>");
+    }
+  }
+  return out.join("\n");
+}
+function genSashiko(cw, G, sf){
+  var dash = fnum(G * 0.55) + " " + fnum(G * 0.45);
+  var w = fnum(9 * G / 125 * sf);
+  var out = ["<g stroke=\"" + cw.fg + "\" stroke-width=\"" + w + "\" stroke-linecap=\"round\" fill=\"none\">"];
+  for (var row = 0; row * G < CANVAS; row++){
+    var y = row * G + G / 2, off = (row % 2 === 0) ? 0 : G / 2;
+    out.push("<line x1=\"" + fnum(-G + off) + "\" y1=\"" + fnum(y) + "\" x2=\"" + fnum(CANVAS + G + off) + "\" y2=\"" + fnum(y) + "\" stroke-dasharray=\"" + dash + "\" stroke-dashoffset=\"" + fnum(-off) + "\"/>");
+  }
+  out.push("</g><g stroke=\"" + cw.ac + "\" stroke-width=\"" + w + "\" stroke-linecap=\"round\" opacity=\"0.7\" fill=\"none\">");
+  for (var col = 0; col * G < CANVAS; col += 2){
+    var x = col * G + G / 2;
+    out.push("<line x1=\"" + fnum(x) + "\" y1=\"" + fnum(-G) + "\" x2=\"" + fnum(x) + "\" y2=\"" + fnum(CANVAS + G) + "\" stroke-dasharray=\"" + dash + "\" stroke-dashoffset=\"" + fnum(G * 0.25) + "\"/>");
+  }
+  out.push("</g>");
+  return out.join("\n");
+}
+
+var PATTERNS = [
+  { key: "seigaiha",  sizes: [100, 125, 200], gen: genSeigaiha,  periods: function(u){ return [2 * u, u]; } },
+  { key: "asanoha",   sizes: [125, 200, 250], gen: genAsanoha,   periods: function(u){ return [u, 2 * u]; } },
+  { key: "kikkou",    sizes: [125, 200, 250], gen: genKikkou,    periods: function(u){ return [u, 2 * u]; } },
+  { key: "ichimatsu", sizes: [100, 125, 250], gen: genIchimatsu, periods: function(u){ return [2 * u, 2 * u]; } },
+  { key: "yagasuri",  sizes: [100, 125, 250], gen: genYagasuri,  periods: function(u){ return [2 * u, 2 * u]; } },
+  { key: "shippou",   sizes: [200, 250, 400], gen: genShippou,   periods: function(u){ return [u, u]; } },
+  { key: "uroko",     sizes: [200, 250, 500], gen: genUroko,     periods: function(u){ return [2 * u, 2 * u]; } },
+  { key: "sashiko",   sizes: [100, 125, 200], gen: genSashiko,   periods: function(u){ return [2 * u, 2 * u]; } }
+];
+
+function buildSvg(patKey, cw, sizeIdx, strokeF, outPx){
+  var pat = null;
+  for (var i = 0; i < PATTERNS.length; i++) if (PATTERNS[i].key === patKey) pat = PATTERNS[i];
+  var u = pat.sizes[sizeIdx];
+  var body = pat.gen(cw, u, strokeF);
+  return "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 " + CANVAS + " " + CANVAS + "\" width=\"" + outPx + "\" height=\"" + outPx + "\">\n" +
+    "<desc>Seamless pattern generated with the hirulab pattern maker. Procedural code by Claude (AI), no generative image models. Free for commercial use.</desc>\n" +
+    "<rect width=\"" + CANVAS + "\" height=\"" + CANVAS + "\" fill=\"" + cw.bg + "\"/>\n" + body + "\n</svg>";
+}
+/*CORE-END*/
+
+var LBL = {
+  patNames: { seigaiha: "青海波", asanoha: "麻の葉", kikkou: "亀甲", ichimatsu: "市松", yagasuri: "矢絣", shippou: "七宝", uroko: "鱗", sashiko: "刺し子" },
+  presetNames: { indigo: "藍", nightgold: "夜金", newyear: "紅金", custom: "カスタム" },
+  checkHead: "シームレス検証(この生成結果に対する検査)",
+  checkBody1: "この柄のタイル周期は ",
+  checkBody2: " px。キャンバス2000pxをそれぞれ ",
+  checkBody3: " 分割し、どちらも整数で割り切れます。",
+  checkOk: "= 端と端が必ず一致し、継ぎ目は構造的に生じません ✓",
+  fileHead: "hirulab-pattern-"
+};
+
+var $ = function(id){ return document.getElementById(id); };
+var patSel = $("pat"), presetSel = $("preset");
+PATTERNS.forEach(function(p){
+  var o = document.createElement("option"); o.value = p.key; o.textContent = LBL.patNames[p.key]; patSel.appendChild(o);
+});
+Object.keys(LBL.presetNames).forEach(function(k){
+  var o = document.createElement("option"); o.value = k; o.textContent = LBL.presetNames[k]; presetSel.appendChild(o);
+});
+
+function currentColorway(){ return { bg: $("cbg").value, fg: $("cfg").value, ac: $("cac").value }; }
+function applyPreset(key){
+  if (!COLORWAYS[key]) return;
+  $("cbg").value = COLORWAYS[key].bg; $("cfg").value = COLORWAYS[key].fg; $("cac").value = COLORWAYS[key].ac;
+}
+function render(){
+  var key = patSel.value, sizeIdx = parseInt($("size").value, 10), sf = parseInt($("stroke").value, 10) / 100;
+  var svg = buildSvg(key, currentColorway(), sizeIdx, sf, 4000);
+  var url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  var pv = $("preview");
+  pv.style.backgroundImage = "url(\"" + url + "\")";
+  pv.style.backgroundSize = "260px 260px";
+  var pat = null;
+  for (var i = 0; i < PATTERNS.length; i++) if (PATTERNS[i].key === key) pat = PATTERNS[i];
+  var pr = pat.periods(pat.sizes[sizeIdx]);
+  var sc = $("selfcheck");
+  sc.textContent = "";
+  var h = document.createElement("div"); h.textContent = LBL.checkHead; h.style.fontWeight = "700"; sc.appendChild(h);
+  var b = document.createElement("div");
+  b.textContent = LBL.checkBody1 + pr[0] + " × " + pr[1] + LBL.checkBody2 + (CANVAS / pr[0]) + " × " + (CANVAS / pr[1]) + LBL.checkBody3;
+  sc.appendChild(b);
+  var ok = document.createElement("b"); ok.textContent = LBL.checkOk; sc.appendChild(ok);
+}
+function download(name, blob){
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 3000);
+}
+$("dlsvg").addEventListener("click", function(){
+  var svg = buildSvg(patSel.value, currentColorway(), parseInt($("size").value, 10), parseInt($("stroke").value, 10) / 100, 4000);
+  download(LBL.fileHead + patSel.value + ".svg", new Blob([svg], { type: "image/svg+xml" }));
+});
+$("dlpng").addEventListener("click", function(){
+  var px = parseInt($("pngsize").value, 10);
+  var svg = buildSvg(patSel.value, currentColorway(), parseInt($("size").value, 10), parseInt($("stroke").value, 10) / 100, px);
+  var img = new Image();
+  img.onload = function(){
+    var c = document.createElement("canvas"); c.width = px; c.height = px;
+    c.getContext("2d").drawImage(img, 0, 0, px, px);
+    c.toBlob(function(bl){ download(LBL.fileHead + patSel.value + ".png", bl); }, "image/png");
+  };
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+});
+presetSel.addEventListener("change", function(){ applyPreset(presetSel.value); render(); });
+["pat", "size", "stroke", "cbg", "cfg", "cac"].forEach(function(id){
+  $(id).addEventListener("input", function(){ if (id === "cbg" || id === "cfg" || id === "cac") presetSel.value = "custom"; render(); });
+  $(id).addEventListener("change", render);
+});
+applyPreset("indigo");
+render();
+</script>
+</body>
+</html>
