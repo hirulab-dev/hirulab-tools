@@ -150,9 +150,14 @@
       <label for="bonus">うち賞与の合計（円）</label>
       <input type="number" id="bonus" value="0" step="100000" min="0">
       <div class="note" style="margin-top:6px">
-        <strong>いまはこの欄を変えても結果は動きません。</strong>月給と賞与に同じ料率をかけていて、
-        社会保険料の上限を入れていないので、どう割り振っても合計が同じになるためです
-        （下の「この計算に入れていないもの」の2つめ）。上限を入れたらここが効くようになります。
+        社会保険料には<strong>月給と賞与で別々の上限</strong>があるので、内訳で結果が変わります。
+      </div>
+    </div>
+    <div>
+      <label for="bonusN">賞与の支給回数（年）</label>
+      <input type="number" id="bonusN" value="2" min="1" max="12" step="1">
+      <div class="note" style="margin-top:6px">
+        厚生年金の賞与の上限は<strong>1回あたり</strong>なので、回数で変わります。
       </div>
     </div>
     <div>
@@ -224,6 +229,10 @@
     <div class="rate"><label>扶養控除・1人あたり（所得税）</label><input type="number" id="d_dep" value="380000" step="10000"><span class="unit">円</span></div>
     <div class="rate"><label>扶養控除・1人あたり（住民税）</label><input type="number" id="d_dep_r" value="330000" step="10000"><span class="unit">円</span></div>
     <div class="rate"><label>復興特別所得税</label><input type="number" id="r_recon" value="2.1" step="0.1"><span class="unit">%</span></div>
+    <div class="rate"><label>健保の上限（標準報酬月額）</label><input type="number" id="c_health_m" value="1390000" step="10000"><span class="unit">円</span></div>
+    <div class="rate"><label>厚年の上限（標準報酬月額）</label><input type="number" id="c_pension_m" value="650000" step="10000"><span class="unit">円</span></div>
+    <div class="rate"><label>健保の上限（賞与・年度の累計）</label><input type="number" id="c_health_b" value="5730000" step="10000"><span class="unit">円</span></div>
+    <div class="rate"><label>厚年の上限（賞与・1回あたり）</label><input type="number" id="c_pension_b" value="1500000" step="10000"><span class="unit">円</span></div>
   </div>
   <div class="row" style="margin-top:14px">
     <button id="reset">初期値に戻す</button>
@@ -239,9 +248,13 @@
 </div>
 
 <p class="note">
-  <strong>この計算に入れていないもの</strong>：標準報酬月額の等級区分、賞与の社会保険料の上限（健保573万円/年・厚年150万円/月）、
-  生命保険料控除・iDeCo・住宅ローン控除などの各種控除、ふるさと納税、子ども・子育て拠出金（会社負担なので手取りに影響しません）、
-  住民税の調整控除、非課税限度額。<br>
+  <strong>この計算に入れていないもの</strong>：標準報酬月額の<strong>等級区分</strong>（上限だけは入れましたが、
+  途中の等級は使わず月額に直接かけています）、生命保険料控除・iDeCo・住宅ローン控除などの各種控除、ふるさと納税、
+  子ども・子育て拠出金（会社負担なので手取りに影響しません）、住民税の調整控除、非課税限度額、
+  基礎控除が合計所得2,400万円を超えると減っていく分。<br>
+  <strong>2026-09-01 に入れたもの</strong>：社会保険料の上限（健保の標準報酬月額139万円・厚年65万円、
+  賞与は健保が年度累計573万円・厚年が1回150万円）。それまで上限を見ていなかったので、
+  <strong>年収が高いほど実際より多く引かれていました</strong>。上限は下の欄で直せます。<br>
   <strong>住民税は前年の所得に対してかかります。</strong>新社会人の1年目は住民税が引かれないので、実際の手取りはこの計算より多くなります。
 </p>
 
@@ -293,7 +306,9 @@ const yen = n => "¥" + (Math.round(n) || 0).toLocaleString("ja-JP");
 const DEFAULT_RATES = {
   r_health:5.00, r_care:0.80, r_pension:9.15, r_emp:0.55,
   r_res:10.0, r_resflat:5000, d_basic:480000, d_basic_r:430000,
-  d_dep:380000, d_dep_r:330000, r_recon:2.1
+  d_dep:380000, d_dep_r:330000, r_recon:2.1,
+  // 社会保険料の上限（標準報酬月額の最高等級と、賞与の上限）
+  c_health_m:1390000, c_pension_m:650000, c_health_b:5730000, c_pension_b:1500000
 };
 // 課税所得の下限, 税率%, 控除額
 const DEFAULT_BRACKETS = [
@@ -336,15 +351,32 @@ function calc(){
   const age    = +$("#age").value || 0;
   const deps   = Math.max(0, +$("#deps").value || 0);
 
-  // 社会保険料（賞与にも同率でかかる前提。上限は未考慮）
+  /* 社会保険料。★2026-09-01 是正: それまで**額面に料率を掛けるだけ**で上限を見ていなかった。
+     そのせいで「うち賞与の合計」の欄が結果を1円も変えず(どう割り振っても合計が同じ)、
+     年収が高いほど実際より大きく引かれる形になっていた
+     (例: 年収2,000万・うち賞与400万を年2回なら、厚生年金を183万と出していた。
+      上限を入れると98.8万 = 月給ぶん71.4万 + 賞与ぶん27.5万。84万円ぶん多く引いていた)。
+     → 月給ぶんと賞与ぶんを分け、それぞれの上限で頭打ちにする。これで賞与の欄が効く。
+     ⚠ 標準報酬月額の等級表は使わず、月額をそのまま上限で切っている(画面に書いてあるとおりの近似)。
+     ⚠ 上限額も下の欄で直せる(制度が変わるので固定値を信じさせない、というこの道具の方針)。 */
+  const bonusN = Math.max(1, Math.round(+$("#bonusN").value || 1));
+  const monthlyPay = Math.max(0, annual - bonus) / 12;
+  const perBonus = bonus / bonusN;
+  // 月給ぶん: 月額を上限で切って12か月 / 賞与ぶん: 1回ぶんを上限で切って回数
+  const si2 = (rate, capM, capB) =>
+    Math.min(monthlyPay, capM) * 12 * rate/100 +
+    Math.min(perBonus, capB) * bonusN * rate/100;
   let si = 0;
   const parts = {};
   if ($("#health").checked){
-    parts["健康保険"] = annual * R.r_health/100;
-    if (age >= 40 && age < 65) parts["介護保険"] = annual * R.r_care/100;
+    // 健保の賞与は「年度の累計」が上限なので、1回ぶんではなく年間で切る
+    const healthB = Math.min(bonus, R.c_health_b);
+    const health = r => Math.min(monthlyPay, R.c_health_m) * 12 * r/100 + healthB * r/100;
+    parts["健康保険"] = health(R.r_health);
+    if (age >= 40 && age < 65) parts["介護保険"] = health(R.r_care);
   }
-  if ($("#pension").checked) parts["厚生年金"] = annual * R.r_pension/100;
-  if ($("#empIns").checked)  parts["雇用保険"] = annual * R.r_emp/100;
+  if ($("#pension").checked) parts["厚生年金"] = si2(R.r_pension, R.c_pension_m, R.c_pension_b);
+  if ($("#empIns").checked)  parts["雇用保険"] = annual * R.r_emp/100;   // 雇用保険に上限は無い
   for (const k in parts) si += parts[k];
 
   const salDed = salaryDeduction(annual);

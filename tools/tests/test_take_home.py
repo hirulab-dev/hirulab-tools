@@ -21,15 +21,26 @@
    道具が画面で宣言している近似そのものなので、**同じ前提を2回書いているだけ**である。
    ここは「正しさ」ではなく**「宣言どおりに動いているか」**しか測れない。そう書いておく。
 
-## ★この検証で分かったこと(2026-09-01)
+## ★この検証で見つけて、同じ日に直したこと(2026-09-01)
 
-**「うち賞与の合計」の入力欄が、結果を1円も変えない。** コードは値を読むが、
-そのあと1度も使っていない。画面には賞与の欄があり、利用者は効くと思って入れる。
-※ 道具が宣言している近似(「賞与にも同率でかかる前提。上限は未考慮」)のもとでは、
-  賞与をいくらに割り振っても答えは変わらない。**つまり欄そのものが宣言と矛盾している。**
-  → 直しかたは2つ(上限を入れて欄を意味のあるものにする / 欄を消す)。
-  **上限を入れるほうが正しい**が、お金の計算を変える話なので、
-  まずこの検証で「いまの振る舞い」を固定してから次の枠でやる。
+**「うち賞与の合計」の入力欄が、結果を1円も変えなかった。** コードは値を読むが、
+そのあと1度も使っていなかった。画面には賞与の欄があり、利用者は効くと思って入れる。
+原因は**社会保険料に上限が無かったこと**で、月給と賞与に同じ料率を掛けるだけだったので、
+どう割り振っても合計が同じになっていた。**欄そのものが宣言と矛盾していた**形。
+
+同じ根っこで**もっと大きい間違い**もあった: 上限を見ないので、
+**年収が高いほど実際より多く引かれていた**。年収2,000万(うち賞与400万・年2回)なら
+厚生年金を **183万**と出していたが、上限を入れると **98.8万**(月給ぶん71.4万 + 賞与ぶん27.5万)。
+**84万円、額面の4.2%**を多く引いていたことになる。
+
+→ 上限を入れて直した。月給ぶんと賞与ぶんを分け、健保は「標準報酬月額139万」と
+「賞与の年度累計573万」、厚年は「標準報酬月額65万」と「賞与の1回150万」で頭打ちにする。
+賞与の**支給回数**の入力を足した(厚年の賞与の上限は1回あたりなので回数で変わる)。
+上限も画面で直せる(「料率は全部あなたが直せます」という、この道具の方針に合わせた)。
+
+⚠ **順番を守った**: 直す前にこの検証で「いまの振る舞い」を固定し、
+  全部通ることを確かめてから計算を変えた。お金の計算なので、
+  変わったことが分かる状態を先に作る。
 
 使い方:
     python lab/scripts/test_take_home.py            # 手元のページ
@@ -76,6 +87,8 @@ DEFAULT_RATES = {
     "r_health": 5.00, "r_care": 0.80, "r_pension": 9.15, "r_emp": 0.55,
     "r_res": 10.0, "r_resflat": 5000, "d_basic": 480000, "d_basic_r": 430000,
     "d_dep": 380000, "d_dep_r": 330000, "r_recon": 2.1,
+    "c_health_m": 1_390_000, "c_pension_m": 650_000,
+    "c_health_b": 5_730_000, "c_pension_b": 1_500_000,
 }
 
 
@@ -97,15 +110,32 @@ def income_tax(taxable, brackets=None):
     return max(0.0, taxable * row[1] - row[2])
 
 
-def model(annual, age, deps, rates, on, brackets=None):
-    """画面に書いてある近似を、道具のコードを見ずに組み立て直したもの。"""
+def model(annual, age, deps, rates, on, bonus=0, bonus_n=2, brackets=None):
+    """画面に書いてある近似を、道具のコードを見ずに組み立て直したもの。
+
+    ★2026-09-01: 社会保険料に上限が入った。月給ぶんと賞与ぶんを分け、
+      健保は「月額の上限」と「賞与の年度累計の上限」、
+      厚年は「月額の上限」と「賞与の1回あたりの上限」で頭打ちにする。
+      雇用保険に上限は無い。
+    """
+    bonus = min(max(0, bonus), annual)
+    bonus_n = max(1, round(bonus_n))
+    monthly = max(0, annual - bonus) / 12
+    per_bonus = bonus / bonus_n
+
     parts = {}
     if on["health"]:
-        parts["健康保険"] = annual * rates["r_health"] / 100
+        health_b = min(bonus, rates["c_health_b"])
+
+        def health(r):
+            return min(monthly, rates["c_health_m"]) * 12 * r / 100 + health_b * r / 100
+        parts["健康保険"] = health(rates["r_health"])
         if 40 <= age < 65:
-            parts["介護保険"] = annual * rates["r_care"] / 100
+            parts["介護保険"] = health(rates["r_care"])
     if on["pension"]:
-        parts["厚生年金"] = annual * rates["r_pension"] / 100
+        r = rates["r_pension"]
+        parts["厚生年金"] = (min(monthly, rates["c_pension_m"]) * 12 * r / 100 +
+                             min(per_bonus, rates["c_pension_b"]) * bonus_n * r / 100)
     if on["empIns"]:
         parts["雇用保険"] = annual * rates["r_emp"] / 100
     si = sum(parts.values())
@@ -164,9 +194,10 @@ def js_round(v):
     return math.floor(v + 0.5)
 
 
-async def set_inputs(pg, annual, bonus, age, deps, rates, on):
+async def set_inputs(pg, annual, bonus, age, deps, rates, on, bonus_n=2):
     await pg.fill("#annual", str(annual))
     await pg.fill("#bonus", str(bonus))
+    await pg.fill("#bonusN", str(bonus_n))
     await pg.fill("#age", str(age))
     await pg.fill("#deps", str(deps))
     for k, v in rates.items():
@@ -204,12 +235,12 @@ class Report:
 async def check_cases(pg, rep, cases):
     """本体。金額・内訳・途中経過・手取り率・棒の幅を全部読み戻す。"""
     bad, n = [], 0
-    for annual, bonus, age, deps, rates, on in cases:
-        await set_inputs(pg, annual, bonus, age, deps, rates, on)
+    for annual, bonus, age, deps, rates, on, bonus_n in cases:
+        await set_inputs(pg, annual, bonus, age, deps, rates, on, bonus_n)
         got = await pg.evaluate(READ)
-        w = model(annual, age, deps, rates, on)
-        tag = "年収%d 齢%d 扶養%d %s" % (annual, age, deps,
-                                        "".join(k[0] for k in on if on[k]))
+        w = model(annual, age, deps, rates, on, bonus, bonus_n)
+        tag = "年収%d 賞与%d×%d 齢%d 扶養%d %s" % (annual, bonus, bonus_n, age, deps,
+                                                  "".join(k[0] for k in on if on[k]))
         n += 6 + len(w["parts"])
 
         if yen(got["netY"]) != js_round(w["net"]):
@@ -262,23 +293,38 @@ async def check_cases(pg, rep, cases):
     rep.line("金額・内訳・途中経過・率・棒", n, bad)
 
 
-async def check_bonus_is_inert(pg, rep):
-    """★「うち賞与の合計」が結果を1円も変えないこと。
+async def check_bonus_matters(pg, rep):
+    """★「うち賞与の合計」と「支給回数」が結果を動かすこと。
 
-    宣言(「賞与にも同率でかかる前提」)のもとでは変わらないのが計算どおりだが、
-    **画面に欄がある以上、変わらないこと自体を記録に残す**。上限を入れて
-    欄を意味のあるものにしたら、この検査が落ちる = 直したことが分かる。
+    9/1 昼まで、この欄は**結果を1円も変えなかった**(値を読んだあと1度も使っていなかった)。
+    社会保険料の上限を入れて意味のある欄にしたので、**動くこと自体**を検査に固定する。
+    上限を外すと動かなくなるので、この検査が落ちて気づける。
     """
     bad = []
     rates, on = dict(DEFAULT_RATES), {"health": True, "pension": True, "empIns": True}
-    for annual in (4_000_000, 8_000_000, 20_000_000):
+    # 上限に当たる高い年収では、賞与の割り振りで手取りが変わる
+    for annual in (20_000_000, 40_000_000):
         seen = set()
-        for bonus in (0, annual // 4, annual // 2, annual):
+        for bonus in (0, annual // 4, annual // 2):
             await set_inputs(pg, annual, bonus, 30, 0, rates, on)
             seen.add((await pg.evaluate(READ))["netY"])
-        if len(seen) != 1:
-            bad.append("年収%d で賞与を変えたら手取りが動いた: %s(直した?)" % (annual, sorted(seen)))
-    rep.line("賞与の欄が結果を変えないこと(★宣言との矛盾)", 3, bad)
+        if len(seen) == 1:
+            bad.append("年収%d で賞与を変えても手取りが動かない: %s" % (annual, seen))
+    # 厚年の賞与の上限は1回あたりなので、回数でも変わる
+    seen = set()
+    for n in (1, 2, 4):
+        await set_inputs(pg, 20_000_000, 8_000_000, 30, 0, rates, on, n)
+        seen.add((await pg.evaluate(READ))["netY"])
+    if len(seen) != 3:
+        bad.append("賞与の支給回数を変えても手取りが3通りにならない: %s" % sorted(seen))
+    # ★上限に当たらない年収では、割り振っても変わらないのが正しい(効きすぎていないか)
+    seen = set()
+    for bonus in (0, 1_000_000, 2_000_000):
+        await set_inputs(pg, 4_000_000, bonus, 30, 0, rates, on)
+        seen.add((await pg.evaluate(READ))["netY"])
+    if len(seen) != 1:
+        bad.append("上限に当たらない年収400万で賞与により手取りが動いた: %s" % sorted(seen))
+    rep.line("賞与の内訳と回数が効くこと(★9/1に直した件)", 4, bad)
     return not bad
 
 
@@ -290,13 +336,18 @@ async def check_rate_edit(pg, rep):
         ("r_health", 9.98), ("r_care", 1.60), ("r_pension", 0.0), ("r_emp", 1.10),
         ("r_res", 6.0), ("r_resflat", 12000), ("d_basic", 0), ("d_basic_r", 0),
         ("d_dep", 630000), ("d_dep_r", 450000), ("r_recon", 0.0),
+        # 2026-09-01 に足した上限も、直せることを測る
+        ("c_health_m", 300_000), ("c_pension_m", 200_000),
+        ("c_health_b", 1_000_000), ("c_pension_b", 400_000),
     ]
     for key, val in edits:
         rates = dict(DEFAULT_RATES); rates[key] = val
-        for annual, age, deps in [(4_000_000, 45, 1), (9_500_000, 30, 0)]:
-            await set_inputs(pg, annual, 0, age, deps, rates, on)
+        for annual, age, deps in [(4_000_000, 45, 1), (9_500_000, 30, 0),
+                                  (24_000_000, 30, 0)]:
+            bonus = annual // 4
+            await set_inputs(pg, annual, bonus, age, deps, rates, on)
             got = await pg.evaluate(READ)
-            w = model(annual, age, deps, rates, on)
+            w = model(annual, age, deps, rates, on, bonus, 2)
             n += 1
             if yen(got["netY"]) != js_round(w["net"]):
                 bad.append("%s=%s 年収%d 道具=%s 参照=%d"
@@ -319,7 +370,7 @@ async def check_bracket_edit(pg, rep):
     if yen(det["所得税（復興税を除く）"]) != 0:
         bad.append("税率を全部0%%にしても所得税が残る: %s" % det["所得税（復興税を除く）"])
     zero = dict(DEFAULT_RATES)
-    w = model(9_500_000, 30, 0, zero, on, brackets=[(b[0], 0.0, b[2]) for b in BRACKETS])
+    w = model(9_500_000, 30, 0, zero, on, 0, 2, [(b[0], 0.0, b[2]) for b in BRACKETS])
     if yen(got["netY"]) != js_round(w["net"]):
         bad.append("税率0%%のときの手取り 道具=%s 参照=%d" % (got["netY"], js_round(w["net"])))
     await pg.click("#resetBr")
@@ -354,43 +405,55 @@ async def check_persist(pg, rep, url):
 
 def make_cases(rng, n):
     on_all = {"health": True, "pension": True, "empIns": True}
+    R = DEFAULT_RATES
+
+    def case(annual, bonus=0, age=30, deps=0, on=None, bn=2, rates=None):
+        return (annual, bonus, age, deps, dict(rates or R), dict(on or on_all), bn)
+
     cases = []
     for _ in range(n):
         annual = rng.choice([rng.randrange(0, 3_000_000, 10_000),
                              rng.randrange(3_000_000, 12_000_000, 10_000),
                              rng.randrange(12_000_000, 60_000_000, 100_000)])
+        bonus = rng.choice([0, 0, annual // rng.randint(3, 10), annual // 2])
         on = {k: rng.random() < 0.8 for k in ("health", "pension", "empIns")}
-        cases.append((annual, 0, rng.randint(15, 99), rng.randint(0, 10),
-                      dict(DEFAULT_RATES), on))
-    # ★「薄い領域」対策。累進の境目・給与所得控除の折れ点・課税所得が0になる境目・
-    #   介護保険の年齢の境目・年収0を手で置く。ランダムでは境目にまず当たらない。
-    edges = [1_625_000, 1_800_000, 3_600_000, 6_600_000, 8_500_000]     # 給与所得控除の折れ点
-    for e in edges:
+        cases.append(case(annual, bonus, rng.randint(15, 99), rng.randint(0, 10),
+                          on, rng.randint(1, 12)))
+
+    # ★「薄い領域」対策。ランダムでは境目にまず当たらないので手で置く。
+    for e in (1_625_000, 1_800_000, 3_600_000, 6_600_000, 8_500_000):   # 給与所得控除の折れ点
         for d in (-1000, 0, 1000):
-            cases.append((e + d, 0, 30, 0, dict(DEFAULT_RATES), dict(on_all)))
-    # 課税所得が速算表の境目ちょうどになる年収を、逆算ではなく総当たりで探す
+            cases.append(case(e + d))
+    # 課税所得が速算表の境目ちょうどになる年収を総当たりで探す
     for target in (1_950_000, 3_300_000, 6_950_000, 9_000_000, 18_000_000, 40_000_000):
         annual, best = None, None
         for a in range(1_000_000, 70_000_000, 1000):
-            t = model(a, 30, 0, DEFAULT_RATES, on_all)["taxableI"]
-            if t == target:
+            tx = model(a, 30, 0, R, on_all)["taxableI"]
+            if tx == target:
                 annual = a; break
-            if t > target:
+            if tx > target:
                 best = a; break
-        for a in [annual, best]:
+        for a in (annual, best):
             if a:
-                cases += [(a - 1000, 0, 30, 0, dict(DEFAULT_RATES), dict(on_all)),
-                          (a, 0, 30, 0, dict(DEFAULT_RATES), dict(on_all)),
-                          (a + 1000, 0, 30, 0, dict(DEFAULT_RATES), dict(on_all))]
+                cases += [case(a - 1000), case(a), case(a + 1000)]
     for age in (39, 40, 64, 65):                                        # 介護保険の境目
-        cases.append((5_000_000, 0, age, 0, dict(DEFAULT_RATES), dict(on_all)))
+        cases.append(case(5_000_000, age=age))
+    # ★社会保険料の上限の境目(2026-09-01 に入れたところ)
+    for cap, name in ((R["c_pension_m"], "厚年の月額"), (R["c_health_m"], "健保の月額")):
+        for d in (-12_000, 0, 12_000):
+            cases.append(case(cap * 12 + d))                            # 月給だけで上限をまたぐ
+    for d in (-10_000, 0, 10_000):
+        cases.append(case(30_000_000, bonus=R["c_health_b"] + d))       # 健保の賞与の年度累計
+        cases.append(case(30_000_000, bonus=(R["c_pension_b"] + d) * 2, bn=2))  # 厚年の1回あたり
     cases += [
-        (0, 0, 30, 0, dict(DEFAULT_RATES), dict(on_all)),               # 年収0
-        (550_000, 0, 30, 0, dict(DEFAULT_RATES), dict(on_all)),         # 給与所得控除 = 収入
-        (1_030_000, 0, 30, 0, dict(DEFAULT_RATES), dict(on_all)),       # いわゆる103万
-        (5_000_000, 0, 30, 10, dict(DEFAULT_RATES), dict(on_all)),      # 扶養が多くて課税所得0
-        (4_000_000, 0, 30, 0, dict(DEFAULT_RATES),
-         {"health": False, "pension": False, "empIns": False}),         # 全部外す
+        case(0),                                                        # 年収0
+        case(550_000),                                                  # 給与所得控除 = 収入
+        case(1_030_000),                                                # いわゆる103万
+        case(5_000_000, deps=10),                                       # 扶養が多くて課税所得0
+        case(4_000_000, on={"health": False, "pension": False, "empIns": False}),
+        case(6_000_000, bonus=6_000_000),                               # 全部が賞与
+        case(6_000_000, bonus=6_000_000, bn=12),                        # 全部が賞与・12回
+        case(6_000_000, bonus=0, bn=1),
     ]
     return cases
 
@@ -416,11 +479,33 @@ SABOTAGE = [
      ('  const dedI = R.d_basic + deps*R.d_dep + si;',
       '  const dedI = R.d_basic + deps*R.d_dep;')),
     ("介護保険の上の年齢を見ない",
-     ('    if (age >= 40 && age < 65) parts["介護保険"] = annual * R.r_care/100;',
-      '    if (age >= 40) parts["介護保険"] = annual * R.r_care/100;')),
+     ('    if (age >= 40 && age < 65) parts["介護保険"] = health(R.r_care);',
+      '    if (age >= 40) parts["介護保険"] = health(R.r_care);')),
     ("住民税の扶養控除を所得税のほうの額で引く",
      ('  const dedR = R.d_basic_r + deps*R.d_dep_r + si;',
       '  const dedR = R.d_basic_r + deps*R.d_dep + si;')),
+    # ---- 2026-09-01 に入れた上限まわり ----
+    ("厚生年金の月額の上限を見ない(9/1に直した傷そのもの)",
+     ('    Math.min(monthlyPay, capM) * 12 * rate/100 +',
+      '    monthlyPay * 12 * rate/100 +')),
+    ("厚生年金の賞与の上限を見ない",
+     ('    Math.min(perBonus, capB) * bonusN * rate/100;',
+      '    perBonus * bonusN * rate/100;')),
+    ("健保の賞与の上限を「1回あたり」と取り違える",
+     ('    const healthB = Math.min(bonus, R.c_health_b);',
+      '    const healthB = Math.min(perBonus, R.c_health_b) * bonusN;')),
+    ("健保の月額の上限を厚年の上限と取り違える",
+     ('    const health = r => Math.min(monthlyPay, R.c_health_m) * 12 * r/100 + healthB * r/100;',
+      '    const health = r => Math.min(monthlyPay, R.c_pension_m) * 12 * r/100 + healthB * r/100;')),
+    ("月給ぶんから賞与を引かない(賞与を二重に数える)",
+     ('  const monthlyPay = Math.max(0, annual - bonus) / 12;',
+      '  const monthlyPay = annual / 12;')),
+    ("賞与の支給回数を読まず、いつも2回とする",
+     ('  const bonusN = Math.max(1, Math.round(+$("#bonusN").value || 1));',
+      '  const bonusN = 2;')),
+    ("雇用保険にも厚年の上限を掛ける",
+     ('  if ($("#empIns").checked)  parts["雇用保険"] = annual * R.r_emp/100;',
+      '  if ($("#empIns").checked)  parts["雇用保険"] = si2(R.r_emp, R.c_pension_m, R.c_pension_b);')),
     ("料率の書き換えを読まず、初期値を使う",
      ('  for (const k in DEFAULT_RATES) R[k] = parseFloat($("#"+k).value) || 0;',
       '  for (const k in DEFAULT_RATES) R[k] = DEFAULT_RATES[k];')),
@@ -443,7 +528,7 @@ async def run(html_path, n, seed, quiet=False):
         pg.on("pageerror", lambda e: errs.append(str(e)))
         await pg.goto(url)
         await check_cases(pg, rep, cases)
-        inert = await check_bonus_is_inert(pg, rep)
+        matters = await check_bonus_matters(pg, rep)
         await check_rate_edit(pg, rep)
         await check_bracket_edit(pg, rep)
         await check_persist(pg, rep, url)
@@ -452,10 +537,9 @@ async def run(html_path, n, seed, quiet=False):
         await b.close()
     if not quiet:
         rep.show()
-        if inert:
-            print("\n★「うち賞与の合計」は結果を1円も変えない(コードが値を読んだあと1度も使わない)。")
-            print("  宣言している近似のもとでは計算どおりだが、**画面に欄がある以上、宣言と矛盾している**。")
-            print("  上限(健保 年573万/厚年 150万円/回)を入れて欄を意味のあるものにするのが筋。")
+        if matters:
+            print("\n★「うち賞与の合計」と「支給回数」が結果を動かすことを確認"
+                  "(9/1 昼まではどちらも1円も動かさなかった)。")
     return rep
 
 
