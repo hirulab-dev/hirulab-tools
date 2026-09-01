@@ -3,24 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Regex Tester — with plain-English explanations</title>
-<meta name="description" content="Test regular expressions live, with every part of the pattern explained in plain English. Built by an AI (Claude). Runs entirely in your browser — nothing is sent anywhere.">
+<title>Regex Tester — with every part of the pattern explained</title>
+<meta name="description" content="Live regex testing with a plain-English explanation of every token in the pattern. Built by an AI (Claude); everything runs in the browser and nothing is ever sent anywhere.">
 <style>
   :root {
     --bg: #f7f7f5; --panel: #ffffff; --text: #1a1a1a; --sub: #666;
-    --accent: #2563eb; --accent-soft: #dbeafe; --border: #e2e2df;
+    --accent: #2563eb; --on-accent:#ffffff; --accent-soft: #dbeafe; --border: #e2e2df;
     --match0: #fde68a; --match1: #bbf7d0; --err: #b3261e; --ok: #116b30;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #16181d; --panel: #1f2229; --text: #e8e8e6; --sub: #9a9a97;
-      --accent: #60a5fa; --accent-soft: #1e3a5f; --border: #33363e;
+      --accent: #60a5fa; --on-accent:#17181c; --accent-soft: #1e3a5f; --border: #33363e;
       --match0: #705d10; --match1: #14532d; --err: #f87171; --ok: #4ade80;
     }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
-    font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; line-height: 1.6; }
+    font-family: "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif; line-height: 1.6; }
   .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
   h1 { font-size: 1.4rem; margin: 0 0 4px; }
   .tagline { color: var(--sub); font-size: .85rem; margin-bottom: 20px; }
@@ -45,6 +45,8 @@
   #highlight mark { border-radius: 3px; padding: 0 1px; }
   #highlight mark:nth-of-type(odd) { background: var(--match0); color: inherit; }
   #highlight mark:nth-of-type(even) { background: var(--match1); color: inherit; }
+  /* A zero-length match has nothing to paint, so mark the spot with a thin rule (no characters are added) */
+  #highlight mark.zero { border-left: 2px solid var(--err); padding: 0; }
   table { width: 100%; border-collapse: collapse; font-size: .85rem; }
   th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border);
     font-family: ui-monospace, Menlo, Consolas, monospace; word-break: break-all; }
@@ -59,25 +61,13 @@
   h2 { font-size: .95rem; margin: 0 0 10px; }
   footer { color: var(--sub); font-size: .78rem; margin-top: 28px; border-top: 1px solid var(--border); padding-top: 12px; }
   footer a { color: var(--accent); }
-
-  .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
-  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600}
-  .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
-             grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
-  .hl-nav ul a{display:block;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
-               text-decoration:none;color:var(--accent);font-size:.85rem;background:var(--panel)}
-  .hl-nav ul a:hover{border-color:var(--accent)}
-  .hl-back{display:inline-block;margin-bottom:8px;font-size:.8rem;color:var(--sub);text-decoration:none}
-  .hl-back:hover{color:var(--accent)}
-  .hl-links{margin-top:14px;font-size:.8rem;color:var(--sub)}
-  .hl-links a{color:var(--accent)}
 </style>
 <link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/regex-tester.html">
-<link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/regex-tester.html">
 <link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/regex/">
+<link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/regex-tester.html">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Claude's Daytime Lab">
+<meta property="og:site_name" content="Claude&#39;s Daytime Lab">
 <meta property="og:locale" content="en_US">
 <meta property="og:title" content="Regex Tester — with every part of the pattern explained">
 <meta property="og:description" content="Live regex testing with a plain-English explanation of every token in the pattern.">
@@ -101,17 +91,41 @@
   "browserRequirements": "A modern browser with JavaScript enabled",
   "inLanguage": "en",
   "isAccessibleForFree": true,
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
   "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-en-regex.png",
-  "author": { "@type": "Organization", "name": "Claude's Daytime Lab", "url": "https://note.com/hirulab" },
-  "isPartOf": { "@type": "WebSite", "name": "Claude's Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
+  "author": {
+    "@type": "Organization",
+    "name": "Claude&#39;s Daytime Lab",
+    "url": "https://note.com/hirulab"
+  },
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "Claude&#39;s Daytime Lab — Tools",
+    "url": "https://hirulab-dev.github.io/hirulab-tools/en/"
+  }
 }
 </script>
+<style>
+  .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
+  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600;border:0;padding:0}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
+             grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .hl-nav ul a{display:block;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+               text-decoration:none;color:var(--accent);font-size:.85rem;background:var(--panel)}
+  .hl-nav ul a:hover{border-color:var(--accent)}
+  .hl-back{display:inline-block;margin-bottom:8px;font-size:.8rem;color:var(--sub);text-decoration:none}
+  .hl-back:hover{color:var(--accent)}
+  .hl-links{margin-top:14px;font-size:.8rem;color:var(--sub)}
+  .hl-links a{color:var(--accent)}
+</style>
 </head>
 <body>
 <div class="wrap">
-
-  <a class="hl-back" href="./">← Claude's Daytime Lab — Tools</a>
+  <a class="hl-back" href="./">← Claude&#39;s Daytime Lab — Tools</a>
   <h1>Regex Tester</h1>
   <div class="tagline">Test a pattern live while every part of it gets explained in plain English. Everything runs inside your browser; your text is never sent anywhere.</div>
 
@@ -151,37 +165,29 @@ Call 415-555-0142, or visit https://hirulab.example for details.</textarea>
   <nav class="hl-nav">
     <h2>Other tools</h2>
     <ul>
-      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
-      <li><a href="./replace.html">Regex Replacement Preview</a></li>
       <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+      <li><a href="./replace.html">Regex Replacement Preview</a></li>
       <li><a href="./char-counter.html">Character Counter</a></li>
-      <li><a href="./palette.html">Color Palette Generator</a></li>
+      <li><a href="./palette.html">Color Palette</a></li>
       <li><a href="./timezone.html">Time Zone Converter</a></li>
       <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
       <li><a href="./url.html">URL Parser &amp; Builder</a></li>
       <li><a href="./headers.html">HTTP Header Explainer</a></li>
-      
+      <li><a href="./jwt.html">JWT Explainer</a></li>
       <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
       <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
       <li><a href="./qr.html">QR Code Generator</a></li>
       <li><a href="./cron.html">Cron Expression Explainer</a></li>
-      <li><a href="./jwt.html">JWT Explainer</a></li>
       <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
       <li><a href="./image.html">Image Resizer &amp; Compressor</a></li>
       <li><a href="./page-contrast.html">Whole-Page Contrast Audit</a></li>
       <li><a href="./diff.html">Text Diff</a></li>
       <li><a href="./json.html">JSON Formatter &amp; Validator</a></li>
       <li><a href="./unit.html">Unit Converter</a></li>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
       <li><a href="../regex/">Japanese version</a></li>
     </ul>
-    <p class="hl-links">
-      <a href="./">Tools index</a> ·
-      <a href="https://note.com/hirulab">Experiment log (note, JP)</a> ·
-      <a href="https://x.com/hirulab_ai">X</a> ·
-      <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
-    </p>
   </nav>
-
   <footer>
     This tool was designed and coded entirely by an AI (Claude, by Anthropic). No human has edited a single character yet.
     Bugs &amp; requests: reach the hirulab project (an AI autonomy experiment).
@@ -200,7 +206,7 @@ const PRESETS = [
   { name: "Date (YYYY-MM-DD)", p: String.raw`\d{4}-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01])` },
 ];
 
-// ---- plain-English explainer (simple parser) ----
+// ---- 日本語解説(簡易パーサ) ----
 const CLASS_DESC = {
   "\\d": "a digit (0-9)", "\\D": "anything but a digit", "\\w": "a letter, digit, or underscore", "\\W": "anything but a word character",
   "\\s": "a whitespace character (space, tab, newline)", "\\S": "anything but whitespace", "\\b": "a word boundary", "\\B": "not a word boundary",
@@ -214,52 +220,101 @@ function quantDesc(t) {
   if (core === "?" && !lazy) return "optional (0 or 1 time)";
   const m = core.match(/^\{(\d+)(,)?(\d+)?\}$/);
   if (m) {
-    if (!m[2]) return `exactly ${m[1]} times`;
-    return m[3] ? `${m[1]} to ${m[3]} times` : `${m[1]} or more times`;
+    if (!m[2]) return "exactly " + m[1] + " times";
+    return m[3] ? m[1] + " to " + m[3] + " times" : m[1] + " or more times";
   }
   return "";
 }
-function explain(pattern) {
+
+// ★2026-09-02 追加: 捕獲グループの数を先に数える。
+//   `\3` が「グループ3と同じ文字列」なのか、それとも8進エスケープ(制御文字)なのかは
+//   **その式にグループが3つ以上あるか**で決まる(ECMAScript の Annex B)。
+//   数えずに書いていたので、`(a)\3` を「グループ3と同じ文字列」と説明していた。
+//   実際は U+0003 なので当たらず、画面は「マッチなし」と出る = 説明と結果が食い違っていた。
+function countGroups(pattern) {
+  let n = 0, i = 0, inClass = false;
+  while (i < pattern.length) {
+    const c = pattern[i];
+    if (c === "\\") { i += 2; continue; }
+    if (inClass) { if (c === "]") inClass = false; i++; continue; }
+    if (c === "[") { inClass = true; i++; continue; }
+    if (c === "(") {
+      if (pattern[i + 1] !== "?") n++;
+      else if (pattern[i + 2] === "<" && pattern[i + 3] !== "=" && pattern[i + 3] !== "!") n++;
+    }
+    i++;
+  }
+  return n;
+}
+
+// ★2026-09-02 追加: 説明の「種類」(kind)を持たせて画面の data-kind に出す。
+//   文言は日英で変わるが種類は変わらないので、**検証が日英どちらのページにも当たる**
+//   (url・headers・jwt の data-code と同じ手)。
+function explain(pattern, flags) {
   const out = [];
+  const nGroups = countGroups(pattern);
+  const dotAll = flags.indexOf("s") >= 0;
+  const multi = flags.indexOf("m") >= 0;
+  const icase = flags.indexOf("i") >= 0;
   let i = 0, groupNo = 0;
-  const push = (tok, desc) => out.push({ tok, desc });
+  // no は捕獲グループの番号(それ以外は 0)。画面の data-group に出して検証に使う
+  const push = (tok, desc, kind, no) => out.push({ tok, desc, kind, no: no || 0 });
   while (i < pattern.length) {
     const rest = pattern.slice(i);
     let m;
     if ((m = rest.match(/^\((\?:|\?=|\?!|\?<=|\?<!|\?<[a-zA-Z]\w*>)?/)) && rest[0] === "(") {
       const kind = m[1] || "";
       let d = "group " + (++groupNo) + " starts here (refer to it later as \\" + groupNo + " or $" + groupNo + ")";
-      if (kind === "?:") { d = "non-capturing group starts here (just for grouping)"; groupNo--; }
-      else if (kind === "?=") { d = "lookahead: require this to follow (without consuming it)"; groupNo--; }
-      else if (kind === "?!") { d = "negative lookahead: require this NOT to follow"; groupNo--; }
-      else if (kind === "?<=") { d = "lookbehind: require this to come right before"; groupNo--; }
-      else if (kind === "?<!") { d = "negative lookbehind: require this NOT to come right before"; groupNo--; }
-      else if (kind.startsWith("?<")) d = `named group "${kind.slice(2, -1)}" starts here`;
-      push("(" + kind, d); i += 1 + kind.length; continue;
+      let k = "group-open";
+      if (kind === "?:") { d = "non-capturing group starts here (just grouping)"; k = "group-open-noncapture"; groupNo--; }
+      else if (kind === "?=") { d = "lookahead: checks what follows without consuming it"; k = "lookahead"; groupNo--; }
+      else if (kind === "?!") { d = "negative lookahead: checks that this does not follow"; k = "lookahead-neg"; groupNo--; }
+      else if (kind === "?<=") { d = "lookbehind: checks what comes just before"; k = "lookbehind"; groupNo--; }
+      else if (kind === "?<!") { d = "negative lookbehind: checks that this does not come just before"; k = "lookbehind-neg"; groupNo--; }
+      else if (kind.startsWith("?<")) { d = "named group " + kind.slice(2, -1) + " starts here"; k = "group-open-named"; }
+      const no = (k === "group-open" || k === "group-open-named") ? groupNo : 0;
+      push("(" + kind, d, k, no); i += 1 + kind.length; continue;
     }
-    if (rest[0] === ")") { push(")", "group ends here"); i++; continue; }
-    if (rest[0] === "|") { push("|", "OR (match either side)"); i++; continue; }
-    if (rest[0] === "^") { push("^", "start of the line (or string)"); i++; continue; }
-    if (rest[0] === "$") { push("$", "end of the line (or string)"); i++; continue; }
+    if (rest[0] === ")") { push(")", "group ends here", "group-close"); i++; continue; }
+    if (rest[0] === "|") { push("|", "or (either the left side or the right side)", "alt"); i++; continue; }
+    if (rest[0] === "^") {
+      push("^", multi ? "start of a line (m flag)" : "start of the string", multi ? "start-line" : "start");
+      i++; continue;
+    }
+    if (rest[0] === "$") {
+      push("$", multi ? "end of a line (m flag)" : "end of the string", multi ? "end-line" : "end");
+      i++; continue;
+    }
     if ((m = rest.match(/^\[\^?(?:\\.|[^\]\\])*\]/))) {
       const neg = m[0][1] === "^";
       const inner = m[0].slice(neg ? 2 : 1, -1);
-      push(m[0], (neg ? "one character NOT in: " : "one of these characters: ") + inner);
+      push(m[0], (neg ? "any single character except these: " : "any single one of these: ") + inner,
+           neg ? "class-neg" : "class");
       i += m[0].length;
     } else if ((m = rest.match(/^\\[dDwWsSbBnt]/))) {
-      push(m[0], CLASS_DESC[m[0]] || m[0]); i += 2;
+      push(m[0], CLASS_DESC[m[0]] || m[0], "class-escape"); i += 2;
+    } else if ((m = rest.match(/^\\([1-9])/)) && Number(m[1]) <= nGroups) {
+      push(m[0], "the same text as group " + m[1] + "", "backref"); i += m[0].length;
     } else if ((m = rest.match(/^\\(\d)/))) {
-      push(m[0], `the same text group ${m[1]} matched`); i += m[0].length;
+      // ★グループがその番号まで無いときは後方参照ではない(Annex B の8進エスケープ)
+      push(m[0], "octal escape (a control character) — the pattern only has " + nGroups +
+                 " group(s), so this is not a backreference", "octal");
+      i += m[0].length;
     } else if ((m = rest.match(/^\\./))) {
-      push(m[0], `the literal character "${m[0][1]}" (escaped)`); i += 2;
+      push(m[0], "the character " + m[0][1] + " itself (escaped)", "escaped"); i += 2;
     } else if (rest[0] === ".") {
-      push(".", CLASS_DESC["."]); i++;
+      push(".", dotAll ? "any single character, newline included (s flag)" : CLASS_DESC["."],
+           dotAll ? "dot-all" : "dot");
+      i++;
     } else {
       m = rest.match(/^[^\\().|[\]^$*+?{}]+/);
       const lit = m ? m[0] : rest[0];
-      push(lit, `the literal text "${lit}"`); i += lit.length;
+      push(lit, icase ? "the text " + lit + " itself, in either case (i flag)"
+                      : "the text " + lit + " itself",
+           icase ? "literal-i" : "literal");
+      i += lit.length;
     }
-    // attach any quantifier that follows to the previous token's description
+    // 直後の量指定子を拾って直前の説明に付ける
     const q = pattern.slice(i).match(/^(\*\?|\+\?|\?\?|\*|\+|\?|\{\d+(,\d*)?\}\??)/);
     if (q && out.length) {
       out[out.length - 1].tok += q[0];
@@ -286,29 +341,49 @@ function render() {
     ps.className = "status err";
     ms.textContent = ""; return;
   }
-  for (const { tok, desc } of explain(src)) {
+  for (const { tok, desc, kind, no } of explain(src, flags)) {
     const li = document.createElement("li");
+    li.dataset.tok = tok; li.dataset.kind = kind; li.dataset.group = no;
     const code = document.createElement("code"); code.textContent = tok;
     li.appendChild(code); li.appendChild(document.createTextNode(" — " + desc));
     ex.appendChild(li);
   }
+  // ★2026-09-02: 500件で止めたうえで件数もその数を出していたので、
+  //   600件あるのに「501 件マッチ」と表示していた(画面の数字が単に違う)。
+  //   → 数えるのと描くのを分け、打ち切ったときは打ち切ったと書く。
+  const LIMIT = 20000, SHOW = 500;
   const matches = [];
+  let truncated = false;
   if (re.global) {
-    for (const m of text.matchAll(re)) { matches.push(m); if (matches.length > 500) break; }
+    for (const m of text.matchAll(re)) {
+      matches.push(m);
+      if (matches.length >= LIMIT) { truncated = true; break; }
+    }
   } else {
     const m = text.match(re); if (m) matches.push(m);
   }
-  ms.textContent = matches.length ? matches.length + (matches.length === 1 ? " match" : " matches") : "No matches";
-  ms.className = "status " + (matches.length ? "ok" : "");
+  const shown = matches.length;
+  const zeroLen = matches.filter(m => m[0].length === 0).length;
+  let note = "";
+  if (truncated) note += "(" + LIMIT.toLocaleString() + " matches, stopped counting there)";
+  if (shown > SHOW) note += "(table shows the first " + SHOW + ")";
+  if (zeroLen) note += "(zero-length: " + zeroLen + ")";
+  ms.textContent = shown ? "matches: " + shown + note : "no matches";
+  ms.className = "status " + (shown ? "ok" : "");
   let last = 0;
   const frag = document.createDocumentFragment();
   matches.forEach((m, idx) => {
+    if (idx >= SHOW) return;
     frag.appendChild(document.createTextNode(text.slice(last, m.index)));
     const mk = document.createElement("mark"); mk.textContent = m[0];
+    // ★長さ0のマッチは印が見えないので、細い縦線を立てる(文字は足さない)
+    if (!m[0].length) mk.className = "zero";
     frag.appendChild(mk);
-    last = m.index + (m[0].length || 1);
+    // ★ここで `|| 1` と書いていたため、長さ0のマッチのたびに1文字ぶん**出力から落ちていた**
+    //   (`a*` を `bb` に当てるとテスト文字列が画面から消える)
+    last = m.index + m[0].length;
     const tr = document.createElement("tr");
-    const groups = m.slice(1).map((g, gi) => `$${gi + 1}=${g ?? "—"}`).join("  ");
+    const groups = m.slice(1).map((g, gi) => "$" + (gi + 1) + "=" + (g ?? "—")).join("  ");
     [idx + 1, m[0], m.index, groups || "—"].forEach(v => {
       const td = document.createElement("td"); td.textContent = v; tr.appendChild(td);
     });

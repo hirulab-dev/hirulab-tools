@@ -45,6 +45,8 @@
   #highlight mark { border-radius: 3px; padding: 0 1px; }
   #highlight mark:nth-of-type(odd) { background: var(--match0); color: inherit; }
   #highlight mark:nth-of-type(even) { background: var(--match1); color: inherit; }
+  /* 長さ0のマッチ。塗る中身が無いので細い縦線で位置だけ示す(文字は足さない) */
+  #highlight mark.zero { border-left: 2px solid var(--err); padding: 0; }
   table { width: 100%; border-collapse: collapse; font-size: .85rem; }
   th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border);
     font-family: ui-monospace, Menlo, Consolas, monospace; word-break: break-all; }
@@ -228,50 +230,99 @@ function quantDesc(t) {
   if (core === "?" && !lazy) return "あってもなくてもよい(0回か1回)";
   const m = core.match(/^\{(\d+)(,)?(\d+)?\}$/);
   if (m) {
-    if (!m[2]) return `ちょうど${m[1]}回`;
-    return m[3] ? `${m[1]}〜${m[3]}回` : `${m[1]}回以上`;
+    if (!m[2]) return "ちょうど" + m[1] + "回";
+    return m[3] ? m[1] + "〜" + m[3] + "回" : m[1] + "回以上";
   }
   return "";
 }
-function explain(pattern) {
+
+// ★2026-09-02 追加: 捕獲グループの数を先に数える。
+//   `\3` が「グループ3と同じ文字列」なのか、それとも8進エスケープ(制御文字)なのかは
+//   **その式にグループが3つ以上あるか**で決まる(ECMAScript の Annex B)。
+//   数えずに書いていたので、`(a)\3` を「グループ3と同じ文字列」と説明していた。
+//   実際は U+0003 なので当たらず、画面は「マッチなし」と出る = 説明と結果が食い違っていた。
+function countGroups(pattern) {
+  let n = 0, i = 0, inClass = false;
+  while (i < pattern.length) {
+    const c = pattern[i];
+    if (c === "\\") { i += 2; continue; }
+    if (inClass) { if (c === "]") inClass = false; i++; continue; }
+    if (c === "[") { inClass = true; i++; continue; }
+    if (c === "(") {
+      if (pattern[i + 1] !== "?") n++;
+      else if (pattern[i + 2] === "<" && pattern[i + 3] !== "=" && pattern[i + 3] !== "!") n++;
+    }
+    i++;
+  }
+  return n;
+}
+
+// ★2026-09-02 追加: 説明の「種類」(kind)を持たせて画面の data-kind に出す。
+//   文言は日英で変わるが種類は変わらないので、**検証が日英どちらのページにも当たる**
+//   (url・headers・jwt の data-code と同じ手)。
+function explain(pattern, flags) {
   const out = [];
+  const nGroups = countGroups(pattern);
+  const dotAll = flags.indexOf("s") >= 0;
+  const multi = flags.indexOf("m") >= 0;
+  const icase = flags.indexOf("i") >= 0;
   let i = 0, groupNo = 0;
-  const push = (tok, desc) => out.push({ tok, desc });
+  // no は捕獲グループの番号(それ以外は 0)。画面の data-group に出して検証に使う
+  const push = (tok, desc, kind, no) => out.push({ tok, desc, kind, no: no || 0 });
   while (i < pattern.length) {
     const rest = pattern.slice(i);
     let m;
     if ((m = rest.match(/^\((\?:|\?=|\?!|\?<=|\?<!|\?<[a-zA-Z]\w*>)?/)) && rest[0] === "(") {
       const kind = m[1] || "";
       let d = "グループ " + (++groupNo) + " ここから(あとで \\" + groupNo + " や $" + groupNo + " で参照可)";
-      if (kind === "?:") { d = "グループここから(番号なし・まとめるだけ)"; groupNo--; }
-      else if (kind === "?=") { d = "先読み: この先に続くことを確認(消費しない)"; groupNo--; }
-      else if (kind === "?!") { d = "否定先読み: この先に続かないことを確認"; groupNo--; }
-      else if (kind === "?<=") { d = "後読み: この直前にあることを確認"; groupNo--; }
-      else if (kind === "?<!") { d = "否定後読み: この直前にないことを確認"; groupNo--; }
-      else if (kind.startsWith("?<")) d = `名前付きグループ ${kind.slice(2, -1)} ここから`;
-      push("(" + kind, d); i += 1 + kind.length; continue;
+      let k = "group-open";
+      if (kind === "?:") { d = "グループここから(番号なし・まとめるだけ)"; k = "group-open-noncapture"; groupNo--; }
+      else if (kind === "?=") { d = "先読み: この先に続くことを確認(消費しない)"; k = "lookahead"; groupNo--; }
+      else if (kind === "?!") { d = "否定先読み: この先に続かないことを確認"; k = "lookahead-neg"; groupNo--; }
+      else if (kind === "?<=") { d = "後読み: この直前にあることを確認"; k = "lookbehind"; groupNo--; }
+      else if (kind === "?<!") { d = "否定後読み: この直前にないことを確認"; k = "lookbehind-neg"; groupNo--; }
+      else if (kind.startsWith("?<")) { d = "名前付きグループ " + kind.slice(2, -1) + " ここから"; k = "group-open-named"; }
+      const no = (k === "group-open" || k === "group-open-named") ? groupNo : 0;
+      push("(" + kind, d, k, no); i += 1 + kind.length; continue;
     }
-    if (rest[0] === ")") { push(")", "グループここまで"); i++; continue; }
-    if (rest[0] === "|") { push("|", "または(左右どちらかにマッチ)"); i++; continue; }
-    if (rest[0] === "^") { push("^", "行(文字列)の先頭"); i++; continue; }
-    if (rest[0] === "$") { push("$", "行(文字列)の末尾"); i++; continue; }
+    if (rest[0] === ")") { push(")", "グループここまで", "group-close"); i++; continue; }
+    if (rest[0] === "|") { push("|", "または(左右どちらかにマッチ)", "alt"); i++; continue; }
+    if (rest[0] === "^") {
+      push("^", multi ? "行の先頭(mフラグ)" : "文字列の先頭", multi ? "start-line" : "start");
+      i++; continue;
+    }
+    if (rest[0] === "$") {
+      push("$", multi ? "行の末尾(mフラグ)" : "文字列の末尾", multi ? "end-line" : "end");
+      i++; continue;
+    }
     if ((m = rest.match(/^\[\^?(?:\\.|[^\]\\])*\]/))) {
       const neg = m[0][1] === "^";
       const inner = m[0].slice(neg ? 2 : 1, -1);
-      push(m[0], (neg ? "次の文字以外の1文字: " : "次のうちの1文字: ") + inner);
+      push(m[0], (neg ? "次の文字以外の1文字: " : "次のうちの1文字: ") + inner,
+           neg ? "class-neg" : "class");
       i += m[0].length;
     } else if ((m = rest.match(/^\\[dDwWsSbBnt]/))) {
-      push(m[0], CLASS_DESC[m[0]] || m[0]); i += 2;
+      push(m[0], CLASS_DESC[m[0]] || m[0], "class-escape"); i += 2;
+    } else if ((m = rest.match(/^\\([1-9])/)) && Number(m[1]) <= nGroups) {
+      push(m[0], "グループ" + m[1] + "と同じ文字列", "backref"); i += m[0].length;
     } else if ((m = rest.match(/^\\(\d)/))) {
-      push(m[0], `グループ${m[1]}と同じ文字列`); i += m[0].length;
+      // ★グループがその番号まで無いときは後方参照ではない(Annex B の8進エスケープ)
+      push(m[0], "8進エスケープ(制御文字)。グループが" + nGroups +
+                 "個しか無いので後方参照にはならない", "octal");
+      i += m[0].length;
     } else if ((m = rest.match(/^\\./))) {
-      push(m[0], `文字「${m[0][1]}」そのもの(エスケープ)`); i += 2;
+      push(m[0], "文字「" + m[0][1] + "」そのもの(エスケープ)", "escaped"); i += 2;
     } else if (rest[0] === ".") {
-      push(".", CLASS_DESC["."]); i++;
+      push(".", dotAll ? "任意の1文字(改行も含む・sフラグ)" : CLASS_DESC["."],
+           dotAll ? "dot-all" : "dot");
+      i++;
     } else {
       m = rest.match(/^[^\\().|[\]^$*+?{}]+/);
       const lit = m ? m[0] : rest[0];
-      push(lit, `文字列「${lit}」そのもの`); i += lit.length;
+      push(lit, icase ? "文字列「" + lit + "」そのもの(大小どちらでも・iフラグ)"
+                      : "文字列「" + lit + "」そのもの",
+           icase ? "literal-i" : "literal");
+      i += lit.length;
     }
     // 直後の量指定子を拾って直前の説明に付ける
     const q = pattern.slice(i).match(/^(\*\?|\+\?|\?\?|\*|\+|\?|\{\d+(,\d*)?\}\??)/);
@@ -300,29 +351,49 @@ function render() {
     ps.className = "status err";
     ms.textContent = ""; return;
   }
-  for (const { tok, desc } of explain(src)) {
+  for (const { tok, desc, kind, no } of explain(src, flags)) {
     const li = document.createElement("li");
+    li.dataset.tok = tok; li.dataset.kind = kind; li.dataset.group = no;
     const code = document.createElement("code"); code.textContent = tok;
     li.appendChild(code); li.appendChild(document.createTextNode(" — " + desc));
     ex.appendChild(li);
   }
+  // ★2026-09-02: 500件で止めたうえで件数もその数を出していたので、
+  //   600件あるのに「501 件マッチ」と表示していた(画面の数字が単に違う)。
+  //   → 数えるのと描くのを分け、打ち切ったときは打ち切ったと書く。
+  const LIMIT = 20000, SHOW = 500;
   const matches = [];
+  let truncated = false;
   if (re.global) {
-    for (const m of text.matchAll(re)) { matches.push(m); if (matches.length > 500) break; }
+    for (const m of text.matchAll(re)) {
+      matches.push(m);
+      if (matches.length >= LIMIT) { truncated = true; break; }
+    }
   } else {
     const m = text.match(re); if (m) matches.push(m);
   }
-  ms.textContent = matches.length ? matches.length + " 件マッチ" : "マッチなし";
-  ms.className = "status " + (matches.length ? "ok" : "");
+  const shown = matches.length;
+  const zeroLen = matches.filter(m => m[0].length === 0).length;
+  let note = "";
+  if (truncated) note += "(" + LIMIT.toLocaleString() + "件で打ち切りました)";
+  if (shown > SHOW) note += "(表は先頭" + SHOW + "件)";
+  if (zeroLen) note += "(うち長さ0が" + zeroLen + "件)";
+  ms.textContent = shown ? "マッチ: " + shown + note : "マッチなし";
+  ms.className = "status " + (shown ? "ok" : "");
   let last = 0;
   const frag = document.createDocumentFragment();
   matches.forEach((m, idx) => {
+    if (idx >= SHOW) return;
     frag.appendChild(document.createTextNode(text.slice(last, m.index)));
     const mk = document.createElement("mark"); mk.textContent = m[0];
+    // ★長さ0のマッチは印が見えないので、細い縦線を立てる(文字は足さない)
+    if (!m[0].length) mk.className = "zero";
     frag.appendChild(mk);
-    last = m.index + (m[0].length || 1);
+    // ★ここで `|| 1` と書いていたため、長さ0のマッチのたびに1文字ぶん**出力から落ちていた**
+    //   (`a*` を `bb` に当てるとテスト文字列が画面から消える)
+    last = m.index + m[0].length;
     const tr = document.createElement("tr");
-    const groups = m.slice(1).map((g, gi) => `$${gi + 1}=${g ?? "—"}`).join("  ");
+    const groups = m.slice(1).map((g, gi) => "$" + (gi + 1) + "=" + (g ?? "—")).join("  ");
     [idx + 1, m[0], m.index, groups || "—"].forEach(v => {
       const td = document.createElement("td"); td.textContent = v; tr.appendChild(td);
     });
