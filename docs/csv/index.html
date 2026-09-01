@@ -306,8 +306,13 @@
 
 <script>
 "use strict";
-/* 判定の理由として画面に出す文言。**ここだけが言語ごとに違う**。
-   この下の「解析の中身」は英語版 en/csv.html とバイト単位で同じものを使っている。 */
+/* 判定の理由として画面に出す文言。
+   ★2026-09-01: 英語版 en/csv.html は、このファイルから
+   `tools/make_en_csv.py` で**生成する**ようになった。日本語版が唯一の原本で、
+   「文字列の中身を全部空にすると日英のコードがバイト単位で一致する」ことを
+   生成のたびに機械で確かめている(=違うのは引用符の中身だけ)。
+   それまでは英語版が手書きで、**文字コード判定という看板機能を1度も動かさない見本**を
+   持っていた(壊れた見本が Shift_JIS でなく UTF-8 だった)。 */
 var MSG = {
   bomUtf8: "先頭に UTF-8 の BOM (EF BB BF) があります",
   bomLe: "先頭に UTF-16 LE の BOM (FF FE) があります",
@@ -328,7 +333,7 @@ var MSG = {
   quoteUnclosed: "引用符が閉じられないままファイルが終わりました"
 };
 
-/* ===== ここから「解析の中身」。英語版とバイト単位で同じ ===== */
+/* ===== ここから「解析の中身」。英語版とは文字列の中身以外がバイト単位で同じ ===== */
 /* ========== 文字コードの判定 ==========
    方針: BOM → 厳密復号で候補をふるい落とす → 残りを日本語らしさで選ぶ。
    TextDecoder に fatal:true を渡すと、規則に反したバイトがあった時点で例外になる。
@@ -531,8 +536,11 @@ var RE_BOOL = /^(true|false|TRUE|FALSE|yes|no|はい|いいえ)$/;
 var RE_LEADING_ZERO = /^0\d+$/;
 var RE_EXCEL_DATEISH = /^\d{1,2}[-/]\d{1,2}$/;
 
+/* 型は ASCII の合図(int/dec/…)で持ち、画面に出す直前に言葉にする(TYPE_LABEL は下の「画面」の側)。
+   ここに日本語の名前を書くと、英語版を日本語版から生成するときに
+   「文字列の中身以外は日英で同じ」が保てない(識別子は訳しようがないため)。 */
 function analyzeColumn(values) {
-  var counts = { 整数: 0, 小数: 0, 日付: 0, 時刻: 0, 真偽: 0, 文字列: 0 };
+  var counts = { int: 0, dec: 0, date: 0, time: 0, bool: 0, text: 0 };
   var empty = 0, uniq = Object.create(null), uniqN = 0, maxLen = 0;
   var leadingZero = 0, dateish = 0, bigNum = 0, formula = 0, spacePad = 0, fullWidthSpace = 0;
   var samples = { leadingZero: null, dateish: null, bigNum: null, formula: null, spacePad: null };
@@ -551,18 +559,18 @@ function analyzeColumn(values) {
     if (v[0] === "=" || v[0] === "+" || (v[0] === "@" && v.length > 1)) { formula++; if (!samples.formula) samples.formula = v; }
 
     var t = v.trim();
-    if (RE_INT.test(t)) counts.整数++;
-    else if (RE_NUM.test(t)) counts.小数++;
-    else if (RE_DATE.test(t)) counts.日付++;
-    else if (RE_TIME.test(t)) counts.時刻++;
-    else if (RE_BOOL.test(t)) counts.真偽++;
-    else counts.文字列++;
+    if (RE_INT.test(t)) counts.int++;
+    else if (RE_NUM.test(t)) counts.dec++;
+    else if (RE_DATE.test(t)) counts.date++;
+    else if (RE_TIME.test(t)) counts.time++;
+    else if (RE_BOOL.test(t)) counts.bool++;
+    else counts.text++;
   }
   var filled = values.length - empty;
-  var type = "空", best = 0;
+  var type = "empty", best = 0;
   Object.keys(counts).forEach(function (k) { if (counts[k] > best) { best = counts[k]; type = k; } });
-  if (filled === 0) type = "空";
-  else if (counts.整数 + counts.小数 === filled) type = counts.小数 > 0 ? "数値" : "整数";
+  if (filled === 0) type = "empty";
+  else if (counts.int + counts.dec === filled) type = counts.dec > 0 ? "number" : "int";
   var mixed = filled > 0 && best < filled;
 
   return { type: type, mixed: mixed, counts: counts, empty: empty, filled: filled,
@@ -574,6 +582,10 @@ function analyzeColumn(values) {
 /* ===== ここまでが「解析の中身」。英語版とバイト単位で同じ ===== */
 
 /* ========== 画面 ========== */
+/* 列の型の言葉。解析は上で ASCII の合図だけを返し、言語に触れるのはここだけ。 */
+var TYPE_LABEL = { empty: "空", number: "数値", int: "整数", dec: "小数",
+                   date: "日付", time: "時刻", bool: "真偽", text: "文字列" };
+
 var S = { bytes: null, text: "", enc: null, encId: null, delim: null, parsed: null, cols: [] };
 var $ = function (id) { return document.getElementById(id); };
 
@@ -635,9 +647,11 @@ function render() {
 
   // ---- 概要 ----
   $("summary").hidden = false;
+  /* 以下、数の後ろに必ず文字列を1つ置き、単位は前に出す形に寄せてある。英語には単複があり、
+     日本語には無いので、"1 rows" のような形を避けるにはこの置き方しかない。 */
   $("shape").textContent = rows.length.toLocaleString() + " 行 × " + nCols + " 列";
   $("shapeWhy").textContent = hasHeader
-    ? "見出し1行 + データ " + body.length.toLocaleString() + " 行"
+    ? "見出し1行 + データ " + body.length.toLocaleString() + " 行ぶん"
     : "見出しなしとして扱っています";
 
   var crlf = (text.match(/\r\n/g) || []).length;
@@ -653,7 +667,7 @@ function render() {
   $("encWhy").textContent = (S.enc ? S.enc.reasons.join("。") : "");
   var db = sniff.best;
   $("delimWhy").textContent = chosen === "auto"
-    ? "自動: " + nameOfDelim(db.d) + "（" + db.cols + "列がそろう行 " + Math.round(db.agree * 100) + "%）"
+    ? "自動: " + nameOfDelim(db.d) + "（そろう行 " + Math.round(db.agree * 100) + "% ・ " + db.cols + "列）"
     : "手で " + nameOfDelim(S.delim) + " を指定しています";
 
   // ---- 問題の洗い出し ----
@@ -671,9 +685,9 @@ function render() {
   });
   if (wrongRows.length) {
     var sample = wrongRows.slice(0, 5).map(function (w) {
-      return "ファイル " + w.line + " 行目(" + w.n + "列)";
+      return "ファイル " + w.line + " 行目(" + w.n + " 列)";
     }).join(" / ");
-    issues.push({ sev: "e", where: wrongRows.length + " 行", msg: "列数が " + nCols + " と違う行があります",
+    issues.push({ sev: "e", where: "該当 " + wrongRows.length + " 行", msg: "列数が " + nCols + " と違う行があります",
                   fix: sample + (wrongRows.length > 5 ? " ほか" : "") +
                        "。囲っていないフィールドに区切り文字が入っている、が最も多い原因です。" });
   }
@@ -695,8 +709,11 @@ function render() {
     var seen = {}, dup = [];
     header.forEach(function (h, i) {
       var k = h.trim();
-      if (k === "") dup.push((i + 1) + "列目（空）");
-      else if (seen[k] !== undefined) dup.push("「" + k + "」(" + (seen[k] + 1) + "列目と" + (i + 1) + "列目)");
+      /* 「3列目」でなく「第3列」と書いているのは英語版のため。日本語は数が先だが
+         英語は "column 3" で語が先に来る。前に置く語を文字列として持っておけば、
+         そこを訳すだけで語順が入れ替わる(コードの形は日英で1バイトも変わらない)。 */
+      if (k === "") dup.push("第" + (i + 1) + "列（空）");
+      else if (seen[k] !== undefined) dup.push("「" + k + "」(第" + (seen[k] + 1) + "列と第" + (i + 1) + "列)");
       else seen[k] = i;
     });
     if (dup.length) issues.push({ sev: "w", where: "見出し行", msg: "見出しが重複または空です: " + dup.join(" / "),
@@ -717,27 +734,27 @@ function render() {
   for (var c = 0; c < nCols; c++) {
     var vals = body.map(function (r) { return r[c] !== undefined ? r[c] : ""; });
     var a = analyzeColumn(vals);
-    a.name = header ? (header[c] || "(空の見出し)") : (c + 1) + "列目";
+    a.name = header ? (header[c] || "(空の見出し)") : "第" + (c + 1) + "列";
     a.index = c;
     S.cols.push(a);
 
     if (a.leadingZero) issues.push({ sev: "w", where: "列「" + a.name + "」", msg:
-      "先頭が 0 の数字が " + a.leadingZero + " 件あります（例: " + a.samples.leadingZero + "）",
+      a.leadingZero + " 件: 先頭が 0 の数字（例: " + a.samples.leadingZero + "）",
       fix: "Excelで開くと 0 が消えます。郵便番号・電話番号・商品コードでよく起きます。" });
     if (a.dateish) issues.push({ sev: "w", where: "列「" + a.name + "」", msg:
-      "日付として読まれる形が " + a.dateish + " 件あります（例: " + a.samples.dateish + "）",
+      a.dateish + " 件: 日付として読まれる形（例: " + a.samples.dateish + "）",
       fix: "Excelは 1-2 を「1月2日」に変えます。サイズ表記や比率でよく起きます。" });
     if (a.bigNum) issues.push({ sev: "w", where: "列「" + a.name + "」", msg:
-      "16桁を超える数字が " + a.bigNum + " 件あります（例: " + a.samples.bigNum + "）",
+      a.bigNum + " 件: 16桁を超える数字（例: " + a.samples.bigNum + "）",
       fix: "Excelは有効桁15桁までなので、後ろが 0 に丸められます。カード番号・注文IDで起きます。" });
     if (a.formula) issues.push({ sev: "e", where: "列「" + a.name + "」", msg:
-      "= や + で始まる値が " + a.formula + " 件あります（例: " + a.samples.formula + "）",
+      a.formula + " 件: = や + で始まる値（例: " + a.samples.formula + "）",
       fix: "表計算ソフトが数式として実行します。外から来たCSVでは、これを使った攻撃が知られています。" });
     if (a.spacePad) issues.push({ sev: "i", where: "列「" + a.name + "」", msg:
-      "前後に空白がある値が " + a.spacePad + " 件あります",
+      a.spacePad + " 件: 前後に空白がある値",
       fix: "「東京 」と「東京」は別物として扱われます。突き合わせが合わない原因になります。" });
     if (a.fullWidthSpace) issues.push({ sev: "i", where: "列「" + a.name + "」", msg:
-      "全角スペースを含む値が " + a.fullWidthSpace + " 件あります", fix: "見た目では半角と区別が付きません。" });
+      a.fullWidthSpace + " 件: 全角スペースを含む値", fix: "見た目では半角と区別が付きません。" });
   }
 
   // ---- 表示 ----
@@ -745,7 +762,9 @@ function render() {
   issues.forEach(function (x) { counts[x.sev]++; });
   $("issuesPanel").hidden = false;
   $("issueCount").textContent = issues.length === 0 ? "問題なし"
-    : "重大 " + counts.e + " / 注意 " + counts.w + " / 参考 " + counts.i;
+    /* 末尾に " 件" を置いてあるのは英語版のため。英語は "3 serious / 3 warnings / 1 notes"
+       と数の後ろに語が来るので、最後の数の後ろにも文字列が1つ要る。 */
+    : "重大 " + counts.e + " 件 / 注意 " + counts.w + " 件 / 参考 " + counts.i + " 件";
   $("issues").innerHTML = issues.length === 0
     ? '<li class="i"><b class="ok">壊れているところは見つかりませんでした。</b>' +
       '<span class="fix">列数はそろい、引用符も閉じています。</span></li>'
@@ -771,7 +790,7 @@ function renderPreview(rows, header, hasHeader, nCols, parsed) {
 
   var html = "<thead><tr><th class='rownum'>行</th>";
   for (var c = 0; c < nCols; c++) {
-    html += "<th>" + esc(header ? (header[c] || "(空)") : (c + 1) + "列目") + "</th>";
+    html += "<th>" + esc(header ? (header[c] || "(空)") : "第" + (c + 1) + "列") + "</th>";
   }
   html += "</tr></thead><tbody>";
   var start = hasHeader ? 1 : 0;
@@ -796,7 +815,7 @@ function renderPreview(rows, header, hasHeader, nCols, parsed) {
   $("previewPanel").hidden = false;
   $("previewNote").textContent = rows.length > LIMIT
     ? "先頭 " + LIMIT + " 行のみ表示（全 " + rows.length.toLocaleString() + " 行）"
-    : "全 " + rows.length.toLocaleString() + " 行";
+    : "全部で " + rows.length.toLocaleString() + " 行";
 }
 
 function renderCols() {
@@ -812,7 +831,7 @@ function renderCols() {
     if (a.spacePad) notes.push("前後に空白 " + a.spacePad);
     if (a.filled && a.uniq === a.filled) notes.push("全部ちがう値（キーになりそう）");
     if (a.filled && a.uniq === 1) notes.push("1種類だけ");
-    h += "<tr><td>" + esc(a.name) + "</td><td>" + esc(a.type) + "</td><td class='num'>" + a.empty +
+    h += "<tr><td>" + esc(a.name) + "</td><td>" + esc(TYPE_LABEL[a.type] || a.type) + "</td><td class='num'>" + a.empty +
          "</td><td class='num'>" + a.uniq + "</td><td class='num'>" + a.maxLen + "</td><td>" +
          esc(notes.join(" / ") || "—") + "</td></tr>";
   });

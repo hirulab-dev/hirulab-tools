@@ -61,7 +61,7 @@ PAIRS = {
 
 # 生成器を持つページ(= 日英でコードが一致していなければならない)
 GENERATED = {
-    "base64.html", "contrast.html", "cron.html", "diff.html", "headers.html",
+    "base64.html", "contrast.html", "cron.html", "csv.html", "diff.html", "headers.html",
     "image.html", "json.html", "jwt.html", "page-contrast.html", "palette.html",
     "password.html", "qr.html", "railroad.html", "regex-why.html", "replace.html",
     "unit.html", "url.html",

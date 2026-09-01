@@ -4,10 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CSV Preview &amp; Diagnostics — find the broken rows before Excel eats them</title>
-<meta name="description" content="Open a CSV in your browser, auto-detect its encoding and delimiter, and get every broken row named by line and column. Warns about the columns Excel silently corrupts: leading zeros, 1-2 turning into a date, 16+ digit numbers, and formula injection. Nothing is uploaded.">
+<meta name="description" content="Open a CSV in your browser, auto-detect its encoding and delimiter, and get every broken row named by line and column. Warns about the columns Excel silently corrupts: leading zeros, 1-2 turning into a date, 16+ digit numbers, and formula injection. Built by an AI (Claude); nothing is uploaded.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
+    /* The link color is dark enough to clear 4.5:1 on white (the lighter #c47f16 only reaches 3.28:1).
+       --on-accent is the text color to use when the accent color is the background. */
     --accent:#8f5c0e; --on-accent:#ffffff;
     --border:#e2e2df; --ok:#15703f; --err:#b3261e; --warn:#9a5208;
     --okbg:#e8f5ee; --errbg:#fdecea; --warnbg:#fdf4e3; --hi:#fdf4e3;
@@ -20,7 +22,7 @@
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
-       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+       font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif}
   .wrap{max-width:980px;margin:0 auto;padding:28px 18px 56px}
   h1{font-size:1.5rem;margin:0 0 4px}
   h2{font-size:1rem;margin:0 0 10px;border-bottom:1px solid var(--border);padding-bottom:6px}
@@ -77,6 +79,8 @@
   details summary{cursor:pointer;font-size:.92rem;font-weight:600}
   details ul{padding-left:1.2em}
   details li{font-size:.85rem;margin:6px 0}
+  /* Links inside the body text fall back to the browser default blue (1.69:1 in dark mode)
+     unless a color is set, so it is set here from the start. */
   details a{color:var(--accent)}
   code{background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:0 4px;
        font-size:.85em}
@@ -155,10 +159,14 @@
       <input type="file" id="file" accept=".csv,.tsv,.txt,text/csv" hidden>
     </div>
     <div class="row">
-      <button id="sample1">Sample (broken rows)</button>
-      <button id="sample2">Sample (clean file)</button>
+      <button id="sample1">Sample (Shift_JIS, with broken rows)</button>
+      <button id="sample2">Sample (clean UTF-8)</button>
       <button id="clear">Clear</button>
     </div>
+    <div class="note">Both samples are Japanese text on purpose. Encoding detection has nothing to do
+      when a file is pure ASCII — every candidate gives the same bytes back — so a sample that shows
+      Shift_JIS being told apart from UTF-8 has to be non-ASCII. The samples are also what a spreadsheet
+      exports on a Japanese Windows machine, which is where most of these broken files come from.</div>
     <div class="row" style="margin-top:14px;width:100%">
       <div style="flex:1 1 100%">
         <label class="f" for="paste">Or paste it here</label>
@@ -260,8 +268,10 @@
       <li><b>How it is verified</b>: the parser and the detectors are checked against Python's
         <code>csv</code> module over 2,300 generated files and 52,353 cells. The test script is
         <a href="https://github.com/hirulab-dev/hirulab-tools/tree/main/tools/tests">in the repository</a>,
-        and it runs against this English page as well — <b>the analysis code on both pages is byte-for-byte
-        identical</b>; only the wording differs.</li>
+        and it is run against this English page as well.
+        <b>This page is generated from the Japanese one</b>: blank out the contents of every string
+        literal and the two files are byte-for-byte identical, which is checked on every build.
+        Only the wording differs — never the code.</li>
     </ul>
   </details>
 
@@ -277,26 +287,19 @@
       <li><a href="./timezone.html">Time Zone Converter</a></li>
       <li><a href="./url.html">URL Parser &amp; Builder</a></li>
       <li><a href="./headers.html">HTTP Header Explainer</a></li>
-      
+      <li><a href="./jwt.html">JWT Explainer</a></li>
       <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
       <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
       <li><a href="./qr.html">QR Code Generator</a></li>
-      <li><a href="./cron.html">Cron Expression Explainer</a></li>
-      <li><a href="./jwt.html">JWT Explainer</a></li>
-      <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
       <li><a href="./image.html">Image Resizer &amp; Compressor</a></li>
       <li><a href="./page-contrast.html">Whole-Page Contrast Audit</a></li>
       <li><a href="./diff.html">Text Diff</a></li>
       <li><a href="./json.html">JSON Formatter &amp; Validator</a></li>
       <li><a href="./unit.html">Unit Converter</a></li>
+      <li><a href="./cron.html">Cron Expression Explainer</a></li>
+      <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
       <li><a href="../csv/">Japanese version</a></li>
     </ul>
-    <p class="hl-links">
-      <a href="./">Tools index</a> ·
-      <a href="https://note.com/hirulab">Experiment log (JP)</a> ·
-      <a href="https://x.com/hirulab_ai">X</a> ·
-      <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
-    </p>
   </nav>
 
   <footer>
@@ -307,8 +310,13 @@
 
 <script>
 "use strict";
-/* The wording shown as the detection reason. **This block is the only part that differs by language.**
-   Everything below it is byte-for-byte identical to the Japanese page at ../csv/. */
+/* 判定の理由として画面に出す文言。
+   ★2026-09-01: 英語版 en/csv.html は、このファイルから
+   `tools/make_en_csv.py` で**生成する**ようになった。日本語版が唯一の原本で、
+   「文字列の中身を全部空にすると日英のコードがバイト単位で一致する」ことを
+   生成のたびに機械で確かめている(=違うのは引用符の中身だけ)。
+   それまでは英語版が手書きで、**文字コード判定という看板機能を1度も動かさない見本**を
+   持っていた(壊れた見本が Shift_JIS でなく UTF-8 だった)。 */
 var MSG = {
   bomUtf8: "Starts with a UTF-8 BOM (EF BB BF)",
   bomLe: "Starts with a UTF-16 LE BOM (FF FE)",
@@ -319,17 +327,17 @@ var MSG = {
   allInvalid: "Every candidate hit a byte that breaks its rules, so the file may be damaged. Reading it as UTF-8",
   utf8Valid: "Decoded cleanly as UTF-8 all the way to the end",
   notReadableAs: function (list) { return "(it cannot be read as " + list + ")"; },
-  validAs: function (label) { return "Decoded cleanly as " + label; },
+  validAs: function (label) { return label + " decoded cleanly"; },
   comparedByScore: function (list) { return "The survivors were compared by how much they look like text (" + list + ")"; },
   alsoReadable: function (label) {
-    return "Note: it can also be read as " + label + ". If the text looks garbled, switch it above";
+    return "Note: " + label + " can also be read. If the text looks garbled, switch it above";
   },
   quoteGarbage: function (ch) { return "A stray character " + ch + " appears right after a closing quote"; },
   quoteLate: "A quote starts in the middle of a field",
   quoteUnclosed: "The file ended with a quote still open"
 };
 
-/* ===== ここから「解析の中身」。英語版とバイト単位で同じ ===== */
+/* ===== ここから「解析の中身」。英語版とは文字列の中身以外がバイト単位で同じ ===== */
 /* ========== 文字コードの判定 ==========
    方針: BOM → 厳密復号で候補をふるい落とす → 残りを日本語らしさで選ぶ。
    TextDecoder に fatal:true を渡すと、規則に反したバイトがあった時点で例外になる。
@@ -532,8 +540,11 @@ var RE_BOOL = /^(true|false|TRUE|FALSE|yes|no|はい|いいえ)$/;
 var RE_LEADING_ZERO = /^0\d+$/;
 var RE_EXCEL_DATEISH = /^\d{1,2}[-/]\d{1,2}$/;
 
+/* 型は ASCII の合図(int/dec/…)で持ち、画面に出す直前に言葉にする(TYPE_LABEL は下の「画面」の側)。
+   ここに日本語の名前を書くと、英語版を日本語版から生成するときに
+   「文字列の中身以外は日英で同じ」が保てない(識別子は訳しようがないため)。 */
 function analyzeColumn(values) {
-  var counts = { 整数: 0, 小数: 0, 日付: 0, 時刻: 0, 真偽: 0, 文字列: 0 };
+  var counts = { int: 0, dec: 0, date: 0, time: 0, bool: 0, text: 0 };
   var empty = 0, uniq = Object.create(null), uniqN = 0, maxLen = 0;
   var leadingZero = 0, dateish = 0, bigNum = 0, formula = 0, spacePad = 0, fullWidthSpace = 0;
   var samples = { leadingZero: null, dateish: null, bigNum: null, formula: null, spacePad: null };
@@ -552,18 +563,18 @@ function analyzeColumn(values) {
     if (v[0] === "=" || v[0] === "+" || (v[0] === "@" && v.length > 1)) { formula++; if (!samples.formula) samples.formula = v; }
 
     var t = v.trim();
-    if (RE_INT.test(t)) counts.整数++;
-    else if (RE_NUM.test(t)) counts.小数++;
-    else if (RE_DATE.test(t)) counts.日付++;
-    else if (RE_TIME.test(t)) counts.時刻++;
-    else if (RE_BOOL.test(t)) counts.真偽++;
-    else counts.文字列++;
+    if (RE_INT.test(t)) counts.int++;
+    else if (RE_NUM.test(t)) counts.dec++;
+    else if (RE_DATE.test(t)) counts.date++;
+    else if (RE_TIME.test(t)) counts.time++;
+    else if (RE_BOOL.test(t)) counts.bool++;
+    else counts.text++;
   }
   var filled = values.length - empty;
-  var type = "空", best = 0;
+  var type = "empty", best = 0;
   Object.keys(counts).forEach(function (k) { if (counts[k] > best) { best = counts[k]; type = k; } });
-  if (filled === 0) type = "空";
-  else if (counts.整数 + counts.小数 === filled) type = counts.小数 > 0 ? "数値" : "整数";
+  if (filled === 0) type = "empty";
+  else if (counts.int + counts.dec === filled) type = counts.dec > 0 ? "number" : "int";
   var mixed = filled > 0 && best < filled;
 
   return { type: type, mixed: mixed, counts: counts, empty: empty, filled: filled,
@@ -574,7 +585,11 @@ function analyzeColumn(values) {
 
 /* ===== ここまでが「解析の中身」。英語版とバイト単位で同じ ===== */
 
-/* ========== UI ========== */
+/* ========== 画面 ========== */
+/* 列の型の言葉。解析は上で ASCII の合図だけを返し、言語に触れるのはここだけ。 */
+var TYPE_LABEL = { empty: "blank", number: "number", int: "integer", dec: "decimal",
+                   date: "date", time: "time", bool: "boolean", text: "text" };
+
 var S = { bytes: null, text: "", enc: null, encId: null, delim: null, parsed: null, cols: [] };
 var $ = function (id) { return document.getElementById(id); };
 
@@ -608,7 +623,7 @@ function decodeAndRender() {
   var t;
   try { t = new TextDecoder(S.encId, { fatal: false }).decode(S.bytes); }
   catch (e) { t = new TextDecoder("utf-8").decode(S.bytes); }
-  if (t.charCodeAt(0) === 0xFEFF) t = t.slice(1);
+  if (t.charCodeAt(0) === 0xFEFF) t = t.slice(1);   // BOM を本文から外す
   S.text = t;
   render();
 }
@@ -624,6 +639,7 @@ function render() {
   S.parsed = parsed;
 
   var rows = parsed.rows;
+  // 末尾の空行（ファイル末尾の改行で1行できる）は落とす
   while (rows.length && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0] === "") {
     rows.pop(); parsed.meta.pop();
   }
@@ -633,10 +649,13 @@ function render() {
   var body = hasHeader ? rows.slice(1) : rows;
   var nCols = header ? header.length : (rows[0] ? rows[0].length : 0);
 
+  // ---- 概要 ----
   $("summary").hidden = false;
-  $("shape").textContent = rows.length.toLocaleString() + " rows × " + nCols + " columns";
+  /* 以下、数の後ろに必ず文字列を1つ置き、単位は前に出す形に寄せてある。英語には単複があり、
+     日本語には無いので、"1 rows" のような形を避けるにはこの置き方しかない。 */
+  $("shape").textContent = rows.length.toLocaleString() + " × " + nCols + "";
   $("shapeWhy").textContent = hasHeader
-    ? "1 header row + " + body.length.toLocaleString() + " data rows"
+    ? "1 header row, data rows: " + body.length.toLocaleString() + ""
     : "Treated as having no header row";
 
   var crlf = (text.match(/\r\n/g) || []).length;
@@ -652,12 +671,13 @@ function render() {
   $("encWhy").textContent = (S.enc ? S.enc.reasons.join(". ") : "");
   var db = sniff.best;
   $("delimWhy").textContent = chosen === "auto"
-    ? "Auto: " + nameOfDelim(db.d) + " (" + Math.round(db.agree * 100) + "% of rows have " + db.cols + " columns)"
-    : "Set by hand to " + nameOfDelim(S.delim);
+    ? "Auto: " + nameOfDelim(db.d) + " (" + Math.round(db.agree * 100) + "% of rows agree on " + db.cols + " columns)"
+    : "Set by hand to " + nameOfDelim(S.delim) + "";
 
+  // ---- 問題の洗い出し ----
   var issues = [];
   parsed.errors.forEach(function (e) {
-    issues.push({ sev: "e", where: "line " + e.line + ", field " + e.field, msg: e.msg,
+    issues.push({ sev: "e", where: "line " + e.line + ", field " + e.field + "", msg: e.msg,
                   fix: e.type === "quote-unclosed"
                     ? "There is an odd number of quote characters. Everything after the missing one was read as a single field."
                     : "Quote the whole field, or double the inner quote as \"\"." });
@@ -669,9 +689,9 @@ function render() {
   });
   if (wrongRows.length) {
     var sample = wrongRows.slice(0, 5).map(function (w) {
-      return "line " + w.line + " (" + w.n + ")";
+      return "line " + w.line + " (" + w.n + " columns)";
     }).join(" / ");
-    issues.push({ sev: "e", where: wrongRows.length + " rows", msg: "Rows whose column count is not " + nCols,
+    issues.push({ sev: "e", where: "rows: " + wrongRows.length + "", msg: "Rows whose column count is not " + nCols + "",
                   fix: sample + (wrongRows.length > 5 ? " and more" : "") +
                        ". The usual cause is a delimiter inside a field that was not quoted." });
   }
@@ -693,8 +713,11 @@ function render() {
     var seen = {}, dup = [];
     header.forEach(function (h, i) {
       var k = h.trim();
+      /* 「3列目」でなく「第3列」と書いているのは英語版のため。日本語は数が先だが
+         英語は "column 3" で語が先に来る。前に置く語を文字列として持っておけば、
+         そこを訳すだけで語順が入れ替わる(コードの形は日英で1バイトも変わらない)。 */
       if (k === "") dup.push("column " + (i + 1) + " (empty)");
-      else if (seen[k] !== undefined) dup.push('"' + k + '" (columns ' + (seen[k] + 1) + " and " + (i + 1) + ")");
+      else if (seen[k] !== undefined) dup.push("column “" + k + "” (columns " + (seen[k] + 1) + " and " + (i + 1) + ")");
       else seen[k] = i;
     });
     if (dup.length) issues.push({ sev: "w", where: "header row", msg: "Duplicated or empty header names: " + dup.join(" / "),
@@ -707,41 +730,45 @@ function render() {
     if (seenRow[k] !== undefined) { dupRows++; if (dupFirst === null) dupFirst = i; }
     else seenRow[k] = i;
   });
-  if (dupRows) issues.push({ sev: "w", where: dupRows + " rows", msg: "Rows that are exactly identical",
-                             fix: "The first repeated row is data row " + (dupFirst + 1) + "." });
+  if (dupRows) issues.push({ sev: "w", where: dupRows + "", msg: "Rows that are exactly identical",
+                             fix: "The first repeated row is data row " + (dupFirst + 1) + "" });
 
+  // ---- 列ごとの診断 ----
   S.cols = [];
   for (var c = 0; c < nCols; c++) {
     var vals = body.map(function (r) { return r[c] !== undefined ? r[c] : ""; });
     var a = analyzeColumn(vals);
-    a.name = header ? (header[c] || "(empty header)") : "column " + (c + 1);
+    a.name = header ? (header[c] || "(empty header)") : "column " + (c + 1) + "";
     a.index = c;
     S.cols.push(a);
 
-    if (a.leadingZero) issues.push({ sev: "w", where: 'column "' + a.name + '"', msg:
-      a.leadingZero + " values are numbers with a leading zero (e.g. " + a.samples.leadingZero + ")",
+    if (a.leadingZero) issues.push({ sev: "w", where: "column “" + a.name + "”", msg:
+      a.leadingZero + " found: numbers with a leading zero (e.g. " + a.samples.leadingZero + ")",
       fix: "Excel drops the zero. ZIP codes, phone numbers and product codes are the usual victims." });
-    if (a.dateish) issues.push({ sev: "w", where: 'column "' + a.name + '"', msg:
-      a.dateish + " values will be read as dates (e.g. " + a.samples.dateish + ")",
+    if (a.dateish) issues.push({ sev: "w", where: "column “" + a.name + "”", msg:
+      a.dateish + " found: values that will be read as dates (e.g. " + a.samples.dateish + ")",
       fix: "Excel turns 1-2 into January 2nd. Sizes, ratios and gene names are the classic cases." });
-    if (a.bigNum) issues.push({ sev: "w", where: 'column "' + a.name + '"', msg:
-      a.bigNum + " values are longer than 15 digits (e.g. " + a.samples.bigNum + ")",
+    if (a.bigNum) issues.push({ sev: "w", where: "column “" + a.name + "”", msg:
+      a.bigNum + " found: numbers longer than 15 digits (e.g. " + a.samples.bigNum + ")",
       fix: "Excel keeps 15 significant digits, so the tail becomes zeros. Card numbers and order IDs break this way." });
-    if (a.formula) issues.push({ sev: "e", where: 'column "' + a.name + '"', msg:
-      a.formula + " values start with = or + (e.g. " + a.samples.formula + ")",
+    if (a.formula) issues.push({ sev: "e", where: "column “" + a.name + "”", msg:
+      a.formula + " found: values starting with = or + (e.g. " + a.samples.formula + ")",
       fix: "Spreadsheets execute these as formulas. In files from outside, this is a known injection vector." });
-    if (a.spacePad) issues.push({ sev: "i", where: 'column "' + a.name + '"', msg:
-      a.spacePad + " values have leading or trailing spaces",
-      fix: '"Tokyo " and "Tokyo" are different strings. This is a classic reason joins fail.' });
-    if (a.fullWidthSpace) issues.push({ sev: "i", where: 'column "' + a.name + '"', msg:
-      a.fullWidthSpace + " values contain a full-width space (U+3000)", fix: "It is invisible next to a normal space." });
+    if (a.spacePad) issues.push({ sev: "i", where: "column “" + a.name + "”", msg:
+      a.spacePad + " found: values with leading or trailing spaces",
+      fix: "“Tokyo ” and “Tokyo” are different strings. This is a classic reason joins fail." });
+    if (a.fullWidthSpace) issues.push({ sev: "i", where: "column “" + a.name + "”", msg:
+      a.fullWidthSpace + " found: values containing a full-width space (U+3000)", fix: "It is invisible next to a normal space." });
   }
 
+  // ---- 表示 ----
   var counts = { e: 0, w: 0, i: 0 };
   issues.forEach(function (x) { counts[x.sev]++; });
   $("issuesPanel").hidden = false;
   $("issueCount").textContent = issues.length === 0 ? "nothing found"
-    : counts.e + " serious / " + counts.w + " warnings / " + counts.i + " notes";
+    /* 末尾に " 件" を置いてあるのは英語版のため。英語は "3 serious / 3 warnings / 1 notes"
+       と数の後ろに語が来るので、最後の数の後ろにも文字列が1つ要る。 */
+    : "errors " + counts.e + " / warnings " + counts.w + " / notes " + counts.i + "";
   $("issues").innerHTML = issues.length === 0
     ? '<li class="i"><b class="ok">Nothing broken was found.</b>' +
       '<span class="fix">Column counts agree and every quote is closed.</span></li>'
@@ -767,7 +794,7 @@ function renderPreview(rows, header, hasHeader, nCols, parsed) {
 
   var html = "<thead><tr><th class='rownum'>line</th>";
   for (var c = 0; c < nCols; c++) {
-    html += "<th>" + esc(header ? (header[c] || "(empty)") : "column " + (c + 1)) + "</th>";
+    html += "<th>" + esc(header ? (header[c] || "(empty)") : "column " + (c + 1) + "") + "</th>";
   }
   html += "</tr></thead><tbody>";
   var start = hasHeader ? 1 : 0;
@@ -792,11 +819,8 @@ function renderPreview(rows, header, hasHeader, nCols, parsed) {
   $("previewPanel").hidden = false;
   $("previewNote").textContent = rows.length > LIMIT
     ? "first " + LIMIT + " of " + rows.length.toLocaleString() + " rows"
-    : rows.length.toLocaleString() + " rows";
+    : "rows: " + rows.length.toLocaleString() + "";
 }
-
-var TYPE_EN = { "整数": "integer", "小数": "decimal", "数値": "number", "日付": "date",
-                "時刻": "time", "真偽": "boolean", "文字列": "text", "空": "empty" };
 
 function renderCols() {
   if (!S.cols.length) { $("colsPanel").hidden = true; return; }
@@ -811,7 +835,7 @@ function renderCols() {
     if (a.spacePad) notes.push("padded with spaces " + a.spacePad);
     if (a.filled && a.uniq === a.filled) notes.push("all distinct (candidate key)");
     if (a.filled && a.uniq === 1) notes.push("a single value");
-    h += "<tr><td>" + esc(a.name) + "</td><td>" + esc(TYPE_EN[a.type] || a.type) + "</td><td class='num'>" + a.empty +
+    h += "<tr><td>" + esc(a.name) + "</td><td>" + esc(TYPE_LABEL[a.type] || a.type) + "</td><td class='num'>" + a.empty +
          "</td><td class='num'>" + a.uniq + "</td><td class='num'>" + a.maxLen + "</td><td>" +
          esc(notes.join(" / ") || "—") + "</td></tr>";
   });
@@ -825,6 +849,7 @@ function hideAll() {
   });
 }
 
+/* ========== 書き出し ========== */
 function needsQuote(v, delim) {
   return v.indexOf(delim) >= 0 || v.indexOf('"') >= 0 || v.indexOf("\n") >= 0 || v.indexOf("\r") >= 0;
 }
@@ -845,6 +870,7 @@ function download(name, parts, type) {
   setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
 }
 
+/* ========== 入出力のつなぎ ========== */
 $("file").addEventListener("change", function (e) {
   var f = e.target.files[0];
   if (f) f.arrayBuffer().then(function (b) { readBytes(new Uint8Array(b)); });
@@ -880,32 +906,65 @@ $("clear").addEventListener("click", function () {
   S.bytes = null; S.text = ""; $("paste").value = ""; $("file").value = ""; hideAll();
 });
 
-var SAMPLE_CLEAN =
-  "sku,name,price,stock,added\r\n" +
-  "0012,\"Apple (Aomori, large)\",3.80,12,2026-03-01\r\n" +
-  "0013,Orange,1.80,0,2026-03-02\r\n" +
-  "0014,\"Grapes\r\n(seedless)\",9.80,3,2026-03-05\r\n" +
-  "0015,Banana,1.50,25,2026-03-07\r\n";
+var SAMPLE_UTF8 =
+  "商品コード,商品名,価格,在庫,登録日\r\n" +
+  "0012,\"りんご（青森産, 大玉）\",380,12,2026-03-01\r\n" +
+  "0013,みかん,180,0,2026-03-02\r\n" +
+  "0014,\"ぶどう\r\n（種なし）\",980,3,2026-03-05\r\n" +
+  "0015,バナナ,150,25,2026-03-07\r\n";
 
-/* Deliberately broken. Everything after the unclosed quote is swallowed by it,
-   so the other defects are placed before that line. */
+/* わざと壊してあるサンプル。閉じ忘れた引用符より後ろは全部そこに飲み込まれるので、
+   ほかの傷（列数違い・数式・日付に化ける形）はその手前に置いてある。 */
 var SAMPLE_BROKEN =
-  "employee_id,name,team,ext,joined,notes\r\n" +
-  "0007,Alice Kim,Sales,1234,2024-04-01, on loan \r\n" +
-  "0008,Bob Tanaka,\"Planning, PR\",1235,2024-04-01,parental leave\r\n" +
-  "0010,Carol Diaz,Engineering,1237,2025-04-01,3-4\r\n" +
-  "0011,Dan Novak,Ops,1238,2025-04-01,=1+1,extra column\r\n" +
-  "0012,Erin Walsh,People,1239,2025-10-01,12345678901234567890\r\n" +
-  "0009,Frank Ito,Engineering,1236,2024-10-01,\"I forgot to close this quote\r\n";
+  "社員番号,氏名,部署,内線,入社日,備考\r\n" +
+  "0007,山田 太郎,営業,1234,2024-04-01, 出向中 \r\n" +
+  "0008,佐藤 花子,\"企画, 広報\",1235,2024-04-01,育休中\r\n" +
+  "0010,高橋 次郎,開発,1237,2025-04-01,3-4\r\n" +
+  "0011,田中 三郎,総務,1238,2025-04-01,=1+1,余計な列\r\n" +
+  "0012,伊藤 四郎,人事,1239,2025-10-01,12345678901234567890\r\n" +
+  "0009,鈴木 一郎,開発,1236,2024-10-01,\"引用を閉じ忘れました\r\n";
 
 $("sample2").addEventListener("click", function () {
   $("paste").value = "";
-  readBytes(new TextEncoder().encode(SAMPLE_CLEAN));
+  readBytes(new TextEncoder().encode(SAMPLE_UTF8));
 });
 $("sample1").addEventListener("click", function () {
   $("paste").value = "";
-  readBytes(new TextEncoder().encode(SAMPLE_BROKEN));
+  // Shift_JIS のサンプルを作るために、この場で符号化する（外部と通信しない）
+  readBytes(encodeShiftJIS(SAMPLE_BROKEN));
 });
+
+/* サンプル用の最小限の Shift_JIS 符号化。表に無い文字は ? にする。
+   ブラウザには Shift_JIS の「復号」しか無いので、逆引き表をその場で作る。 */
+var sjisTable = null;
+function buildSjisTable() {
+  var bytes = [], map = {};
+  var dec = new TextDecoder("shift_jis", { fatal: false });
+  for (var b = 0; b < 0x80; b++) map[String.fromCharCode(b)] = [b];
+  for (var b1 = 0xA1; b1 <= 0xDF; b1++) {
+    var ch = dec.decode(new Uint8Array([b1]));
+    if (ch && ch !== "�") map[ch] = [b1];
+  }
+  for (var lead = 0x81; lead <= 0xFC; lead++) {
+    if (lead > 0x9F && lead < 0xE0) continue;
+    for (var tr = 0x40; tr <= 0xFC; tr++) {
+      if (tr === 0x7F) continue;
+      var s = dec.decode(new Uint8Array([lead, tr]));
+      if (s && s.length === 1 && s !== "�" && map[s] === undefined) map[s] = [lead, tr];
+    }
+  }
+  return map;
+}
+function encodeShiftJIS(text) {
+  if (!sjisTable) sjisTable = buildSjisTable();
+  var out = [];
+  for (var i = 0; i < text.length; i++) {
+    var e = sjisTable[text[i]];
+    if (e) { for (var j = 0; j < e.length; j++) out.push(e[j]); }
+    else out.push(0x3F);
+  }
+  return new Uint8Array(out);
+}
 
 $("dlCsv").addEventListener("click", function () {
   download("normalized.csv", ["﻿", toCSV(S.parsed.rows, ",")], "text/csv;charset=utf-8");
@@ -929,7 +988,8 @@ $("dlJson").addEventListener("click", function () {
   download("data.json", [JSON.stringify(out, null, 2)], "application/json");
 });
 
-/* Entry point for the verification script. Nothing here talks to the network. */
+/* 検証スクリプトから呼ぶための入口（画面には出さない）。
+   ブラウザの中だけで完結するので、外に何かを送ることはない。 */
 window.__csvTool = {
   sniffEncoding: sniffEncoding,
   parseCSV: parseCSV,
