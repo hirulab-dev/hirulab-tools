@@ -43,6 +43,8 @@ DEFAULT_REPO = pathlib.Path(os.path.expanduser("~/hirulab-tools"))
 HELPERS = [
     "jsblank.py",         # 文字列の中身を空にする(日英のバイト一致を測る心臓部)
     "en_nav.py",          # 英語ナビを毎回ほどいて組み直す
+    "en_common.py",       # 生成器21本が共通で使う道具(2026-09-02に1本化)。
+                          # ★これを写し忘れると、公開してある生成器が import で落ちる
     "add_tool_link.py",   # 実ページ全部のナビに1行足す
     "sync_en_nav.py",     # 生成元を実ページから同期する
     "fix_lang_link.py",   # もう一方の言語への行を1本だけ最後に置く

@@ -35,8 +35,8 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank, literals  # noqa: E402
-
-JA_CHARS = re.compile("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？　]")
+from en_common import (JA_CHARS, code_japanese, script_span,  # noqa: E402
+                       translate_literals)
 
 HTML_PARTS = [
     ('<html lang="ja">', '<html lang="en">'),
@@ -313,64 +313,8 @@ def en_nav(docs):
                          "palette.html", "../palette/")
 
 
-def translate_literals(src, tr, keep):
-    """JS を1文字ずつ読み、**文字列リテラルの中身だけ**を辞書と完全一致で差し替える。"""
-    out, missing = [], []
-    i, n = 0, len(src)
-    while i < n:
-        c = src[i]
-        if c in ("'", '"', "`"):
-            q, j = c, i + 1
-            while j < n:
-                if src[j] == "\\":
-                    j += 2
-                    continue
-                if src[j] == q:
-                    break
-                if src[j] == "\n" and q != "`":
-                    break
-                j += 1
-            if j < n and src[j] == q:
-                body = src[i + 1:j]
-                if body in tr:
-                    body = tr[body]
-                elif JA_CHARS.search(body) and body not in keep:
-                    missing.append(body)
-                out.append(q + body + q)
-                i = j + 1
-                continue
-            out.append(c)
-            i += 1
-            continue
-        if c == "/" and i + 1 < n and src[i + 1] == "/":
-            j = src.find("\n", i)
-            j = n if j < 0 else j
-            out.append(src[i:j])
-            i = j
-            continue
-        if c == "/" and i + 1 < n and src[i + 1] == "*":
-            j = src.find("*/", i + 2)
-            j = n if j < 0 else j + 2
-            out.append(src[i:j])
-            i = j
-            continue
-        out.append(c)
-        i += 1
-    return "".join(out), missing
 
 
-def script_span(html):
-    m = re.search(r"<script>\n(.*)</script>", html, re.S)
-    if not m:
-        sys.exit("本体のスクリプトが見つかりません")
-    return m.start(1), m.end(1)
-
-
-def code_japanese(src):
-    """文字列でもコメントでも正規表現でもない日本語(=識別子として書かれた日本語)。"""
-    skeleton = blank(src, blank_regex=True)
-    return [skeleton[max(0, m.start() - 20):m.start() + 20].replace("\n", " ")
-            for m in JA_CHARS.finditer(skeleton)]
 
 
 def main():

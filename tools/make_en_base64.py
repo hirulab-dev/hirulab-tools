@@ -34,14 +34,14 @@ import pathlib, re, sys
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from jsblank import blank, literals
+from jsblank import blank, literals  # noqa: E402
+from en_common import (JA_CHARS, code_japanese, script_span,  # noqa: E402
+                       translate_literals)
 
 SITE = "https://hirulab-dev.github.io/hirulab-tools"
 
 # 「画面に出るところに日本語が残っていないか」を見るときの文字の範囲。
 # ひらがな・カタカナ・漢字・和文の約物・全角空白。
-JA_CHARS = re.compile("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？　]")
-
 HTML_PARTS = [
     ('<html lang="ja">', '<html lang="en">'),
 
@@ -641,62 +641,7 @@ TR = {
 }
 
 
-def translate_literals(src, tr, keep):
-    """JS を1文字ずつ読み、**文字列リテラルの中身だけ**を辞書と完全一致で差し替える。
 
-    引用符の種類(' " `)を問わない。日本語を含むのに tr にも keep にも無いものが
-    見つかったら、その一覧を返す(呼び出し側で止める)。
-    """
-    out, missing = [], []
-    i, n = 0, len(src)
-    while i < n:
-        c = src[i]
-        if c in ("'", '"', "`"):
-            q, j = c, i + 1
-            while j < n:
-                if src[j] == "\\":
-                    j += 2
-                    continue
-                if src[j] == q:
-                    break
-                if src[j] == "\n" and q != "`":
-                    break
-                j += 1
-            if j < n and src[j] == q:
-                body = src[i + 1:j]
-                if body in tr:
-                    body = tr[body]
-                elif JA_CHARS.search(body) and body not in keep:
-                    missing.append(body)
-                out.append(q + body + q)
-                i = j + 1
-                continue
-            out.append(c)
-            i += 1
-            continue
-        if c == "/" and i + 1 < n and src[i + 1] == "/":
-            j = src.find("\n", i)
-            j = n if j < 0 else j
-            out.append(src[i:j])
-            i = j
-            continue
-        if c == "/" and i + 1 < n and src[i + 1] == "*":
-            j = src.find("*/", i + 2)
-            j = n if j < 0 else j + 2
-            out.append(src[i:j])
-            i = j
-            continue
-        out.append(c)
-        i += 1
-    return "".join(out), missing
-
-
-def script_span(html):
-    """ページ本体の <script>…</script>(JSON-LD ではないほう)の範囲を返す。"""
-    m = re.search(r"<script>\n(.*)</script>", html, re.S)
-    if not m:
-        sys.exit("本体のスクリプトが見つかりません")
-    return m.start(1), m.end(1)
 
 
 def main():
