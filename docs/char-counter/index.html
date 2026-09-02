@@ -107,10 +107,10 @@
     <div class="card"><div class="label">行数</div><div class="value" id="c-lines">0</div></div>
     <div class="card"><div class="label">段落数</div><div class="value" id="c-paras">0</div></div>
     <div class="card"><div class="label">英単語数</div><div class="value" id="c-words">0</div></div>
-    <div class="card"><div class="label">原稿用紙(400字)</div><div class="value" id="c-genko">0枚</div></div>
+    <div class="card"><div class="label">原稿用紙(400字)</div><div class="value" id="c-pages">0枚</div></div>
     <div class="card wide">
       <div class="label">X(旧Twitter)の重み付きカウント — 公式の数え方(URLは一律23・絵文字は1つで2)</div>
-      <div class="value"><span id="c-x">0</span> / 280 <span class="note" id="x-jp"></span></div>
+      <div class="value"><span id="c-x">0</span> / 280 <span class="note" id="x-over"></span></div>
       <div class="bar" id="x-bar"><div style="width:0%"></div></div>
       <div class="note">無料アカウントの上限280(日本語だと実質140字)。超過分は下書きを分割。※仕様変更がありえます</div>
       <div class="note">★<strong>「全角なら2」ではありません。</strong>重みが1になるのは符号位置 0–4351 と、
@@ -204,21 +204,21 @@ function update() {
   const lines = t === "" ? 0 : t.split("\n").length;
   const paras = t.trim() === "" ? 0 : t.split(/\n{2,}/).filter(p => p.trim()).length;
   const words = (t.replace(URL_RE, " ").match(/[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*/g) || []).length;
-  const jpChars = (t.match(/[　-ヿ一-鿿＀-￯]/g) || []).length;
+  const cjkChars = (t.match(/[　-ヿ一-鿿＀-￯]/g) || []).length;
   $("c-all").textContent = chars.length.toLocaleString();
   $("c-nows").textContent = noWs.length.toLocaleString();
   $("c-lines").textContent = lines.toLocaleString();
   $("c-paras").textContent = paras.toLocaleString();
   $("c-words").textContent = words.toLocaleString();
-  $("c-genko").textContent = (noWs.length ? Math.ceil(noWs.length / 400) : 0) + "枚";
+  $("c-pages").textContent = (noWs.length ? Math.ceil(noWs.length / 400) : 0) + "枚";
   const xw = xWeight(t);
   $("c-x").textContent = xw.toLocaleString();
-  $("x-jp").textContent = xw > 280 ? "(超過)" : "";
+  $("x-over").textContent = xw > 280 ? "(超過)" : "";
   const bar = $("x-bar");
   const pct = Math.min(100, xw / 280 * 100);
   bar.firstElementChild.style.width = pct + "%";
   bar.className = "bar" + (xw > 280 ? " over" : xw > 252 ? " warn" : "");
-  const minutes = jpChars / 500 + words / 200;
+  const minutes = cjkChars / 500 + words / 200;
   $("c-time").textContent = minutes < 0.1 && chars.length === 0 ? "0分" :
     minutes < 1 ? "1分未満" : Math.round(minutes) + "分";
 }

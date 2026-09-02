@@ -127,6 +127,17 @@ INLINE = {"b", "strong", "em", "i", "u", "small", "code", "kbd", "mark",
 #   `NO_EN` と同じ考え方で、**黙らせるのではなく「いくつ違うか」を固定する**。
 #   数を書いておくと、**そのページに新しい差が出たとき数が変わって ★ になる**
 #   (「このページは違ってよい」とだけ書くと、以後そのページは野放しになる)。
+# ★**コードのほうの、わざと違えてあるところ**(英語ファイル名 -> (差の行数, 理由))。
+#   2026-09-03 新設。上の `HTML_DIFF_OK` と同じ扱いで、数を固定する。
+#   ⚠ 数は `unified_diff` の +/- を数えたものなので、1か所の書き換えは **2行**になる。
+#   ⚠ 生成器のほうにも同じ差の登録(`CODE_DIFF`)があるが、**わざと別々に持っている**。
+#      検査が検査される側と同じ表を読むと、その表を壊したとき両方いっしょに壊れて空振りする
+#      (`regen_ogp.py` の `NO_LINE_START_CHECK` と同じ理由)。
+CODE_DIFF_OK = {
+    "char-counter.html": (2, "原稿用紙(400字詰め)が何枚か vs 書籍のページ(約250語)が何枚か。"
+                             "単位そのものが日本語圏と英語圏で違うので、訳ではなく別の式になる"),
+}
+
 HTML_DIFF_OK = {
     "csv.html": (2, "英語版だけに段落が1つ多い。見本データが日本語なのはなぜか"
                     "(ASCIIだけのファイルでは文字コード判定に仕事が無い)の説明で、"
@@ -291,8 +302,14 @@ def main():
         if flat(ja_s) == flat(en_s):
             rows.append((name, "生成" if gen else "手書き",
                          "一致" if not diff else "一致(折り返しだけ違う)"))
+        elif gen and name in CODE_DIFF_OK and len(diff) == CODE_DIFF_OK[name][0]:
+            rows.append((name, "生成", "わざと %d 行ちがう — %s"
+                         % CODE_DIFF_OK[name]))
         elif gen:
-            rows.append((name, "生成", "★%d 行ちがう(生成器を回し直すこと)" % len(diff)))
+            extra = ""
+            if name in CODE_DIFF_OK:
+                extra = "(わざと違うのは %d 行のはず)" % CODE_DIFF_OK[name][0]
+            rows.append((name, "生成", "★%d 行ちがう(生成器を回し直すこと)%s" % (len(diff), extra)))
             bad.append(name)
             for ln in diff[:args.show]:
                 print("  %s %s" % (name, ln[:160]))
