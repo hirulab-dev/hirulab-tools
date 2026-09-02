@@ -518,7 +518,7 @@ var NAME = {};
 for (var ci = 0; ci < CITIES.length; ci++) NAME[CITIES[ci][0]] = CITIES[ci][1];
 function cityName(z) { return NAME[z] || z.split('/').pop().replace(/_/g, ' '); }
 
-var DOW_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+var DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 var DEFAULTS = ['America/Los_Angeles', 'America/New_York', 'Europe/London',
                 'Asia/Singapore', 'Asia/Tokyo'];
 
@@ -570,7 +570,7 @@ function ymd(p) { return p.y + '-' + pad(p.mo) + '-' + pad(p.d); }
 function hm(p) { return pad(p.h) + ':' + pad(p.mi); }
 function dowLocal(zone, ms) {
   var p = tzParts(zone, ms);
-  return DOW_EN[new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay()];
+  return DOW[new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay()];
 }
 
 function readInput() {
@@ -596,7 +596,7 @@ function renderChips() {
       c.appendChild(document.createTextNode(cityName(z)));
       var b = document.createElement('button');
       b.type = 'button';
-      b.setAttribute('aria-label', 'Remove ' + cityName(z));
+      b.setAttribute('aria-label', 'Remove ' + cityName(z) + '');
       b.textContent = '×';
       b.onclick = function () {
         picked = picked.filter(function (x) { return x !== z; });
@@ -862,7 +862,7 @@ function renderGrid(w, instant) {
         if (!inWork(oh)) outside.push(cityName(list[oi]) + ' ' + oh + ':00');
       }
       msg += ' The closest is ' + bestCol + ':00 in ' + cityName(baseZone) + ', which works for ' +
-        bestScore + ' of ' + list.length + ' cities. Left out: ' + outside.join(', ') + '.';
+        list.length + ' cities; ' + bestScore + ' fit. Left out: ' + outside.join(', ') + '.';
     }
     $('gridnote').textContent = msg + ' Try dropping a city or widening the hours.';
   } else {

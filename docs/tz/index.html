@@ -515,7 +515,7 @@ var NAME = {};
 for (var ci = 0; ci < CITIES.length; ci++) NAME[CITIES[ci][0]] = CITIES[ci][1];
 function cityName(z) { return NAME[z] || z.split('/').pop().replace(/_/g, ' '); }
 
-var DOW_JA = ['日', '月', '火', '水', '木', '金', '土'];
+var DOW = ['日', '月', '火', '水', '木', '金', '土'];
 var DEFAULTS = ['Asia/Tokyo', 'America/Los_Angeles', 'America/New_York',
                 'Europe/London', 'Asia/Singapore'];
 
@@ -565,10 +565,9 @@ function fillZoneSelect(sel, includeAll) {
 function pad(n) { return (n < 10 ? '0' : '') + n; }
 function ymd(p) { return p.y + '-' + pad(p.mo) + '-' + pad(p.d); }
 function hm(p) { return pad(p.h) + ':' + pad(p.mi); }
-function dowOf(ms) { return DOW_JA[new Date(ms).getUTCDay()]; }
 function dowLocal(zone, ms) {
   var p = tzParts(zone, ms);
-  return DOW_JA[new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay()];
+  return DOW[new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay()];
 }
 
 function readInput() {
@@ -594,7 +593,7 @@ function renderChips() {
       c.appendChild(document.createTextNode(cityName(z)));
       var b = document.createElement('button');
       b.type = 'button';
-      b.setAttribute('aria-label', cityName(z) + ' を外す');
+      b.setAttribute('aria-label', '' + cityName(z) + ' を外す');
       b.textContent = '×';
       b.onclick = function () {
         picked = picked.filter(function (x) { return x !== z; });
@@ -643,7 +642,8 @@ function render() {
         d: wf.getUTCDate(), h: wf.getUTCHours(), mi: wf.getUTCMinutes(), s: 0 });
       if (c2.length) after = c2[0];
     }
-    var msg = cityName(baseZone) + ' では、この日に夏時間が始まるため時計が飛びます。';
+    var msg = '' + cityName(baseZone) +
+      ' では、この日に夏時間が始まるため時計が飛びます。';
     if (before !== null && after !== null) {
       msg += ' 直前に実在するのは ' + hm(tzParts(baseZone, before)) +
              '、直後は ' + hm(tzParts(baseZone, after)) + ' です。';
@@ -657,7 +657,7 @@ function render() {
       ? chosenInstant : cands[0];
     instant = pick;
     var n = note('w', 'この時刻は1日に2回あります',
-      cityName(baseZone) + ' ではこの日に夏時間が終わり、時計が戻ります。'
+      '' + cityName(baseZone) + ' ではこの日に夏時間が終わり、時計が戻ります。'
       + '同じ ' + hm(w) + ' が2回来るので、どちらかを選んでください。');
     for (var k = 0; k < cands.length; k++) {
       (function (t, idx) {
@@ -721,9 +721,10 @@ function renderRows(instant) {
     var c3 = document.createElement('td');
     c3.className = 'diff';
     var dh = (off - baseOff) / 3600;
+    var abs = Math.abs(dh);
     c3.textContent = z === baseZone ? '基準' :
       (dh > 0 ? '+' : dh < 0 ? '−' : '±') +
-      (Math.abs(dh) % 1 === 0 ? Math.abs(dh) : Math.abs(dh).toFixed(2).replace(/0$/, '')) + '時間';
+      (abs % 1 === 0 ? abs : abs.toFixed(2).replace(/0$/, '')) + '時間';
     tr.appendChild(c3);
 
     var c4 = document.createElement('td');
@@ -747,10 +748,10 @@ function renderRows(instant) {
     } else {
       var np = tzParts(z, nx.at);
       var delta = (nx.after - nx.before) / 3600;
+      var ad = Math.abs(delta);
       c5.textContent = ymd(np) + ' ' + hm(np) + '（' +
         (delta > 0 ? '+' : '−') +
-        (Math.abs(delta) % 1 === 0 ? Math.abs(delta) : Math.abs(delta).toFixed(2).replace(/0$/, '')) +
-        '時間）';
+        (ad % 1 === 0 ? ad : ad.toFixed(2).replace(/0$/, '')) + '時間）';
     }
     tr.appendChild(c5);
     tb.appendChild(tr);
@@ -838,7 +839,8 @@ function renderGrid(w, instant) {
 
   var n = 0;
   for (var b2 = 0; b2 < 24; b2++) if (best[b2]) n++;
-  var head = '横は基準都市（' + cityName(baseZone) + '）の時刻、マスの中は各都市の現地の「時」です。';
+  var head = '横は基準都市（' + cityName(baseZone) +
+             '）の時刻、マスの中は各都市の現地の「時」です。';
   if (n === 0) {
     /* 全員は無理でも「いちばんマシな時間」は要る。仕事の時間に入る都市が
        一番多い列を出し、そこから外れる都市を現地時刻つきで名指しする。 */
