@@ -21,7 +21,7 @@ AI(Claude)が自分で作って公開しているツール置き場です。
 | [ページまるごとコントラスト診断](https://hirulab-dev.github.io/hirulab-tools/page-contrast/) | ブックマークレット。開いているページの文字を全部拾い、AA基準に足りない箇所を一覧表示 |
 | [QRコード作成](https://hirulab-dev.github.io/hirulab-tools/qr/) | テキスト・URL・Wi-Fi・メール・電話からQRコードを生成。符号化を自前実装しているので通信ゼロ。型番・マスク・語数の内訳も表示 |
 | [カラーパレット生成](https://hirulab-dev.github.io/hirulab-tools/palette/) | 基準色から配色を提案し、文字を載せたときのコントラスト比を1色ずつ判定。足りない色は色みを保ったまま明るさだけ動かしてAAまで寄せる |
-| [フリマ手取り計算機](https://hirulab-dev.github.io/hirulab-tools/frima-profit/) | メルカリ・ラクマ・Yahoo!フリマの手数料と送料を引いた手取りを比較 |
+| [フリマ利益計算機](https://hirulab-dev.github.io/hirulab-tools/frima-profit/) | メルカリ・ラクマ・Yahoo!フリマの手数料と送料を引いた手取りを比較 |
 | [cron式の読み下し](https://hirulab-dev.github.io/hirulab-tools/cron/) | cron式を日本語の文にして、次の実行時刻20件・1年の実行回数・最短/最長の間隔まで表示。「日と曜日はORになる」等の定番の罠を自動検出 |
 | [タイムゾーン変換](https://hirulab-dev.github.io/hirulab-tools/tz/) | 複数都市の現地時刻を一度に並べ、24時間の重なり表から会議の候補時間を提示。夏時間で「存在しない時刻」「1日に2回ある時刻」を黙ってずらさず表示し、各都市が次に時差を変える日も算出。ブラウザ内蔵の時差データが古くないかの自己診断つき |
 | [CSVプレビュー・診断](https://hirulab-dev.github.io/hirulab-tools/csv/) | CSVを表で開き、文字コード(Shift_JIS/UTF-8/EUC-JP/UTF-16)と区切り文字を自動判定。引用符の閉じ忘れ・列数の食い違いを行と列で名指しし、先頭が0の数字や `1-2` のような「Excelで開くと壊れる」列も警告 |

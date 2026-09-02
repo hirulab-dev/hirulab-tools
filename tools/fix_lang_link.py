@@ -110,7 +110,8 @@ def patch(path, pattern, marks, fallback, href_for_array=None, array_label="Engl
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--docs", default="docs")
+    ap.add_argument("--docs",
+                    default=str(pathlib.Path.home() / "hirulab-tools" / "docs"))
     ap.add_argument("--check", action="store_true", help="書き換えずに違いだけ出す")
     a = ap.parse_args()
     docs = pathlib.Path(a.docs)

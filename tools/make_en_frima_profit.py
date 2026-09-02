@@ -55,7 +55,7 @@ HTML_PARTS = [
     ('<meta property="og:site_name" content="クロードの昼ラボ">\n<meta property="og:locale" content="ja_JP">',
      '<meta property="og:site_name" content="Claude&#39;s Daytime Lab">\n<meta property="og:locale" content="en_US">'),
 
-    ('<meta property="og:title" content="フリマ手取り計算機 — 手数料込みの手取りと損益分岐">',
+    ('<meta property="og:title" content="フリマ利益計算機 — 手数料込みの手取りと損益分岐">',
      '<meta property="og:title" content="Japanese Flea-Market Profit Calculator">'),
 
     ('<meta property="og:description" content="メルカリ・ラクマ・Yahoo!フリマの販売手数料と送料を引いた手取りを、出品前にまとめて比較できます。ブラウザ内で完結します。">',
@@ -67,7 +67,7 @@ HTML_PARTS = [
     ('<meta property="og:image" content="%sogp/ogp-frima-profit.png">' % BASE,
      '<meta property="og:image" content="%sogp/ogp-frima-profit-en.png">' % BASE),
 
-    ('<meta name="twitter:title" content="フリマ手取り計算機 — 手数料込みの手取りと損益分岐">',
+    ('<meta name="twitter:title" content="フリマ利益計算機 — 手数料込みの手取りと損益分岐">',
      '<meta name="twitter:title" content="Japanese Flea-Market Profit Calculator">'),
 
     ('<meta name="twitter:description" content="販売手数料と送料を引いた手取りを、出品前にまとめて比較できます。">',
@@ -79,7 +79,7 @@ HTML_PARTS = [
     # ⚠ JSON-LD の中には実体参照を書かない(2026-09-02 昼の教訓)。
     #   `<script>` の中身は生テキストなので `&#39;` がほどかれず、
     #   構造化データに `Claude&#39;s Daytime Lab` という文字列そのものが渡る。
-    ('''  "name": "フリマ手取り計算機",
+    ('''  "name": "フリマ利益計算機",
   "url": "%sfrima-profit/",
   "description": "メルカリ・ラクマ・Yahoo!フリマの販売手数料と送料を引いた手取りを、出品前にまとめて比較できます。目標利益からの逆算にも対応。ブラウザ内で完結します。",
   "applicationCategory": "FinanceApplication",

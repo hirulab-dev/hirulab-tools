@@ -151,7 +151,28 @@ def draw_flask(d, cx, cy, scale=1.0):
                fill=ACCENT, width=max(2, int(4 * s)))
 
 
-def make(slug, title, subtitle, out=None, brand=None):
+def warn_if_unrecorded(slug):
+    """`regen_ogp.py` の表に載っていないスラッグなら、その場で言う。
+
+    ★2026-09-03 追加。画像の文言の記録は **`regen_ogp.py` の表が唯一の場所**で、
+    ここを手で呼んで作った画像は表に載らない。実際に `pattern` / `pattern-en` /
+    `date-en` / `take-home-en` / `frima-profit-en` の**5枚が表の外にあり**、
+    `regen_ogp.py --check` は5枚を一度も見ないまま「食い違い0」と出していた。
+    (**この形の穴は3日で3回目** — `check_queue_len`(9/1) / `check_stray_chars`(9/3))
+    """
+    import re
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "regen_ogp.py")
+    if not os.path.exists(path):
+        return
+    with open(path, encoding="utf-8") as f:
+        known = re.findall(r'^\s*\("([a-z0-9-]+)",', f.read(), re.M)
+    if slug not in known:
+        sys.stderr.write(
+            "⚠ ogp-%s.png は regen_ogp.py の表に無い。**表に足すこと**"
+            "(足さないと検査の対象外のまま残る)\n" % slug)
+
+
+def make(slug, title, subtitle, out=None, brand=None, record=None):
     img = Image.new("RGB", (W, H), BG_BOTTOM)
     d = ImageDraw.Draw(img)
 
@@ -201,6 +222,11 @@ def make(slug, title, subtitle, out=None, brand=None):
 
     d.rectangle([0, H - 10, W, H], fill=ACCENT)
 
+    # `out` を指定するのは検査や作り直しの一時ファイルなので、そのときは言わない
+    if record is None:
+        record = out is None
+    if record:
+        warn_if_unrecorded(slug)
     out = out or os.path.join(OUT_DIR, "ogp-%s.png" % slug)
     os.makedirs(os.path.dirname(out), exist_ok=True)
     img.save(out, optimize=True)

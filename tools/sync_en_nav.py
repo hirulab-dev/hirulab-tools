@@ -101,6 +101,10 @@ def add_en_links(script, src, add_en):
     return src[:e.start()] + new + src[e.end():], n
 
 
+# ページが無くて見られなかったもの。合計行で必ず名前を出す(2026-09-03)
+skipped = []
+
+
 def sync_arrays(script, sp, docs, check, ja_slug, en_name):
     """JS配列のナビを持つ生成元を、実ページの配列でまるごと置き換える。ずれた数を返す。"""
     pages = [docs / ja_slug / "index.html", docs / "en" / en_name]
@@ -108,6 +112,7 @@ def sync_arrays(script, sp, docs, check, ja_slug, en_name):
     for page in pages:
         if not page.exists():
             print("  ページが無いので飛ばす: %s" % page)
+            skipped.append(str(page))
             return 0
         m = NAV_ARRAY.search(page.read_text(encoding="utf-8"))
         if not m:
@@ -137,7 +142,8 @@ def sync_arrays(script, sp, docs, check, ja_slug, en_name):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--docs", default="docs")
+    ap.add_argument("--docs",
+                    default=str(pathlib.Path.home() / "hirulab-tools" / "docs"))
     ap.add_argument("--add-en", action="append", default=[],
                     help="英語版ナビに入っていなければ足す <li> 行（そのまま書く）")
     ap.add_argument("--check", action="store_true", help="書き換えずに、ずれているかだけ見る")
@@ -174,6 +180,7 @@ def main():
             page = docs / slug / "index.html"
             if not page.exists():
                 print("  ページが無いので飛ばす: %s" % page)
+                skipped.append(str(page))
                 continue
             live = PAGE_NAV.search(page.read_text(encoding="utf-8"))
             if not live:
@@ -199,7 +206,10 @@ def main():
     print("見た生成器: %d 本 — %s"
           % (sum(tally.values()), " / ".join("%s %d" % kv for kv in sorted(tally.items()))))
     print("見ていない範囲: 生成器を持たない手書きページ(char-counter・timezone)の英語ナビ")
-    print("ずれ: %d 箇所" % drift)
+    # ★2026-09-03: 飛ばしたぶんを合計行にも出す。**見ていないものがあるのに
+    #   「ずれ 0」とだけ出るのが、この形の穴のいつもの顔**。
+    print("ずれ: %d 箇所 / ページが無くて飛ばした: %d 件%s"
+          % (drift, len(skipped), (" — " + ", ".join(skipped)) if skipped else ""))
     return 1 if (args.check and drift) else 0
 
 

@@ -118,7 +118,8 @@ def patch(path, pattern, link, label):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--docs", default="docs")
+    ap.add_argument("--docs",
+                    default=str(pathlib.Path.home() / "hirulab-tools" / "docs"))
     ap.add_argument("--jp-link", required=True)
     # ★2026-09-01追記: 25本目(和柄パターン)が**英語版を持たない初めての道具**だった。
     # それまでの24本は必ず日英そろえて出していたので、この引数は必須で書いてあった。

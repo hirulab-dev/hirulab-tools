@@ -68,6 +68,18 @@ EN_ITEMS = [
      "It points at the break by line and by column."),
     ("unit-en", "Unit Converter",
      "Metric, imperial, and the Japanese units Japan still uses."),
+    # ★2026-09-03 追加（表の外にあった5枚のうち英語の4枚）。
+    ("pattern-en", "Japanese Pattern Generator",
+     "Seamless seigaiha, asanoha, sashiko as SVG/PNG. Verified seamless on every render."),
+    ("take-home-en", "Japan Take-Home Pay Calculator",
+     "Gross to net, with every rate editable"),
+    ("date-en", "Japanese Date Calculator",
+     "Business days, Japanese holidays by year, and wareki era conversion."),
+    # ⚠ 題に "Japanese" が無く、ページの題（Japanese Flea-Market Profit Calculator）と
+    #    食い違っていた（`check_ogp.py` が 2026-09-03 に検出）。**日本のフリマ限定という
+    #    いちばん効く語が画像から落ちていた**ので、ページに合わせて作り直した。
+    ("frima-profit-en", "Japanese Flea-Market Profit Calculator",
+     "Mercari fees, shipping and break-even"),
 ]
 
 # 日本語版。★2026-08-28 夜に現物25枚から読み取った。裏取りは英語版と同じ手順
@@ -98,7 +110,7 @@ JA_ITEMS = [
      "坪・畳・合・升・匁まで、根拠つきで一度に出します。"),
     ("palette", "カラーパレット生成",
      "配色を作って、読める明るさまで寄せる。"),
-    ("frima-profit", "フリマ手取り計算機",
+    ("frima-profit", "フリマ利益計算機",
      "手数料と送料を引いた手取りを出品前に比較。"),
     ("page-contrast", "ページまるごとコントラスト診断",
      "開いているページの読みにくい文字を、全部出します。"),
@@ -112,7 +124,9 @@ JA_ITEMS = [
      "Wi-Fiのパスワードを入れても、どこにも送りません。"),
     ("railroad", "正規表現を鉄道図にする",
      "図に描いて、読み下して、落とし穴を指摘する。図から作った例で、その場で確かめる。"),
-    ("regex-why", "正規表現がなぜマッチしないか",
+    # ⚠ 題が「診断」を欠いていてページ（正規表現がなぜマッチしないか診断）と食い違っていた
+    #    （`check_ogp.py` が 2026-09-03 に検出）。道具だと分かる語なのでページに合わせた。
+    ("regex-why", "正規表現がなぜマッチしないか診断",
      "止まった位置と、直せばマッチする一手を出します。"),
     ("replace", "正規表現の置換プレビュー",
      "$1 が何に化けるかを1つずつ見せる"),
@@ -126,6 +140,10 @@ JA_ITEMS = [
      "剰余法の偏りをヒストグラムとχ²検定で自分の目で見る。手持ちのパスワードの診断もできます。"),
     ("base64", "Base64・データURLの分解",
      "宣言と中身が合っているか確かめる"),
+    # ★2026-09-03 追加。8/28 以降に作った5枚が表の外にあり、この検査が1枚も見ていなかった。
+    #   読み取りの裏取りは上と同じ手順（読み取った文言で描き直して現物とバイト比較）。
+    ("pattern", "和柄シームレスパターン作成",
+     "青海波・麻の葉・刺し子など8種を生成。継ぎ目が無いことをその場で検証"),
 ]
 
 ITEMS = EN_ITEMS + JA_ITEMS
@@ -180,10 +198,27 @@ def main():
             print("  違う  ogp-%s.png" % slug); changed += 1
     print()
     bad = check_kinsoku(items)
+
+    # ★2026-09-03 追加: **表の外にある画像を名指しする**。
+    #   それまでは表を回すだけだったので、`docs/ogp/` に画像を足しても表に書き忘れれば
+    #   **1枚も見ないまま「食い違い 0」**と出た。実際に5枚が外にあった
+    #   （pattern / pattern-en / date-en / take-home-en / frima-profit-en。どれも 8/28 以降に作ったもの）。
+    #   ⚠ 同じ形の穴はこれで3回目 — `check_queue_len`(9/1夜) / `check_stray_chars`(9/3未明)。
+    #   **見た枚数と、見ていないものの名前を必ず出す。**
+    unlisted = []
+    if items is ITEMS:
+        known = {s for s, _t, _b in ITEMS}
+        unlisted = sorted(x[len("ogp-"):-len(".png")]
+                          for x in os.listdir(mk.OUT_DIR)
+                          if x.endswith(".png") and x[len("ogp-"):-len(".png")] not in known)
+        for slug in unlisted:
+            print("  表に無い  ogp-%s.png（この検査の対象外のまま）" % slug)
+
     if check:
-        print("表と食い違う画像: %d / 現物が無い: %d / 行頭禁則: %d（--check なので書き出していない）"
-              % (changed, missing, bad))
-        return 1 if (changed or missing or bad) else 0
+        print("見た枚数: %d / 表と食い違う画像: %d / 現物が無い: %d / 行頭禁則: %d / "
+              "表に無い画像: %d（--check なので書き出していない）"
+              % (len(items), changed, missing, bad, len(unlisted)))
+        return 1 if (changed or missing or bad or unlisted) else 0
     if bad:
         return 1
     print("%d 枚を書き出した（うち中身が変わったのは %d 枚）" % (len(items), changed + missing))
