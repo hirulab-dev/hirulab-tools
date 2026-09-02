@@ -48,6 +48,7 @@ PAIRS = {
     "cron": "cron.html",
     "pattern": "pattern.html",
     "date": "date.html",
+    "take-home": "take-home.html",
 }
 
 JA_NAV = re.compile(r'(  <nav class="hl-nav">\n    <h2>ほかの道具</h2>\n    <ul>\n)(.*?)(\n    </ul>)', re.S)
@@ -77,21 +78,29 @@ def normalize(body, marks, fallback):
     return "\n".join("      " + x for x in kept + tail), added
 
 
-def normalize_array(body, href):
-    """`var NAV_LINKS = [...]` のナビ。同じことを配列に対してやる。"""
+def normalize_array(body, href, label="English version"):
+    """`var NAV_LINKS = [...]` のナビ。同じことを配列に対してやる。
+
+    ★2026-09-02 夜: `label` を引数にした。それまで "English version" 固定だったため、
+      **英語ページ側では呼び出しようがなく** `href_for_array=None` が渡っていた。
+      その結果 `en/password.html`(ナビが JS の配列)は毎回
+      **「!! ナビが見つからない」と出して黙って素通り**していた
+      (実際には行はあり、たまたま正しかった)。エラーが出続けるのに結果は正しいので、
+      その表示が**見ないことの言い訳**として定着していた形。
+    """
     text = body.rstrip()
     items = re.findall(r'\["([^"]*)",\s*"([^"]*)"\],?', text)
-    entry = (href, "English version")
+    entry = (href, label)
     # もう正しい形なら1バイトも動かさない(書き方を変えると差分が全体に出るため)
     if items and items[-1] == entry:
         return body, False
-    added = not any(l == "English version" for _, l in items)
-    items = [(h, l) for h, l in items if l != "English version"] + [entry]
+    added = not any(l == label for _, l in items)
+    items = [(h, l) for h, l in items if l != label] + [entry]
     return "\n".join('  ["%s", "%s"]%s' % (h, l, "," if i < len(items) - 1 else "")
                      for i, (h, l) in enumerate(items)), added
 
 
-def patch(path, pattern, marks, fallback, href_for_array=None):
+def patch(path, pattern, marks, fallback, href_for_array=None, array_label="English version"):
     text = path.read_text(encoding="utf-8")
     m = pattern.search(text)
     if m:
@@ -101,7 +110,7 @@ def patch(path, pattern, marks, fallback, href_for_array=None):
         m = NAV_ARRAY.search(text)
         if not m or href_for_array is None:
             return "!! ナビが見つからない", text, False
-        body, added = normalize_array(m.group(2), href_for_array)
+        body, added = normalize_array(m.group(2), href_for_array, array_label)
         new = text[:m.start()] + m.group(1) + body + m.group(3) + text[m.end():]
     if new == text:
         return "そのまま", text, False
@@ -117,16 +126,20 @@ def main():
 
     changed = 0
     for slug, en in sorted(PAIRS.items()):
-        for path, pattern, marks, fallback, arr in (
+        for path, pattern, marks, fallback, arr, arr_label in (
             (docs / slug / "index.html", JA_NAV, JA_MARKS,
-             '<li><a href="../en/%s">English version</a></li>' % en, "../en/" + en),
+             '<li><a href="../en/%s">English version</a></li>' % en, "../en/" + en,
+             "English version"),
+            # ★配列ナビの英語ページも面倒を見る(2026-09-02 夜)。
+            #   ここが None だったせいで en/password.html は毎回「ナビが見つからない」だった。
             (docs / "en" / en, EN_NAV, EN_MARKS,
-             '<li><a href="../%s/">Japanese version</a></li>' % slug, None),
+             '<li><a href="../%s/">Japanese version</a></li>' % slug, "../" + slug + "/",
+             "Japanese version"),
         ):
             if not path.exists():
                 print("%-22s !! ページが無い" % path)
                 continue
-            msg, new, did = patch(path, pattern, marks, fallback, arr)
+            msg, new, did = patch(path, pattern, marks, fallback, arr, arr_label)
             name = "/".join(path.parts[-2:])
             print("%-24s %s" % (name, msg))
             if did:

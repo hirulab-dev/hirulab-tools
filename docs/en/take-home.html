@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>手取り計算機 — 料率を自分で直せる</title>
-<meta name="description" content="額面から手取りを概算します。社会保険料率・税率をすべて画面上で編集できるので、料率が改定されても自分で直して使えます。データは送信されません。">
+<title>Japan Take-Home Pay Calculator &mdash; every rate is yours to edit</title>
+<meta name="description" content="Estimates your take-home pay in Japan from your gross annual salary. Every social insurance rate, tax rate and cap is editable on the page, so the tool still works after the rules change. Nothing is sent anywhere.">
 <style>
   :root{
     --bg:#f7f7f5; --panel:#fff; --panel2:#faf9f7; --text:#1a1a1a; --sub:#666;
@@ -39,7 +39,7 @@
   .big{font-size:2rem;font-weight:700;letter-spacing:-.02em}
   .big small{font-size:.9rem;font-weight:400;color:var(--sub);margin-left:6px}
   table{width:100%;border-collapse:collapse;font-size:.9rem;table-layout:fixed}
-  /* 表の中の入力欄が固定幅のままだと、狭い画面で表ごと右へはみ出す */
+  /* If the inputs inside the table keep a fixed width, the whole table overflows on a narrow screen */
   table input{max-width:100%;min-width:0;box-sizing:border-box}
   table th,table td{overflow-wrap:anywhere}
   th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right}
@@ -68,50 +68,50 @@
          font-size:.82rem;color:var(--sub)}
   footer a{color:var(--accent)}
 </style>
-<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/take-home/">
-<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/take-home/">
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/take-home.html">
 <link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/take-home.html">
+<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/take-home/">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="クロードの昼ラボ">
-<meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="手取り計算機 — クロードの昼ラボ">
-<meta property="og:description" content="額面から手取りを概算します。社会保険料率も税率も全部画面で編集できるので、制度が変わっても自分で直して使えます。">
-<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/take-home/">
-<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-take-home.png">
+<meta property="og:site_name" content="Claude&#39;s Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Japan Take-Home Pay Calculator">
+<meta property="og:description" content="Estimates take-home pay in Japan from gross annual salary. Every rate and cap is editable, so the tool survives the next rule change.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/take-home.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-take-home-en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="手取り計算機 — クロードの昼ラボ">
-<meta name="twitter:description" content="額面から手取りを概算します。社会保険料率も税率も全部画面で編集できるので、制度が変わっても自分で直して使えます。">
-<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-take-home.png">
+<meta name="twitter:title" content="Japan Take-Home Pay Calculator">
+<meta name="twitter:description" content="Gross to take-home in Japan, with every social insurance rate, tax rate and cap editable on the page.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-take-home-en.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "手取り計算機",
-  "url": "https://hirulab-dev.github.io/hirulab-tools/take-home/",
-  "description": "額面から手取りを概算します。社会保険料率も税率も画面上で編集できます。",
+  "name": "Japan Take-Home Pay Calculator",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/take-home.html",
+  "description": "Estimates take-home pay in Japan from a gross annual salary. Every social insurance rate, tax rate and cap can be edited on the page.",
   "applicationCategory": "UtilitiesApplication",
   "operatingSystem": "Web browser",
-  "browserRequirements": "JavaScript が有効なモダンブラウザ",
-  "inLanguage": "ja",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
   "isAccessibleForFree": true,
   "offers": {
     "@type": "Offer",
     "price": "0",
-    "priceCurrency": "JPY"
+    "priceCurrency": "USD"
   },
-  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-take-home.png",
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-take-home-en.png",
   "author": {
     "@type": "Organization",
-    "name": "クロードの昼ラボ",
+    "name": "Claude's Daytime Lab",
     "url": "https://note.com/hirulab"
   },
   "isPartOf": {
     "@type": "WebSite",
-    "name": "クロードの昼ラボ — ツール置き場",
-    "url": "https://hirulab-dev.github.io/hirulab-tools/"
+    "name": "Claude's Daytime Lab — Tools",
+    "url": "https://hirulab-dev.github.io/hirulab-tools/en/"
   }
 }
 </script>
@@ -132,81 +132,81 @@
 <body>
 <div class="wrap">
 
-<a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
-  <h1>手取り計算機</h1>
-<p class="lead">額面から手取りを概算します。<strong>料率は全部あなたが直せます。</strong>制度は毎年変わるので、固定値を信じさせない作りにしました。</p>
+<a class="hl-back" href="./">&larr; Claude&#39;s Daytime Lab tools</a>
+  <h1>Japan Take-Home Pay Calculator</h1>
+<p class="lead">Estimates what actually lands in your bank account, from your gross annual pay in Japan. <strong>Every rate on this page is yours to edit.</strong> The rules change every year, so the tool is built not to make you trust a hard-coded number.</p>
 
 <div class="warn">
-  <strong>これは概算です。</strong>社会保険料は本来「標準報酬月額」の等級表で決まりますが、ここでは月額に料率を直接かけています。等級の境目では実際と数千円ずれます。
-  正確な金額は給与明細か勤務先にご確認ください。<span id="asof"></span>
+  <strong>This is an estimate.</strong> Social insurance in Japan is really worked out from a table of standard monthly remuneration grades; this page multiplies your monthly pay by the rate directly. Near a grade boundary the result can be a few thousand yen out.
+  For the real figure, check your payslip or ask your employer. <span id="asof"></span>
 </div>
 
 <div class="card">
-  <h2>あなたの条件</h2>
+  <h2>Your situation</h2>
   <div class="grid">
     <div>
-      <label for="annual">額面年収（賞与込み・円）</label>
+      <label for="annual">Gross annual pay, bonuses included (JPY)</label>
       <input type="number" id="annual" value="4000000" step="100000" min="0">
     </div>
     <div>
-      <label for="bonus">うち賞与の合計（円）</label>
+      <label for="bonus">Of which, total bonuses (JPY)</label>
       <input type="number" id="bonus" value="0" step="100000" min="0">
       <div class="note" style="margin-top:6px">
-        社会保険料には<strong>月給と賞与で別々の上限</strong>があるので、内訳で結果が変わります。
+        Social insurance has <strong>separate caps for monthly pay and for bonuses</strong>, so how the total splits changes the answer.
       </div>
     </div>
     <div>
-      <label for="bonusN">賞与の支給回数（年）</label>
+      <label for="bonusN">How many bonus payments per year</label>
       <input type="number" id="bonusN" value="2" min="1" max="12" step="1">
       <div class="note" style="margin-top:6px">
-        厚生年金の賞与の上限は<strong>1回あたり</strong>なので、回数で変わります。
+        The pension cap on bonuses is <strong>per payment</strong>, so the number of payments matters.
       </div>
     </div>
     <div>
-      <label for="age">年齢</label>
+      <label for="age">Age</label>
       <input type="number" id="age" value="23" min="15" max="99">
     </div>
     <div>
-      <label for="deps">扶養親族の人数（配偶者含む・16歳以上）</label>
+      <label for="deps">Dependants (spouse included, aged 16 or over)</label>
       <input type="number" id="deps" value="0" min="0" max="10">
     </div>
   </div>
   <div class="row" style="margin-top:14px">
-    <label class="chip"><input type="checkbox" id="empIns" checked> 雇用保険に加入している</label>
-    <label class="chip"><input type="checkbox" id="pension" checked> 厚生年金に加入している</label>
-    <label class="chip"><input type="checkbox" id="health" checked> 健康保険に加入している</label>
+    <label class="chip"><input type="checkbox" id="empIns" checked> Enrolled in employment insurance</label>
+    <label class="chip"><input type="checkbox" id="pension" checked> Enrolled in the employees&#39; pension</label>
+    <label class="chip"><input type="checkbox" id="health" checked> Enrolled in health insurance</label>
   </div>
 </div>
 
 <div class="card out">
-  <h2>手取り</h2>
+  <h2>Take-home pay</h2>
   <div class="row" style="justify-content:space-between;align-items:flex-end">
     <div>
-      <div class="big"><span id="netY">—</span><small>／年</small></div>
-      <div style="color:var(--sub);font-size:.9rem">月あたり <b id="netM">—</b>（賞与を12等分した平均）</div>
+      <div class="big"><span id="netY">&mdash;</span><small>&nbsp;/ year</small></div>
+      <div style="color:var(--sub);font-size:.9rem">Per month <b id="netM">&mdash;</b> (bonuses spread evenly over 12)</div>
     </div>
     <div style="text-align:right">
-      <div style="font-size:.82rem;color:var(--sub)">手取り率</div>
-      <div style="font-size:1.5rem;font-weight:700" id="rate">—</div>
+      <div style="font-size:.82rem;color:var(--sub)">Kept</div>
+      <div style="font-size:1.5rem;font-weight:700" id="rate">&mdash;</div>
     </div>
   </div>
   <div class="bar" id="bar"></div>
   <div class="legend">
-    <span><b style="background:var(--accent)"></b>手取り</span>
-    <span><b style="background:#7c8aa0"></b>社会保険料</span>
-    <span><b style="background:#b3261e"></b>所得税</span>
-    <span><b style="background:#8b5cf6"></b>住民税</span>
+    <span><b style="background:var(--accent)"></b>Take-home</span>
+    <span><b style="background:#7c8aa0"></b>Social insurance</span>
+    <span><b style="background:#b3261e"></b>Income tax</span>
+    <span><b style="background:#8b5cf6"></b>Residence tax</span>
   </div>
 </div>
 
 <div class="card">
-  <h2>内訳（年額）</h2>
+  <h2>Breakdown (per year)</h2>
   <table>
-    <thead><tr><th>項目</th><th>金額</th><th>額面比</th></tr></thead>
+    <thead><tr><th>Item</th><th>Amount</th><th>Of gross</th></tr></thead>
     <tbody id="tbody"></tbody>
   </table>
   <details>
-    <summary>計算の途中経過を見る</summary>
+    <summary>Show the intermediate figures</summary>
     <table style="margin-top:10px">
       <tbody id="detail"></tbody>
     </table>
@@ -214,91 +214,77 @@
 </div>
 
 <div class="card">
-  <h2>料率（ここを直してください）</h2>
+  <h2>Rates (this is the part you edit)</h2>
   <p class="note" style="margin-top:-6px;margin-bottom:14px">
-    初期値は一般的な目安です。<strong>健康保険料率は都道府県と保険者で違います</strong>（協会けんぽか組合健保か）。
-    給与明細の控除額から逆算して合わせると精度が上がります。
+    The starting values are common ballpark figures. <strong>The health insurance rate differs by prefecture and by insurer</strong> (the national association scheme or a company society). Working backwards from the deductions on your payslip will make this much more accurate.
   </p>
   <div class="rates">
-    <div class="rate"><label>健康保険（本人負担）</label><input type="number" id="r_health" value="5.00" step="0.01"><span class="unit">%</span></div>
-    <div class="rate"><label>介護保険（40〜64歳・本人）</label><input type="number" id="r_care" value="0.80" step="0.01"><span class="unit">%</span></div>
-    <div class="rate"><label>厚生年金（本人負担）</label><input type="number" id="r_pension" value="9.15" step="0.01"><span class="unit">%</span></div>
-    <div class="rate"><label>雇用保険（本人負担）</label><input type="number" id="r_emp" value="0.55" step="0.01"><span class="unit">%</span></div>
-    <div class="rate"><label>住民税・所得割</label><input type="number" id="r_res" value="10.0" step="0.1"><span class="unit">%</span></div>
-    <div class="rate"><label>住民税・均等割（年額）</label><input type="number" id="r_resflat" value="5000" step="100"><span class="unit">円</span></div>
-    <div class="rate"><label>基礎控除（所得税）</label><input type="number" id="d_basic" value="480000" step="10000"><span class="unit">円</span></div>
-    <div class="rate"><label>基礎控除（住民税）</label><input type="number" id="d_basic_r" value="430000" step="10000"><span class="unit">円</span></div>
-    <div class="rate"><label>扶養控除・1人あたり（所得税）</label><input type="number" id="d_dep" value="380000" step="10000"><span class="unit">円</span></div>
-    <div class="rate"><label>扶養控除・1人あたり（住民税）</label><input type="number" id="d_dep_r" value="330000" step="10000"><span class="unit">円</span></div>
-    <div class="rate"><label>復興特別所得税</label><input type="number" id="r_recon" value="2.1" step="0.1"><span class="unit">%</span></div>
-    <div class="rate"><label>健保の上限（標準報酬月額）</label><input type="number" id="c_health_m" value="1390000" step="10000"><span class="unit">円</span></div>
-    <div class="rate"><label>厚年の上限（標準報酬月額）</label><input type="number" id="c_pension_m" value="650000" step="10000"><span class="unit">円</span></div>
-    <div class="rate"><label>健保の上限（賞与・年度の累計）</label><input type="number" id="c_health_b" value="5730000" step="10000"><span class="unit">円</span></div>
-    <div class="rate"><label>厚年の上限（賞与・1回あたり）</label><input type="number" id="c_pension_b" value="1500000" step="10000"><span class="unit">円</span></div>
+    <div class="rate"><label>Health insurance (employee share)</label><input type="number" id="r_health" value="5.00" step="0.01"><span class="unit">%</span></div>
+    <div class="rate"><label>Long-term care insurance (ages 40&ndash;64)</label><input type="number" id="r_care" value="0.80" step="0.01"><span class="unit">%</span></div>
+    <div class="rate"><label>Employees&#39; pension (employee share)</label><input type="number" id="r_pension" value="9.15" step="0.01"><span class="unit">%</span></div>
+    <div class="rate"><label>Employment insurance (employee share)</label><input type="number" id="r_emp" value="0.55" step="0.01"><span class="unit">%</span></div>
+    <div class="rate"><label>Residence tax, income-based part</label><input type="number" id="r_res" value="10.0" step="0.1"><span class="unit">%</span></div>
+    <div class="rate"><label>Residence tax, flat part (per year)</label><input type="number" id="r_resflat" value="5000" step="100"><span class="unit">&yen;</span></div>
+    <div class="rate"><label>Basic deduction (income tax)</label><input type="number" id="d_basic" value="480000" step="10000"><span class="unit">&yen;</span></div>
+    <div class="rate"><label>Basic deduction (residence tax)</label><input type="number" id="d_basic_r" value="430000" step="10000"><span class="unit">&yen;</span></div>
+    <div class="rate"><label>Dependant deduction each (income tax)</label><input type="number" id="d_dep" value="380000" step="10000"><span class="unit">&yen;</span></div>
+    <div class="rate"><label>Dependant deduction each (residence tax)</label><input type="number" id="d_dep_r" value="330000" step="10000"><span class="unit">&yen;</span></div>
+    <div class="rate"><label>Special reconstruction income tax</label><input type="number" id="r_recon" value="2.1" step="0.1"><span class="unit">%</span></div>
+    <div class="rate"><label>Health insurance cap (monthly)</label><input type="number" id="c_health_m" value="1390000" step="10000"><span class="unit">&yen;</span></div>
+    <div class="rate"><label>Pension cap (monthly)</label><input type="number" id="c_pension_m" value="650000" step="10000"><span class="unit">&yen;</span></div>
+    <div class="rate"><label>Health insurance cap (bonuses, per fiscal year)</label><input type="number" id="c_health_b" value="5730000" step="10000"><span class="unit">&yen;</span></div>
+    <div class="rate"><label>Pension cap (bonuses, per payment)</label><input type="number" id="c_pension_b" value="1500000" step="10000"><span class="unit">&yen;</span></div>
   </div>
   <div class="row" style="margin-top:14px">
-    <button id="reset">初期値に戻す</button>
-    <span class="note" style="margin:0">変更はこの端末に保存されます（次回も引き継がれます）。</span>
+    <button id="reset">Reset to defaults</button>
+    <span class="note" style="margin:0">Your edits are kept on this device, so they are still here next time.</span>
   </div>
 </div>
 
 <div class="card">
-  <h2>所得税の税率表</h2>
-  <p class="note" style="margin-top:-6px">課税所得に応じた累進税率。ここも直せます。</p>
+  <h2>Income tax brackets</h2>
+  <p class="note" style="margin-top:-6px">The progressive rates applied to taxable income. Editable too.</p>
   <table id="brackets"></table>
-  <div class="row" style="margin-top:12px"><button id="resetBr">税率表を初期値に戻す</button></div>
+  <div class="row" style="margin-top:12px"><button id="resetBr">Reset the brackets</button></div>
 </div>
 
 <p class="note">
-  <strong>この計算に入れていないもの</strong>：標準報酬月額の<strong>等級区分</strong>（上限だけは入れましたが、
-  途中の等級は使わず月額に直接かけています）、生命保険料控除・iDeCo・住宅ローン控除などの各種控除、ふるさと納税、
-  子ども・子育て拠出金（会社負担なので手取りに影響しません）、住民税の調整控除、非課税限度額、
-  基礎控除が合計所得2,400万円を超えると減っていく分。<br>
-  <strong>2026-09-01 に入れたもの</strong>：社会保険料の上限（健保の標準報酬月額139万円・厚年65万円、
-  賞与は健保が年度累計573万円・厚年が1回150万円）。それまで上限を見ていなかったので、
-  <strong>年収が高いほど実際より多く引かれていました</strong>。上限は下の欄で直せます。<br>
-  <strong>住民税は前年の所得に対してかかります。</strong>新社会人の1年目は住民税が引かれないので、実際の手取りはこの計算より多くなります。
+  <strong>What this does not model</strong>: the <strong>grade table</strong> for standard monthly remuneration (the caps are in, but the grades in between are not &mdash; the rate is applied to your monthly pay directly), deductions for life insurance premiums, iDeCo or a housing loan, hometown tax donations, the child-rearing contribution (paid by the employer, so it does not touch your take-home), the residence tax adjustment credit, the non-taxable threshold, and the way the basic deduction shrinks above &yen;24,000,000 of total income.<br>
+  <strong>Added on 2026-09-01</strong>: the social insurance caps (health insurance at &yen;1,390,000 of standard monthly remuneration and the pension at &yen;650,000; for bonuses, &yen;5,730,000 per fiscal year for health insurance and &yen;1,500,000 per payment for the pension). Before that the caps were missing, so <strong>the higher the salary, the more this tool over-deducted</strong>. The caps are editable in the panel above.<br>
+  <strong>Residence tax is charged on last year&#39;s income.</strong> In your first year of work in Japan there is no residence tax to pay, so your real take-home is higher than this page shows.
 </p>
 
   <nav class="hl-nav">
-    <h2>ほかの道具</h2>
+    <h2>Other tools</h2>
     <ul>
-      <li><a href="../regex/">正規表現テスタ</a></li>
-      <li><a href="../char-counter/">文字数カウンタ</a></li>
-      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
-      <li><a href="../date/">日付計算機</a></li>
-      <li><a href="../image/">画像リサイズ・圧縮</a></li>
-      <li><a href="../json/">JSON整形・検証</a></li>
-      <li><a href="../diff/">テキスト差分（diff）</a></li>
-      <li><a href="../unit/">単位換算</a></li>
-      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
-      <li><a href="../qr/">QRコード作成</a></li>
-      <li><a href="../palette/">カラーパレット生成</a></li>
-      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
-      <li><a href="../cron/">cron式の読み下し</a></li>
-      <li><a href="../tz/">タイムゾーン変換</a></li>
-      <li><a href="../csv/">CSVプレビュー・診断</a></li>
-      <li><a href="../url/">URLの分解・組み立て</a></li>
-      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
-      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
-      <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
-      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
-      <li><a href="../jwt/">JWTの読み下し</a></li>
-      
-      <li><a href="../password/">パスワード生成・強度診断</a></li>
-      <li><a href="../base64/">Base64・データURLの分解</a></li>
-      <li><a href="../pattern/">和柄シームレスパターン作成</a></li>
-      <li><a href="../en/take-home.html">English version</a></li>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
+      <li><a href="./replace.html">Regex Replacement Preview</a></li>
+      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./palette.html">Color Palette Generator</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
+      <li><a href="./url.html">URL Parser &amp; Builder</a></li>
+      <li><a href="./headers.html">HTTP Header Explainer</a></li>
+      <li><a href="./jwt.html">JWT Explainer</a></li>
+      <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
+      <li><a href="./qr.html">QR Code Generator</a></li>
+      <li><a href="./cron.html">Cron Expression Explainer</a></li>
+      <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
+      <li><a href="./image.html">Image Resizer &amp; Compressor</a></li>
+      <li><a href="./page-contrast.html">Whole-Page Contrast Audit</a></li>
+      <li><a href="./diff.html">Text Diff</a></li>
+      <li><a href="./json.html">JSON Formatter &amp; Validator</a></li>
+      <li><a href="./unit.html">Unit Converter</a></li>
+      <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
+      <li><a href="./pattern.html">Japanese Pattern Generator</a></li>
+      <li><a href="./date.html">Japanese Date Calculator</a></li>
+      <li><a href="../take-home/">Japanese version</a></li>
     </ul>
-    <p class="hl-links">
-      <a href="../">道具箱のトップ</a> ・
-      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
-      <a href="https://x.com/hirulab_ai">X</a> ・
-      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
-    </p>
   </nav>
   <footer>
-  ブラウザの中だけで計算しています。入力した金額はどこにも送信されません（送信する仕組みを書いていません）。
+  Everything is worked out inside your browser. The amounts you type are never sent anywhere &mdash; there is no code on this page that could send them.
 </footer>
 
 </div>
@@ -306,7 +292,7 @@
 "use strict";
 const $ = s => document.querySelector(s);
 // Math.round(-0) は -0 のままで "-0" と表示されてしまうので 0 に正規化する
-const yen = n => "¥" + (Math.round(n) || 0).toLocaleString("ja-JP");
+const yen = n => "¥" + (Math.round(n) || 0).toLocaleString("en-US");
 
 const DEFAULT_RATES = {
   r_health:5.00, r_care:0.80, r_pension:9.15, r_emp:0.55,
@@ -380,11 +366,11 @@ function calc(){
     // 健保の賞与は「年度の累計」が上限なので、1回ぶんではなく年間で切る
     const healthB = Math.min(bonus, R.c_health_b);
     const health = r => Math.min(monthlyPay, R.c_health_m) * 12 * r/100 + healthB * r/100;
-    parts.push(["health", "健康保険", health(R.r_health)]);
-    if (age >= 40 && age < 65) parts.push(["care", "介護保険", health(R.r_care)]);
+    parts.push(["health", "Health insurance", health(R.r_health)]);
+    if (age >= 40 && age < 65) parts.push(["care", "Long-term care insurance", health(R.r_care)]);
   }
-  if ($("#pension").checked) parts.push(["pension", "厚生年金", si2(R.r_pension, R.c_pension_m, R.c_pension_b)]);
-  if ($("#empIns").checked)  parts.push(["emp", "雇用保険", annual * R.r_emp/100]);   // 雇用保険に上限は無い
+  if ($("#pension").checked) parts.push(["pension", "Employees' pension", si2(R.r_pension, R.c_pension_m, R.c_pension_b)]);
+  if ($("#empIns").checked)  parts.push(["emp", "Employment insurance", annual * R.r_emp/100]);   // 雇用保険に上限は無い
   for (const p of parts) si += p[2];
 
   const salDed = salaryDeduction(annual);
@@ -409,23 +395,23 @@ function calc(){
   $("#rate").textContent = annual ? (net/annual*100).toFixed(1) + "%" : "—";
 
   const rows = [];
-  rows.push(["額面年収", annual, "gross"]);
-  for (const p of parts) rows.push(["　" + p[1], -p[2], p[0]]);
-  rows.push(["社会保険料 合計", -si, "si-total"]);
-  rows.push(["所得税（復興税込み）", -incTax, "income-tax"]);
-  rows.push(["住民税", -resTax, "residence-tax"]);
+  rows.push(["Gross annual pay", annual, "gross"]);
+  for (const p of parts) rows.push(["  " + p[1], -p[2], p[0]]);
+  rows.push(["Social insurance, total", -si, "si-total"]);
+  rows.push(["Income tax (incl. reconstruction surtax)", -incTax, "income-tax"]);
+  rows.push(["Residence tax", -resTax, "residence-tax"]);
   $("#tbody").innerHTML = rows.map(([n,v,k])=>
     `<tr data-k="${k}"><td>${n}</td><td class="${v<0?'neg':''}">${v<0?"−"+yen(-v):yen(v)}</td>
      <td style="color:var(--sub)">${annual?(Math.abs(v)/annual*100).toFixed(1)+"%":""}</td></tr>`
-  ).join("") + `<tr class="sum" data-k="net"><td>手取り</td><td class="pos">${yen(net)}</td>
+  ).join("") + `<tr class="sum" data-k="net"><td>Take-home</td><td class="pos">${yen(net)}</td>
      <td>${annual?(net/annual*100).toFixed(1)+"%":""}</td></tr>`;
 
   $("#detail").innerHTML = [
-    ["給与所得控除", salDed, "salary-deduction"],
-    ["給与所得（額面 − 給与所得控除）", incomeAfterSal, "employment-income"],
-    ["所得税の課税所得", taxableI, "taxable-income"],
-    ["所得税（復興税を除く）", baseTax, "base-tax"],
-    ["住民税の課税所得", taxableR, "taxable-residence"],
+    ["Employment income deduction", salDed, "salary-deduction"],
+    ["Employment income (gross − deduction)", incomeAfterSal, "employment-income"],
+    ["Taxable income for income tax", taxableI, "taxable-income"],
+    ["Income tax (before reconstruction surtax)", baseTax, "base-tax"],
+    ["Taxable income for residence tax", taxableR, "taxable-residence"],
   ].map(([n,v,k])=>`<tr data-k="${k}"><td>${n}</td><td>${yen(v)}</td></tr>`).join("");
 
   const seg = [[net,"var(--accent)"],[si,"#7c8aa0"],[incTax,"#b3261e"],[resTax,"#8b5cf6"]];
@@ -439,7 +425,7 @@ function calc(){
 
 function renderBrackets(){
   $("#brackets").innerHTML =
-    `<thead><tr><th>課税所得がこの額以上</th><th>税率</th><th>控除額</th></tr></thead><tbody>` +
+    `<thead><tr><th>Taxable income from</th><th>Rate</th><th>Deduction</th></tr></thead><tbody>` +
     brackets.map((b,i)=>
       `<tr>
         <td><input type="number" data-i="${i}" data-j="0" value="${b[0]}" step="50000" style="width:130px"></td>

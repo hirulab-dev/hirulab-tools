@@ -1,3 +1,8 @@
 __pycache__/
 *.pyc
 tools/tests/qr-reference.json
+
+# 検証スクリプトが --sabotage のときに docs/ に書く一時ページ。
+# わざと壊した道具なので、公開に混ざると実害が出る。
+# (git_push_tools.py は `git add -A` するので、無視指定が無いと入る)
+_sabotage_*.html

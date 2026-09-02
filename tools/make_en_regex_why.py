@@ -585,6 +585,7 @@ HTML_PARTS = [
       <li><a href="./unit.html">Unit Converter</a></li>
       <li><a href="./pattern.html">Japanese Pattern Generator</a></li>
       <li><a href="./date.html">Japanese Date Calculator</a></li>
+      <li><a href="./take-home.html">Japan Take-Home Pay Calculator</a></li>
       <li><a href="../regex-why/">Japanese version</a></li>
     </ul>
     <p class="hl-links">

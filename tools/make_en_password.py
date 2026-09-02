@@ -329,6 +329,7 @@ NAV_LINKS_EN = '''var NAV_LINKS = [
   ["./unit.html", "Unit Converter"],
   ["./pattern.html", "Japanese Pattern Generator"],
   ["./date.html", "Japanese Date Calculator"],
+  ["./take-home.html", "Japan Take-Home Pay Calculator"],
   ["../password/", "Japanese version"]
 ];'''
 

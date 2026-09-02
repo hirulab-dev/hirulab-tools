@@ -14,8 +14,6 @@
 
 ## 何を見るか
 
-`docs/en/*.html` を全部走査して、対応する日本語ページと突き合わせる。
-
   - 文字列リテラルの中身・コメント・正規表現リテラルの中身を空にしてから比べる
     (= 訳した文言の違いは無視して、**処理だけ**を見る)
   - 生成器を持つページは「一致していること」が要求。1バイトでも違えば ★
@@ -23,6 +21,27 @@
     **違う行の数と中身を出して人が見る**。ここに `en/csv.html` の型の傷が眠っている
 
     python lab/scripts/check_en_parity.py [--docs <docs>] [--page en/csv.html] [--show 20]
+
+## ★2026-09-02 夜: **この道具は「対を持つページ」しか見ていなかった**
+
+上の説明には「`docs/en/*.html` を全部走査して」と書いてあったが、**走査していない**。
+実際に回していたのは下の `PAIRS`(手で書いた対応表)だけで、
+**対応表に無いページは、あってもなくても何も言わない**形だった。
+
+そのせいで今日、事実でないことを何度も書いた:
+**「英語版を持たない道具は0本」「日本語版はあるのに英語版が無いページは0本」**
+(2026-09-02 朝・昼のログと `accounts.md`)。数えたら **`take-home/`(手取り計算機)と
+`frima-profit/`(フリマ利益計算機)の2本に英語版が無い**。
+どの検査にも掛からなかった理由は3つとも同じ型:
+  - `check_site.py` の hreflang 検査は **hreflang があるページしか見ない**
+    (英語版が無いページは hreflang も無いので、そもそも土俵に上がらない)
+  - `check_site.py` のナビ完全性検査は **在るものから「揃うべき集合」を作る**
+    ので、英語版が減れば要求も一緒に減る
+  - この道具は **手で書いた対応表**を回していた(`site_pages.py` を作った動機そのもの)
+
+→ **日本語側・英語側の両方を `docs/` から数え、対応表の外を必ず名指しする**形にした。
+   英語版を作らないと決めたページは `NO_EN` に**理由つきで**書く。
+   書いていないものは ★ にする(=「知らなかった」と「決めた」を区別する)。
 """
 import argparse
 import difflib
@@ -33,6 +52,7 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank  # noqa: E402
+from site_pages import discover  # noqa: E402
 
 # 英語ページ -> 日本語ページ(docs からの相対)
 PAIRS = {
@@ -56,6 +76,7 @@ PAIRS = {
     "regex-tester.html": "regex/index.html",
     "regex-why.html": "regex-why/index.html",
     "replace.html": "replace/index.html",
+    "take-home.html": "take-home/index.html",
     "timezone.html": "tz/index.html",
     "unit.html": "unit/index.html",
     "url.html": "url/index.html",
@@ -68,7 +89,23 @@ GENERATED = {
     "image.html", "json.html", "jwt.html", "page-contrast.html", "palette.html",
     "password.html", "pattern.html", "qr.html", "railroad.html", "regex-tester.html",
     "regex-why.html",
-    "replace.html", "unit.html", "url.html",
+    "replace.html", "take-home.html", "unit.html", "url.html",
+}
+
+# 英語版が無いことを**把握している**日本語ページ(鍵 -> 状態)。2026-09-02 夜 新設。
+# 「決めた/知っている」と「見落とした」を分けるための表。
+# ここに書いていないのに英語版が無いページは ★(検査は落ちる)。
+# ⚠ 書いてあるページも**毎回の要約に本数と名前を出す**ので、黙って消えることはない。
+#    黙らせるためだけに足さない(足すときは状態を書く)。空にする方法は英語版を作ること。
+#
+# ★経緯(調べたら「見落とし」ではなかった): 2026-08-28 の `make_en_contrast.py` の冒頭に
+#   **「frima-profit・take-home・date は英語にしても読む人がいない」と書いて外している**。
+#   ところが 9/2 昼に date だけ方針を変えて英語版を作った(「日本で働いている人・日本の日付を
+#   扱う開発者に、日本のカレンダーを英語で渡す」)。**同じ理屈が残り2本にも当たるのに、
+#   決定を見直さないまま「ゼロ達成」と書いた**、というのが本当のところ。
+#   → だから状態は「作らないと決めた」ではなく「**方針を見直す必要がある未着手**」。
+NO_EN = {
+    "frima-profit/": "メルカリ・ラクマ・PayPayフリマの手数料表に依存。同上で**未着手・要再判断**",
 }
 
 
@@ -93,6 +130,49 @@ def flat(src):
     訳した文言が長くて折り返しが変わっただけ、を「処理が違う」と言わないため
     (`en/password.html` の表がこの形で、最初 15 行ちがうと出た)。"""
     return re.sub(r"\s+", " ", blank(src, blank_regex=True)).strip()
+
+
+def coverage(docs):
+    """`docs/` を数えて、**対応表の外**を名指しする(2026-09-02 夜 新設)。
+
+    返り値 (見出し行のリスト, ★の件数)。
+    ★になるのは3種類:
+      - 英語ページがあるのに `PAIRS` に無い    … この道具が一度も見ていないページ
+      - `PAIRS` が指す日本語ページが実在しない  … 対応表が古い
+      - 英語版が無いのに `NO_EN` にも無い       … 見落とし
+    `NO_EN` に書いてあるページは ★ にしないが、**本数と名前は必ず出す**。
+    """
+    keys = discover(docs)
+    ja = {k for k in keys if k.endswith("/") and k != "" and not k.startswith("en/")}
+    en = {k for k in keys if k.startswith("en/") and not k.endswith("/")}
+    paired_ja = {v[: -len("index.html")] for v in PAIRS.values()}
+    paired_en = {"en/" + n for n in PAIRS}
+
+    lines, bad = [], 0
+    for k in sorted(en - paired_en):
+        lines.append("★ 対応表(PAIRS)に無い英語ページ: %s(この道具は一度も見ていない)" % k)
+        bad += 1
+    for k in sorted(paired_ja - ja):
+        lines.append("★ 対応表が指す日本語ページが実在しない: %s" % k)
+        bad += 1
+    missing = sorted(ja - paired_ja)
+    for k in missing:
+        if k in NO_EN:
+            lines.append("  英語版なし(把握ずみ): %s — %s" % (k, NO_EN[k]))
+        else:
+            lines.append("★ 英語版が無いのに `NO_EN` にも書いていない: %s" % k)
+            bad += 1
+    for k in sorted(set(NO_EN) - set(missing)):
+        lines.append("★ `NO_EN` の記述が古い(英語版はある/ページが無い): %s" % k)
+        bad += 1
+
+    lines.append("見た範囲: 日本語の道具ページ %d 本 / 英語ページ %d 本 / 対応表 %d 組"
+                 " / 英語版なし %d 本(%s)"
+                 % (len(ja), len(en), len(PAIRS), len(missing),
+                    " ".join(missing) if missing else "無し"))
+    lines.append("見ていない範囲: HTML と CSS(比べるのは <script> の中だけ)/ "
+                 "画面の文言そのもの / 一覧ページ(トップ・en/)")
+    return lines, bad
 
 
 def main():
@@ -146,7 +226,14 @@ def main():
     hand = [r for r in rows if r[1] == "手書き"]
     print("\n生成 %d ページ / 手書き %d ページ(%s)"
           % (len(rows) - len(hand), len(hand), " ".join(r[0] for r in hand)))
-    return 1 if bad else 0
+
+    # ★ページ単位で見たあと、**対応表そのもの**を docs/ と突き合わせる。
+    #   --page で1ページだけ見たときも必ず回す(範囲の話はページと独立なので)。
+    cov_lines, cov_bad = coverage(docs)
+    print("\n--- 対応表の網羅 ---")
+    for ln in cov_lines:
+        print(ln)
+    return 1 if (bad or cov_bad) else 0
 
 
 if __name__ == "__main__":

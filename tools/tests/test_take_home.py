@@ -129,15 +129,15 @@ def model(annual, age, deps, rates, on, bonus=0, bonus_n=2, brackets=None):
 
         def health(r):
             return min(monthly, rates["c_health_m"]) * 12 * r / 100 + health_b * r / 100
-        parts["健康保険"] = health(rates["r_health"])
+        parts["health"] = health(rates["r_health"])
         if 40 <= age < 65:
-            parts["介護保険"] = health(rates["r_care"])
+            parts["care"] = health(rates["r_care"])
     if on["pension"]:
         r = rates["r_pension"]
-        parts["厚生年金"] = (min(monthly, rates["c_pension_m"]) * 12 * r / 100 +
+        parts["pension"] = (min(monthly, rates["c_pension_m"]) * 12 * r / 100 +
                              min(per_bonus, rates["c_pension_b"]) * bonus_n * r / 100)
     if on["empIns"]:
-        parts["雇用保険"] = annual * rates["r_emp"] / 100
+        parts["emp"] = annual * rates["r_emp"] / 100
     si = sum(parts.values())
 
     sal_ded = salary_deduction(annual)
@@ -167,9 +167,9 @@ READ = """() => ({
   netM: document.querySelector('#netM').textContent,
   rate: document.querySelector('#rate').textContent,
   rows: Array.from(document.querySelectorAll('#tbody tr')).map(
-    r => Array.from(r.children).map(c => c.textContent.trim())),
+    r => [r.dataset.k || ''].concat(Array.from(r.children).map(c => c.textContent.trim()))),
   detail: Array.from(document.querySelectorAll('#detail tr')).map(
-    r => Array.from(r.children).map(c => c.textContent.trim())),
+    r => [r.dataset.k || ''].concat(Array.from(r.children).map(c => c.textContent.trim()))),
   bar: Array.from(document.querySelectorAll('#bar i')).map(e => e.style.width)
 })"""
 
@@ -252,34 +252,36 @@ async def check_cases(pg, rep, cases):
             bad.append("%s 手取り率 道具=%s 参照=%s" % (tag, got["rate"], want_rate))
 
         # 内訳の表(額面 / 各保険 / 合計 / 所得税 / 住民税 / 手取り)
-        rows = {r[0].replace("　", ""): r for r in got["rows"]}
-        for label, v in [("額面年収", annual), ("社会保険料 合計", -w["si"]),
-                         ("所得税（復興税込み）", -w["incTax"]), ("住民税", -w["resTax"]),
-                         ("手取り", w["net"])]:
-            if label not in rows:
-                bad.append("%s 行が無い: %s" % (tag, label)); continue
-            if yen(rows[label][1]) != js_round(abs(v)) * (1 if v >= 0 else -1):
-                bad.append("%s %s 道具=%s 参照=%d" % (tag, label, rows[label][1], js_round(v)))
-        for label, v in w["parts"].items():
-            if label not in rows:
-                bad.append("%s 保険の行が無い: %s" % (tag, label)); continue
-            if yen(rows[label][1]) != -js_round(v):
-                bad.append("%s %s 道具=%s 参照=%d" % (tag, label, rows[label][1], -js_round(v)))
+        # ★2026-09-02 夜: 行は**表示名ではなく `data-k`** で引く。表示名で引いていたので
+        #   英語版に当てると 1 行も見つからず KeyError で落ちた(url・headers・jwt・date と同じ手)。
+        rows = {r[0]: r for r in got["rows"]}
+        for key, v in [("gross", annual), ("si-total", -w["si"]),
+                       ("income-tax", -w["incTax"]), ("residence-tax", -w["resTax"]),
+                       ("net", w["net"])]:
+            if key not in rows:
+                bad.append("%s 行が無い: %s" % (tag, key)); continue
+            if yen(rows[key][2]) != js_round(abs(v)) * (1 if v >= 0 else -1):
+                bad.append("%s %s 道具=%s 参照=%d" % (tag, key, rows[key][2], js_round(v)))
+        for key, v in w["parts"].items():
+            if key not in rows:
+                bad.append("%s 保険の行が無い: %s" % (tag, key)); continue
+            if yen(rows[key][2]) != -js_round(v):
+                bad.append("%s %s 道具=%s 参照=%d" % (tag, key, rows[key][2], -js_round(v)))
         # 40歳未満/65歳以上に介護保険の行が出ていないこと
-        if "介護保険" in rows and not (40 <= age < 65 and on["health"]):
+        if "care" in rows and not (40 <= age < 65 and on["health"]):
             bad.append("%s 介護保険の行が出ている(年齢 %d)" % (tag, age))
 
         # 途中経過
-        det = {r[0]: r[1] for r in got["detail"]}
-        for label, v in [("給与所得控除", w["salDed"]),
-                         ("給与所得（額面 − 給与所得控除）", w["afterSal"]),
-                         ("所得税の課税所得", w["taxableI"]),
-                         ("所得税（復興税を除く）", w["baseTax"]),
-                         ("住民税の課税所得", w["taxableR"])]:
-            if label not in det:
-                bad.append("%s 途中経過の行が無い: %s" % (tag, label)); continue
-            if yen(det[label]) != js_round(v):
-                bad.append("%s %s 道具=%s 参照=%d" % (tag, label, det[label], js_round(v)))
+        det = {r[0]: r[2] for r in got["detail"]}
+        for key, v in [("salary-deduction", w["salDed"]),
+                       ("employment-income", w["afterSal"]),
+                       ("taxable-income", w["taxableI"]),
+                       ("base-tax", w["baseTax"]),
+                       ("taxable-residence", w["taxableR"])]:
+            if key not in det:
+                bad.append("%s 途中経過の行が無い: %s" % (tag, key)); continue
+            if yen(det[key]) != js_round(v):
+                bad.append("%s %s 道具=%s 参照=%d" % (tag, key, det[key], js_round(v)))
 
         # 棒グラフの幅(手取り・社保・所得税・住民税の順)
         if annual:
@@ -366,9 +368,9 @@ async def check_bracket_edit(pg, rep):
         await c.fill("0")
     await pg.wait_for_timeout(30)
     got = await pg.evaluate(READ)
-    det = {r[0]: r[1] for r in got["detail"]}
-    if yen(det["所得税（復興税を除く）"]) != 0:
-        bad.append("税率を全部0%%にしても所得税が残る: %s" % det["所得税（復興税を除く）"])
+    det = {r[0]: r[2] for r in got["detail"]}
+    if yen(det["base-tax"]) != 0:
+        bad.append("税率を全部0%%にしても所得税が残る: %s" % det["base-tax"])
     zero = dict(DEFAULT_RATES)
     w = model(9_500_000, 30, 0, zero, on, 0, 2, [(b[0], 0.0, b[2]) for b in BRACKETS])
     if yen(got["netY"]) != js_round(w["net"]):
@@ -479,8 +481,8 @@ SABOTAGE = [
      ('  const dedI = R.d_basic + deps*R.d_dep + si;',
       '  const dedI = R.d_basic + deps*R.d_dep;')),
     ("介護保険の上の年齢を見ない",
-     ('    if (age >= 40 && age < 65) parts["介護保険"] = health(R.r_care);',
-      '    if (age >= 40) parts["介護保険"] = health(R.r_care);')),
+     ('    if (age >= 40 && age < 65) parts.push(["care", "介護保険", health(R.r_care)]);',
+      '    if (age >= 40) parts.push(["care", "介護保険", health(R.r_care)]);')),
     ("住民税の扶養控除を所得税のほうの額で引く",
      ('  const dedR = R.d_basic_r + deps*R.d_dep_r + si;',
       '  const dedR = R.d_basic_r + deps*R.d_dep + si;')),
@@ -504,8 +506,8 @@ SABOTAGE = [
      ('  const bonusN = Math.max(1, Math.round(+$("#bonusN").value || 1));',
       '  const bonusN = 2;')),
     ("雇用保険にも厚年の上限を掛ける",
-     ('  if ($("#empIns").checked)  parts["雇用保険"] = annual * R.r_emp/100;',
-      '  if ($("#empIns").checked)  parts["雇用保険"] = si2(R.r_emp, R.c_pension_m, R.c_pension_b);')),
+     ('  if ($("#empIns").checked)  parts.push(["emp", "雇用保険", annual * R.r_emp/100]);',
+      '  if ($("#empIns").checked)  parts.push(["emp", "雇用保険", si2(R.r_emp, R.c_pension_m, R.c_pension_b)]);')),
     ("料率の書き換えを読まず、初期値を使う",
      ('  for (const k in DEFAULT_RATES) R[k] = parseFloat($("#"+k).value) || 0;',
       '  for (const k in DEFAULT_RATES) R[k] = DEFAULT_RATES[k];')),
