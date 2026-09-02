@@ -192,7 +192,14 @@ def main(argv=None):
     if first <= 2 <= last:
         if not a.slug:
             sys.exit("× --slug が要る")
-        gen = f"make_en_{a.slug.replace('-', '_')}.py"
+        # ★2026-09-03: 生成器の名前は**日本語スラッグではなく英語ファイル名**から決まる
+        #   (`regex` → `make_en_regex_tester.py` / `tz` → 手書きで生成器なし)。
+        #   スラッグから組み立てていたので、この2本には最初から当たらない道具だった
+        sys.path.insert(0, str(HERE))
+        from en_pages import PAGES, generator_name          # noqa: E402
+        if a.slug not in PAGES:
+            sys.exit(f"× en_pages.PAGES に無いスラッグ: {a.slug}(先に表へ足すこと)")
+        gen = generator_name(PAGES[a.slug])
         step(2, f"{gen} を走らせる")
         if not (HERE / gen).exists():
             sys.exit(f"× 生成スクリプトが無い: {gen}(先に書くこと)")

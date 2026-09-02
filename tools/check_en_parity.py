@@ -53,60 +53,16 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank  # noqa: E402
 from site_pages import discover  # noqa: E402
+import en_pages  # noqa: E402
 
-# 英語ページ -> 日本語ページ(docs からの相対)
-PAIRS = {
-    "base64.html": "base64/index.html",
-    "char-counter.html": "char-counter/index.html",
-    "contrast.html": "contrast/index.html",
-    "cron.html": "cron/index.html",
-    "csv.html": "csv/index.html",
-    "date.html": "date/index.html",
-    "diff.html": "diff/index.html",
-    "headers.html": "headers/index.html",
-    "image.html": "image/index.html",
-    "json.html": "json/index.html",
-    "jwt.html": "jwt/index.html",
-    "page-contrast.html": "page-contrast/index.html",
-    "palette.html": "palette/index.html",
-    "password.html": "password/index.html",
-    "pattern.html": "pattern/index.html",
-    "qr.html": "qr/index.html",
-    "railroad.html": "railroad/index.html",
-    "regex-tester.html": "regex/index.html",
-    "regex-why.html": "regex-why/index.html",
-    "replace.html": "replace/index.html",
-    "take-home.html": "take-home/index.html",
-    "timezone.html": "tz/index.html",
-    "unit.html": "unit/index.html",
-    "url.html": "url/index.html",
-}
-
-# 生成器を持つページ(= 日英でコードが一致していなければならない)
-GENERATED = {
-    "base64.html", "contrast.html", "cron.html", "csv.html", "date.html", "diff.html",
-    "headers.html",
-    "image.html", "json.html", "jwt.html", "page-contrast.html", "palette.html",
-    "password.html", "pattern.html", "qr.html", "railroad.html", "regex-tester.html",
-    "regex-why.html",
-    "replace.html", "take-home.html", "unit.html", "url.html",
-}
-
-# 英語版が無いことを**把握している**日本語ページ(鍵 -> 状態)。2026-09-02 夜 新設。
-# 「決めた/知っている」と「見落とした」を分けるための表。
-# ここに書いていないのに英語版が無いページは ★(検査は落ちる)。
-# ⚠ 書いてあるページも**毎回の要約に本数と名前を出す**ので、黙って消えることはない。
-#    黙らせるためだけに足さない(足すときは状態を書く)。空にする方法は英語版を作ること。
-#
-# ★経緯(調べたら「見落とし」ではなかった): 2026-08-28 の `make_en_contrast.py` の冒頭に
-#   **「frima-profit・take-home・date は英語にしても読む人がいない」と書いて外している**。
-#   ところが 9/2 昼に date だけ方針を変えて英語版を作った(「日本で働いている人・日本の日付を
-#   扱う開発者に、日本のカレンダーを英語で渡す」)。**同じ理屈が残り2本にも当たるのに、
-#   決定を見直さないまま「ゼロ達成」と書いた**、というのが本当のところ。
-#   → だから状態は「作らないと決めた」ではなく「**方針を見直す必要がある未着手**」。
-NO_EN = {
-    "frima-profit/": "メルカリ・ラクマ・PayPayフリマの手数料表に依存。同上で**未着手・要再判断**",
-}
+# ★2026-09-03: 対応表・生成器の一覧・`NO_EN` を `en_pages.py` に移した。
+#   同じ対応が3か所に手書きされていて、**3つとも中身が違っていた**
+#   (この表は24件、`fix_lang_link` は18件、`sync_en_nav` は14件)。
+#   ここは引くだけにする。`GENERATED` は手書きの集合をやめ、
+#   **生成器が実在するかで決める**(足し忘れが起こりようがない)。
+PAIRS = en_pages.by_en()
+GENERATED = en_pages.generated()
+NO_EN = en_pages.NO_EN
 
 
 def script_span(html):
@@ -167,9 +123,9 @@ def coverage(docs):
         bad += 1
 
     lines.append("見た範囲: 日本語の道具ページ %d 本 / 英語ページ %d 本 / 対応表 %d 組"
-                 " / 英語版なし %d 本(%s)"
+                 " / 英語版なし %d 本(%s) / `NO_EN` の記載 %d 本"
                  % (len(ja), len(en), len(PAIRS), len(missing),
-                    " ".join(missing) if missing else "無し"))
+                    " ".join(missing) if missing else "無し", len(NO_EN)))
     lines.append("見ていない範囲: HTML と CSS(比べるのは <script> の中だけ)/ "
                  "画面の文言そのもの / 一覧ページ(トップ・en/)")
     return lines, bad

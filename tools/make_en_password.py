@@ -330,6 +330,7 @@ NAV_LINKS_EN = '''var NAV_LINKS = [
   ["./pattern.html", "Japanese Pattern Generator"],
   ["./date.html", "Japanese Date Calculator"],
   ["./take-home.html", "Japan Take-Home Pay Calculator"],
+  ["./frima-profit.html", "Flea-Market Profit Calculator"],
   ["../password/", "Japanese version"]
 ];'''
 

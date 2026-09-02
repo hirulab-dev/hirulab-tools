@@ -28,28 +28,15 @@ import re
 import sys
 
 sys.stdout.reconfigure(encoding="utf-8")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import en_pages  # noqa: E402
 
-# 日本語のスラッグ → 英語ページのファイル名
-PAIRS = {
-    "regex": "regex-tester.html",
-    "char-counter": "char-counter.html",
-    "palette": "palette.html",
-    "tz": "timezone.html",
-    "csv": "csv.html",
-    "url": "url.html",
-    "headers": "headers.html",
-    "jwt": "jwt.html",
-    "password": "password.html",
-    "base64": "base64.html",
-    "qr": "qr.html",
-    "railroad": "railroad.html",
-    "regex-why": "regex-why.html",
-    "replace": "replace.html",
-    "cron": "cron.html",
-    "pattern": "pattern.html",
-    "date": "date.html",
-    "take-home": "take-home.html",
-}
+# ★2026-09-03: 対応表を `en_pages.py` に1本化した。
+#   ここには**18件しか書いていなかった**(全25本のうち contrast / diff / image / json /
+#   page-contrast / unit の6本が無い)。= この道具はその6ページを**一度も見ていなかった**。
+#   現物はたまたま正しかったので、誰も気づかない形だった
+#   (9/1〜9/2 に4件出た「黙って空振りする検査」と同じ型)。
+PAIRS = en_pages.PAGES
 
 JA_NAV = re.compile(r'(  <nav class="hl-nav">\n    <h2>ほかの道具</h2>\n    <ul>\n)(.*?)(\n    </ul>)', re.S)
 EN_NAV = re.compile(r'(  <nav class="hl-nav">\n    <h2>Other tools</h2>\n    <ul>\n)(.*?)(\n    </ul>)', re.S)
@@ -67,6 +54,10 @@ def normalize(body, marks, fallback):
     for line in body.rstrip("\n").split("\n"):
         found = LI.findall(line)
         items.extend(found if found else [line.strip()])
+    # ★空行は落とす(2026-09-03)。落とさないと、あとで "      " + x を付けるときに
+    #   **空白だけの行**が生まれる。1行に <li> が2つ並んでいるページ(contrast・image・
+    #   frima-profit)をほどくと必ずここに当たる
+    items = [x for x in items if x]
     kept = [x for x in items if not any(m in x for m in marks)]
     tail = [x for x in items if any(m in x for m in marks)]
     added = not tail

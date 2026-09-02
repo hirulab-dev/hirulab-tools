@@ -56,7 +56,7 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 from playwright.async_api import async_playwright  # noqa: E402
 
-DEFAULT_PAGE = pathlib.Path.home() / "hirulab-tools" / "docs" / "frima-profit" / "index.html"
+DEFAULT_PAGE = pathlib.Path(__file__).resolve().parents[2] / "docs" / "frima-profit" / "index.html"
 
 FIELDS = ["price", "cost", "ship", "pack", "feePct", "payout"]
 
@@ -173,6 +173,7 @@ async def read_screen(pg):
 
 async def check_cases(pg, rep, cases):
     bad_profit, bad_margin, bad_be, bad_wt, bad_sum, bad_cls = [], [], [], [], [], []
+    units = set()
     for c in cases:
         m = model(**c)
         await set_inputs(pg, c)
@@ -205,8 +206,17 @@ async def check_cases(pg, rep, cases):
                 elif below >= 0 and got > 0:
                     bad_be.append(f"{tag}: 分岐{got}円の1円下でも黒字({below:.4f})=切り上げすぎ")
 
-        if s["worktime"] != f"{m['worktime']}分":
-            bad_wt.append(f"{tag}: 作業時間 画面={s['worktime']} 参照={m['worktime']}分")
+        # ★言語に依らない見方にした(2026-09-03、英語版に同じ検証を当てるため)。
+        #   「35分」も「35 min」も**数は同じ**で、単位の文字は言語で変わる。
+        #   そこで (a) 数が参照と合うか (b) 単位の文字が全ケースで同じで、空でないか
+        #   の2つに分ける。(b) が要るのは、数だけ見ると**単位が消えても素通りする**ため。
+        mw = re.fullmatch(r"(-?\d+)(.*)", s["worktime"].strip())
+        if not mw:
+            bad_wt.append(f"{tag}: 作業時間が読めない: {s['worktime']!r}")
+        else:
+            if int(mw.group(1)) != m["worktime"]:
+                bad_wt.append(f"{tag}: 作業時間 画面={s['worktime']} 参照={m['worktime']}")
+            units.add(mw.group(2))
 
         want_cls = "value " + ("plus" if m["profit"] > 0 else "minus" if m["profit"] < 0 else "")
         if s["cls"].strip() != want_cls.strip():
@@ -222,6 +232,11 @@ async def check_cases(pg, rep, cases):
             if lhs != shown_total:
                 bad_sum.append(f"{tag}: 内訳を足すと {lhs} だが「= {shown_total}」と出ている"
                                f" / {s['breakdown']}")
+
+    if len(units) > 1:
+        bad_wt.append("作業時間の単位が場合によって違う: %s" % sorted(units))
+    elif units and not units.copy().pop().strip():
+        bad_wt.append("作業時間に単位が付いていない(数だけ出ている)")
 
     n = len(cases)
     rep.line("利益(¥)", n, bad_profit)
@@ -318,8 +333,14 @@ SABOTAGE = [
     ("損益分岐を詰めすぎて赤字の売値を出す",
      ("Math.floor((breakeven - 1) * feePct / 100) - fixed >= 0",
       "Math.floor((breakeven - 1) * feePct / 100) - fixed >= -2")),
+    # ⚠ 仕込みの文字列は**日英どちらのページにも在るもの**にする(2026-09-03)。
+    #   `Math.floor(mins) + "分"` だと英語版に当てたとき「仕込めない」で素通りになる
     ("許容作業時間を切り捨てでなく切り上げにする",
-     ("Math.floor(mins) + \"分\"", "Math.ceil(mins) + \"分\"")),
+     ("Math.floor(mins)", "Math.ceil(mins)")),
+    # ★上の検査(単位の文字が全ケースで同じで空でないか)を狙う仕込み。
+    #   単位の文字そのものが日英で違うので、ここだけ正規表現で仕込む
+    ("許容作業時間から単位を落とす(数だけ出す)",
+     (re.compile(r'Math\.floor\(mins\) \+ "[^"]*"'), "Math.floor(mins)")),
     ("赤字でも黒字の色にする",
      ('(profit > 0 ? "plus" : profit < 0 ? "minus" : "")', '"plus"')),
     ("内訳の合計だけ別の値にする",
@@ -340,17 +361,27 @@ async def sabotage(html_path, n, seed):
     missed = []
     try:
         for i, (name, (a, b)) in enumerate(SABOTAGE, 1):
-            if a not in src:
-                print("%2d. %-40s ★仕込めない(差し替え元が見つからない)" % (i, name))
+            # 差し替え元は文字列か正規表現。単位の文字のように**日英で違うところ**だけ
+            # 正規表現にしてある(2026-09-03、英語版にも同じ仕込みを当てるため)
+            if isinstance(a, re.Pattern):
+                if not a.search(src):
+                    print("%2d. %-44s ★仕込めない(差し替え元が見つからない)" % (i, name))
+                    missed.append(name)
+                    continue
+                broken = a.sub(b, src, count=1)
+            elif a not in src:
+                print("%2d. %-44s ★仕込めない(差し替え元が見つからない)" % (i, name))
                 missed.append(name)
                 continue
-            tmp.write_text(src.replace(a, b, 1), encoding="utf-8", newline="\n")
+            else:
+                broken = src.replace(a, b, 1)
+            tmp.write_text(broken, encoding="utf-8", newline="\n")
             rep = await run(tmp, max(40, n // 4), seed + i, quiet=True)
             if rep.ok():
-                print("%2d. %-40s ★素通り" % (i, name))
+                print("%2d. %-44s ★素通り" % (i, name))
                 missed.append(name)
             else:
-                print("%2d. %-40s 検出(%s)" % (i, name, sorted({x for x, _ in rep.bad})[0]))
+                print("%2d. %-44s 検出(%s)" % (i, name, sorted({x for x, _ in rep.bad})[0]))
     finally:
         if tmp.exists():
             tmp.unlink()

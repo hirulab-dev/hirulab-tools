@@ -29,41 +29,21 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from fix_lang_link import normalize, EN_MARKS  # noqa: E402
 
-# 生成スクリプト名 → 日本語ページのスラッグ
-PAIRS = {
-    "make_en_railroad.py": "railroad",
-    "make_en_regex_why.py": "regex-why",
-    "make_en_replace.py": "replace",
-    "make_en_url.py": "url",
-    # None = 日本語ナビの同期は不要。`make_en_{headers,jwt,base64}.py` は差し替え元を持たず、
-    # **実ページのナビを実行時に正規表現で拾って捨てる**ので構造的にずれない。
-    # 英語ナビ（書き出す側）だけは静的なので --add-en の面倒を見る（2026-08-27）。
-    "make_en_headers.py": None,
-    "make_en_jwt.py": None,
-    "make_en_base64.py": None,
-    "make_en_qr.py": None,
-    "make_en_cron.py": None,
-}
-
-# 同期がまったく要らない生成スクリプト。**見落としと区別するために名前を書いておく**。
-# `make_en_contrast.py` は日本語ナビも英語ナビも実行時に実ページから組み立てる(`en_nav()`)ので、
-# 差し替え元というものを持たない = ずれようがない(2026-08-28)。
-NO_SYNC = {
-    "make_en_contrast.py": "ナビを実行時に実ページから組み立てるので差し替え元が無い",
-    "make_en_image.py": "同上(実ページ docs/en/contrast.html のナビから組み立てる)",
-    "make_en_page_contrast.py": "同上(`en_nav.build` が実ページのナビをほどいて組み直す)",
-    "make_en_diff.py": "同上",
-}
-
-# ★2026-08-28新設: ナビを JS の配列(`var NAV_LINKS = [...]`)で組み立てているページの生成元。
-#   静的な `<ul>` しか見ていなかったので、**`make_en_password.py` が実ページから2世代ぶん
-#   ずれていた**(日本語側は `../base64/` 欠け、英語側は `./base64.html` と `./qr.html` 欠け)。
-#   `add_tool_link.py` は実ページの配列は直すが生成元は直さないので、ここで拾う。
-#   静的ナビと違って「差し替え元が見つからない」で止まらないぶん、黙って古いまま出る。
-#   生成スクリプト名 → (日本語ページのスラッグ, 英語ページのファイル名)
-ARRAY_PAIRS = {
-    "make_en_password.py": ("password", "password.html"),
-}
+# ★2026-09-03: 手書きの3つの表(`PAIRS` / `ARRAY_PAIRS` / `NO_SYNC`)をやめた。
+#
+#   数えたら、**生成器23本のうち14本しか名前が無く、9本がどの表にも無かった**。
+#   この9本は `en_nav.build`(実ページからナビを組み直す)を使っていて
+#   **同期が要らないのは本当**だったが、**確かめてはいなかった**
+#   (9/2 夜の「決めた と 見ていない は、あとから見分けがつかない」と同じ形)。
+#   しかも「同期が要らない生成器」の表 `NO_SYNC` は4本ぶんだけ書かれていて、
+#   **コードからは一度も読まれていなかった**(定義だけあって、使われていない)。
+#
+#   → **表を回すのをやめ、`make_en_*.py` を実在するぶん全部回す**。
+#     どう扱うかは `en_pages.nav_mode()` が**生成器のソースを読んで**決める。
+#     どれにも当てはまらない生成器は「不明」として**名前を出して落とす**。
+#     これで「新しい生成器を表に足し忘れて黙って落ちる」が起こりようがない。
+from en_pages import (ARRAY, JA_STATIC, LIVE, UNKNOWN,  # noqa: E402
+                      all_generators, slug_of)
 
 NAV_ARRAY = re.compile(r'var NAV_LINKS = \[.*?\n\];', re.S)
 
@@ -121,9 +101,8 @@ def add_en_links(script, src, add_en):
     return src[:e.start()] + new + src[e.end():], n
 
 
-def sync_arrays(script, sp, docs, check):
+def sync_arrays(script, sp, docs, check, ja_slug, en_name):
     """JS配列のナビを持つ生成元を、実ページの配列でまるごと置き換える。ずれた数を返す。"""
-    ja_slug, en_name = ARRAY_PAIRS[script]
     pages = [docs / ja_slug / "index.html", docs / "en" / en_name]
     live = []
     for page in pages:
@@ -168,50 +147,58 @@ def main():
     docs = pathlib.Path(args.docs)
     drift = 0
 
-    for script in ARRAY_PAIRS:
+    # ★表ではなく、実在する生成器を全部回す(足し忘れが起こりようがない形)
+    tally = {}
+    for script, en_name, mode in all_generators(here):
         sp = here / script
-        if sp.exists():
-            drift += sync_arrays(script, sp, docs, args.check)
+        slug = slug_of(en_name) if en_name else None
+        tally[mode] = tally.get(mode, 0) + 1
 
-    for script, slug in PAIRS.items():
-        sp = here / script
-        if not sp.exists():
+        if en_name is None or slug is None:
+            print("  ★ en_pages.PAGES に対応が無い生成器: %s" % script)
+            drift += 1
             continue
-        if slug is None:
-            src = sp.read_text(encoding="utf-8")
-            new_src, n = add_en_links(script, src, args.add_en)
-            drift += n
-            if n and not args.check:
-                sp.write_text(new_src, encoding="utf-8")
+        if mode == UNKNOWN:
+            print("  ★ ナビの持ち方が分からない生成器: %s"
+                  "(日本語ナビ・英語ナビ・JS配列・en_nav.build のどれも見つからない)" % script)
+            drift += 1
             continue
-        page = docs / slug / "index.html"
-        if not page.exists():
-            print("  ページが無いので飛ばす: %s" % page)
+        if mode == LIVE:
+            continue                       # 差し替え元を持たない = ずれようがない
+        if mode == ARRAY:
+            drift += sync_arrays(script, sp, docs, args.check, slug, en_name)
             continue
+
         src = sp.read_text(encoding="utf-8")
-        live = PAGE_NAV.search(page.read_text(encoding="utf-8"))
-        if not live:
-            print("  !! 実ページにナビが無い: %s" % page)
-            drift += 1
-            continue
-        live_nav = live.group(0)
-
-        m = JA_NAV.search(src)
-        if not m:
-            print("  !! 生成元に日本語ナビが無い: %s" % script)
-            drift += 1
-        elif m.group(0) != live_nav:
-            print("  ずれていた（日本語ナビ）: %s" % script)
-            drift += 1
-            if not args.check:
-                src = src[:m.start()] + live_nav + src[m.end():]
+        if mode == JA_STATIC:
+            page = docs / slug / "index.html"
+            if not page.exists():
+                print("  ページが無いので飛ばす: %s" % page)
+                continue
+            live = PAGE_NAV.search(page.read_text(encoding="utf-8"))
+            if not live:
+                print("  !! 実ページにナビが無い: %s" % page)
+                drift += 1
+                continue
+            m = JA_NAV.search(src)
+            if not m:
+                print("  !! 生成元に日本語ナビが無い: %s" % script)
+                drift += 1
+            elif m.group(0) != live.group(0):
+                print("  ずれていた（日本語ナビ）: %s" % script)
+                drift += 1
+                if not args.check:
+                    src = src[:m.start()] + live.group(0) + src[m.end():]
 
         src, n = add_en_links(script, src, args.add_en)
         drift += n
-
         if not args.check:
             sp.write_text(src, encoding="utf-8")
 
+    # ⚠ 見た本数と内訳を必ず出す(9/1〜9/2 に「見ていないことを黙る」検査が4件出たため)
+    print("見た生成器: %d 本 — %s"
+          % (sum(tally.values()), " / ".join("%s %d" % kv for kv in sorted(tally.items()))))
+    print("見ていない範囲: 生成器を持たない手書きページ(char-counter・timezone)の英語ナビ")
     print("ずれ: %d 箇所" % drift)
     return 1 if (args.check and drift) else 0
 

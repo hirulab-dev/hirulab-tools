@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Japanese Flea-Market Profit Calculator &mdash; fees, shipping and break-even</title>
+<meta name="description" content="Works out what you actually keep after selling on Mercari, Yahoo! Auctions, Yahoo! Flea Market or Rakuma: platform fee, shipping, cost of goods and payout fee. Shows your margin and the price you break even at. Nothing is sent anywhere.">
+<style>
+  :root { --bg:#f7f7f5; --panel:#fff; --text:#1a1a1a; --sub:#666; --border:#e2e2df;
+    --accent:#2563eb; --ok:#16a34a; --err:#dc2626; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181d; --panel:#1f2229; --text:#e8e8e6; --sub:#9a9a97; --border:#33363e;
+      --accent:#60a5fa; --ok:#4ade80; --err:#f87171; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font-family:"Hiragino Sans","Noto Sans JP",Meiryo,sans-serif; line-height:1.6; }
+  .wrap { max-width:640px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:1.4rem; margin:0 0 4px; }
+  .tagline { color:var(--sub); font-size:.85rem; margin-bottom:18px; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:14px; }
+  label { font-size:.78rem; color:var(--sub); display:block; margin-bottom:2px; }
+  .fields { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  input[type=number] { width:100%; border:1px solid var(--border); border-radius:8px; background:var(--bg);
+    color:var(--text); padding:10px; font-size:1.05rem; font-variant-numeric:tabular-nums; }
+  select { width:100%; border:1px solid var(--border); border-radius:8px; background:var(--bg);
+    color:var(--text); padding:10px; font-size:.95rem; }
+  .full { grid-column:1/-1; }
+  .result { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .res { border:1px solid var(--border); border-radius:10px; padding:10px 12px; }
+  .res .label { font-size:.72rem; color:var(--sub); }
+  .res .value { font-size:1.5rem; font-variant-numeric:tabular-nums; }
+  .res .value.minus { color:var(--err); }
+  .res .value.plus { color:var(--ok); }
+  .breakdown { font-size:.82rem; color:var(--sub); margin-top:10px; border-top:1px dashed var(--border); padding-top:8px; }
+  .note { font-size:.75rem; color:var(--sub); margin-top:6px; }
+  footer { color:var(--sub); font-size:.78rem; margin-top:24px; border-top:1px solid var(--border); padding-top:12px; }
+  .hl-nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
+  .hl-nav h2{font-size:.9rem;margin:0 0 10px;color:var(--sub);font-weight:600;border:0;padding:0}
+  .hl-nav ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;
+             grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .hl-nav ul a{display:block;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+               text-decoration:none;color:var(--accent);font-size:.85rem;background:var(--panel)}
+  .hl-nav ul a:hover{border-color:var(--accent)}
+  .hl-back{display:inline-block;margin-bottom:8px;font-size:.8rem;color:var(--sub);text-decoration:none}
+  .hl-back:hover{color:var(--accent)}
+  .hl-links{margin-top:14px;font-size:.8rem;color:var(--sub)}
+  .hl-links a{color:var(--accent)}
+</style>
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/frima-profit.html">
+<link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/frima-profit.html">
+<link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/frima-profit/">
+<link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Claude&#39;s Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Japanese Flea-Market Profit Calculator">
+<meta property="og:description" content="Compare what you keep on Mercari, Rakuma and Yahoo! Flea Market before you list, with the platform fee and shipping taken out. Runs entirely in your browser.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/frima-profit.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-frima-profit-en.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Japanese Flea-Market Profit Calculator">
+<meta name="twitter:description" content="See what you keep after the platform fee and shipping, before you list.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-frima-profit-en.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Japanese Flea-Market Profit Calculator",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/frima-profit.html",
+  "description": "Works out what you keep after selling on Mercari, Yahoo! Auctions, Yahoo! Flea Market or Rakuma, with the platform fee, shipping, cost of goods and payout fee taken out. Also shows the break-even sale price. Runs entirely in your browser.",
+  "applicationCategory": "FinanceApplication",
+  "operatingSystem": "Web browser",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-frima-profit-en.png",
+  "author": { "@type": "Organization", "name": "Claude's Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude's Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+  <h1>Japanese Flea-Market Profit Calculator</h1>
+  <div class="tagline">For Mercari, Yahoo! Auctions, Yahoo! Flea Market and Rakuma. Put in the sale price, what the item cost you and the shipping, and see what is left after the platform fee. Everything runs inside your browser; nothing you type is sent anywhere.</div>
+
+  <div class="panel">
+    <div class="fields">
+      <div class="full">
+        <label>Marketplace (fee preset)</label>
+        <!-- Each marketplace gets its own value, and the rate lives in data-fee. Three of them
+             charge the same 10%, so putting the rate straight into value would give three options
+             the same value: the moment you add code that restores a selection by .value, a
+             different marketplace would be picked (fixed on 2026-09-01) -->
+        <select id="preset">
+          <option value="mercari" data-fee="10">Mercari (10%)</option>
+          <option value="yahuoku" data-fee="10">Yahoo! Auctions (10%)</option>
+          <option value="paypayfleamarket" data-fee="5">Yahoo! Flea Market (5%)</option>
+          <option value="rakuma" data-fee="10">Rakuma (4.5&ndash;10%, starts at 10%)</option>
+          <option value="custom">Enter the fee myself</option>
+        </select>
+      </div>
+      <div><label>Platform fee (%)</label><input type="number" id="feePct" value="10" min="0" max="100" step="0.1"></div>
+      <div><label>Payout fee (&yen;)</label><input type="number" id="payout" value="200" min="0" step="1"></div>
+      <div><label>Sale price (&yen;)</label><input type="number" id="price" value="2000" min="0" step="10"></div>
+      <div><label>What the item cost you (&yen;)</label><input type="number" id="cost" value="500" min="0" step="10"></div>
+      <div><label>Shipping you pay (&yen;)</label><input type="number" id="ship" value="210" min="0" step="10"></div>
+      <div><label>Packaging and the rest (&yen;)</label><input type="number" id="pack" value="0" min="0" step="10"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="result">
+      <div class="res"><div class="label">Profit (per item)</div><div class="value" id="profit">—</div></div>
+      <div class="res"><div class="label">Margin (of the sale price)</div><div class="value" id="margin">—</div></div>
+      <div class="res"><div class="label">Break-even sale price</div><div class="value" id="breakeven">—</div></div>
+      <div class="res"><div class="label">Time you can spend on it at &yen;1,000/hour</div><div class="value" id="worktime">—</div></div>
+    </div>
+    <div class="breakdown" id="breakdown"></div>
+    <div class="note">The payout fee is charged per transfer, so if you cash out several sales at once the share carried by one item is smaller than this (the page puts the whole fee on one item, which is the cautious way round). Fee rates change from time to time.<br>The platform fee is worked out with <strong>fractions of a yen dropped</strong>. Check your marketplace&#39;s terms for how it really rounds.</div>
+  </div>
+
+
+  <nav class="hl-nav">
+    <h2>Other tools</h2>
+    <ul>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
+      <li><a href="./replace.html">Regex Replacement Preview</a></li>
+      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./palette.html">Color Palette Generator</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
+      <li><a href="./url.html">URL Parser &amp; Builder</a></li>
+      <li><a href="./headers.html">HTTP Header Explainer</a></li>
+      <li><a href="./jwt.html">JWT Explainer</a></li>
+      <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
+      <li><a href="./qr.html">QR Code Generator</a></li>
+      <li><a href="./cron.html">Cron Expression Explainer</a></li>
+      <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
+      <li><a href="./image.html">Image Resizer &amp; Compressor</a></li>
+      <li><a href="./page-contrast.html">Whole-Page Contrast Audit</a></li>
+      <li><a href="./diff.html">Text Diff</a></li>
+      <li><a href="./json.html">JSON Formatter &amp; Validator</a></li>
+      <li><a href="./unit.html">Unit Converter</a></li>
+      <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
+      <li><a href="./pattern.html">Japanese Pattern Generator</a></li>
+      <li><a href="./date.html">Japanese Date Calculator</a></li>
+      <li><a href="./take-home.html">Japan Take-Home Pay Calculator</a></li>
+      <li><a href="../frima-profit/">Japanese version</a></li>
+    </ul>
+  </nav>
+
+  <footer>
+    An AI (Claude, by Anthropic) designed this tool and wrote every line of it. No human has edited a single character yet.
+  </footer>
+</div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const yen = n => (n < 0 ? "-" : "") + "¥" + Math.abs(Math.round(n)).toLocaleString();
+
+function update() {
+  const price = +$("price").value || 0;
+  const cost = +$("cost").value || 0;
+  const ship = +$("ship").value || 0;
+  const pack = +$("pack").value || 0;
+  const feePct = +$("feePct").value || 0;
+  const payout = +$("payout").value || 0;
+  // 販売手数料は円未満を切り捨てる。小数のまま持つと、内訳の行を足しても合計に
+  // ならない(表示だけ四捨五入するので端数が合計にだけ乗る)。売値2,005円・10%なら
+  // 「¥2,005 − ¥201 − … = ¥895」と出るのに、左辺を足すと894 になっていた。
+  const fee = Math.floor(price * feePct / 100);
+  const profit = price - fee - ship - cost - pack - payout;
+  const margin = price > 0 ? profit / price * 100 : 0;
+  // 損益分岐: price*(1-fee%) = 固定費 …だが、手数料を円未満で切り捨てるので
+  // 連続の式が出す売値は 1円ほど高く出ることがある(切り捨てのぶん実際は少し安く済む)。
+  // 式で当たりを付けてから、赤字にならない範囲で1円ずつ下げて詰める。
+  const fixed = ship + cost + pack + payout;
+  let breakeven = Infinity;
+  if (feePct < 100) {
+    breakeven = Math.ceil(fixed / (1 - feePct / 100));
+    while (breakeven > 0 &&
+           (breakeven - 1) - Math.floor((breakeven - 1) * feePct / 100) - fixed >= 0) {
+      breakeven--;
+    }
+  }
+  const p = $("profit");
+  p.textContent = yen(profit);
+  p.className = "value " + (profit > 0 ? "plus" : profit < 0 ? "minus" : "");
+  $("margin").textContent = price > 0 ? margin.toFixed(1) + "%" : "—";
+  $("breakeven").textContent = isFinite(breakeven) ? yen(breakeven) : "—";
+  const mins = profit > 0 ? profit / 1000 * 60 : 0;
+  $("worktime").textContent = profit > 0 ? Math.floor(mins) + " min" : "0 min";
+  $("breakdown").textContent =
+    `Breakdown: price ${yen(price)} − fee ${yen(fee)} (${feePct}%) − shipping ${yen(ship)} − cost ${yen(cost)}` +
+    (pack ? ` − packaging ${yen(pack)}` : "") + (payout ? ` − payout ${yen(payout)}` : "") + ` = ${yen(profit)}`;
+}
+$("preset").addEventListener("change", () => {
+  const fee = $("preset").selectedOptions[0].dataset.fee;
+  if (fee !== undefined) $("feePct").value = fee;
+  update();
+});
+["feePct","payout","price","cost","ship","pack"].forEach(id => $(id).addEventListener("input", update));
+update();
+</script>
+</body>
+</html>

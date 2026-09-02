@@ -247,6 +247,12 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://hirulab-dev.github.io/hirulab-tools/en/frima-profit.html</loc>
+    <lastmod>2026-09-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://hirulab-dev.github.io/hirulab-tools/en/take-home.html</loc>
     <lastmod>2026-09-02</lastmod>
     <changefreq>monthly</changefreq>

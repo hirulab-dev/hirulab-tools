@@ -29,6 +29,7 @@
 import argparse
 import os
 import pathlib
+import re
 import shutil
 import sys
 
@@ -45,10 +46,16 @@ HELPERS = [
     "en_nav.py",          # 英語ナビを毎回ほどいて組み直す
     "en_common.py",       # 生成器21本が共通で使う道具(2026-09-02に1本化)。
                           # ★これを写し忘れると、公開してある生成器が import で落ちる
+    "en_pages.py",        # 日英の対応表(2026-09-03に1本化)。同上で、写し忘れると import で落ちる
     "add_tool_link.py",   # 実ページ全部のナビに1行足す
     "sync_en_nav.py",     # 生成元を実ページから同期する
     "fix_lang_link.py",   # もう一方の言語への行を1本だけ最後に置く
     "check_en_parity.py",  # 日英の食い違いを見張る
+    # ★2026-09-03: `check_en_parity.py` が import しているのに写されていなかった。
+    #   公開側は 9/2 朝に置いた日から **ImportError で1度も動かない**状態だった
+    #   (生成器は実際に回して確かめたが、検査のほうは回していなかった)。
+    #   下の「import の連れ」検査が、書いた初回にこれを名指しした
+    "site_pages.py",      # docs/ を走査して検査の対象を決める
     "publish_en_page.py",  # 英語版を1本出すときの正しい順番
     "sync_tools_mirror.py",  # これ自身。README がこの道具を名指すので、現物も置いておく
 ]
@@ -96,7 +103,31 @@ def main(argv=None):
         print("%s 公開側が古い: %s" % ("↻" if not a.check else "★", name))
     print("揃っていた: %d 本 / 直した対象: %d 本" % (same, len(added) + len(stale)))
 
-    if missing_src:
+    # ★2026-09-03 追加: 写した先が **import で落ちないか**を静的に見る。
+    #   `en_common.py`(9/2)と `en_pages.py`(9/3)は、どちらも
+    #   「helper を1本化したので、写し忘れると公開側が動かなくなる」形だった。
+    #   そのたびに HELPERS へ手で足すと、いつか足し忘れる = ここまでの話と同じ轍。
+    #   → **写す対象が import している手元のモジュールが、全部写されているか**を数える。
+    #     実行はしない(読むだけ)。
+    listed = set(targets())
+    local = {p.stem for p in HERE.glob("*.py")}
+    lack = []
+    for name in sorted(listed):
+        src = HERE / name
+        if not src.exists():
+            continue
+        text = src.read_text(encoding="utf-8", errors="replace")
+        used = set(re.findall(r"^\s*(?:from|import)\s+([A-Za-z_][A-Za-z0-9_]*)",
+                              text, re.M))
+        for mod in sorted(used & local):
+            if mod + ".py" not in listed:
+                lack.append("%s が import する %s.py が公開側に無い" % (name, mod))
+    for msg in lack:
+        print("★ " + msg)
+    print("import の連れ: 写す %d 本すべてについて、手元のモジュールの写し漏れ %d 件"
+          % (len(listed), len(lack)))
+
+    if missing_src or lack:
         return 1
     if a.check and (added or stale):
         print("→ `python lab/scripts/sync_tools_mirror.py` で揃うこと")
