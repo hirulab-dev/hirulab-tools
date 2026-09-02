@@ -45,6 +45,7 @@
 """
 import argparse
 import difflib
+from html.parser import HTMLParser
 import pathlib
 import re
 import sys
@@ -88,6 +89,131 @@ def flat(src):
     return re.sub(r"\s+", " ", blank(src, blank_regex=True)).strip()
 
 
+# ── ★2026-09-03 追加: HTML と CSS の日英パリティ ──────────────────────────
+#
+# `inspection-coverage.md` の「次に疑うべき所」1番の根治。ここまでの検査は
+# **`<script>` の中しか比べていなかった**。HTML と CSS はその外なので、
+# 9/2 朝に **英語版だけに `<a class="hl-back">` を足して AA 不合格を出した**とき、
+# 日英パリティは何も言わなかった(拾ったのはコントラスト検査)。
+#
+# 何を見るか: **タグの骨組み**(タグ名 + 構造にかかわる属性)と **<style> の中身**。
+#   - 文言は言語で変わるので見ない
+#   - `href` / `content` も変わってよい(canonical・OGP・言語リンク)。ただし
+#     **`id` / `class` / `type` / `data-*` は日英で同じでなければならない**
+#     (検証がここを鍵にして画面を読むため。9/2 の `data-k` はまさにこれ)
+#   - `<nav class="hl-nav">` は中身が言語ごとに違うのが仕様なので**丸ごと外す**
+#     (あちらは `check_site.py` と `sync_en_nav.py` が見ている)
+STRUCT_ATTRS = ("id", "class", "type", "name", "for", "checked", "disabled",
+                "colspan", "rowspan", "value", "min", "max", "step")
+NAV_BLOCK = re.compile(r'  <nav class="hl-nav">.*?\n  </nav>', re.S)
+STYLE_BLOCK = re.compile(r"<style>(.*?)</style>", re.S)
+CSS_COMMENT = re.compile(r"/\*.*?\*/", re.S)
+
+
+def css_rules(css):
+    """CSS からコメントを落とし、空白を畳んだ形。**規則だけ**を比べるため。"""
+    return re.sub(r"\s+", " ", CSS_COMMENT.sub("", css)).strip()
+
+
+# ★文中の強調は「文言の一部」なので骨組みから外す。
+#   訳すと強調する語が変わるのは当たり前で(日本語の「〜は必ず」と英語の "always" は
+#   同じ位置に来ない)、そこを差と呼ぶと**本物の差が埋もれる**。
+#   最初に書いたときはこれを入れていて、7ページで「骨組みがちがう」と出たが、
+#   中を見たら**全部 <strong>/<b>/<code>/<em> の位置**だった。
+INLINE = {"b", "strong", "em", "i", "u", "small", "code", "kbd", "mark",
+          "abbr", "sub", "sup", "br", "wbr", "s", "q", "cite", "var", "samp"}
+
+# ★**わざと日英で違えてあるところ**(英語ファイル名 -> (差の数, 理由))。
+#   `NO_EN` と同じ考え方で、**黙らせるのではなく「いくつ違うか」を固定する**。
+#   数を書いておくと、**そのページに新しい差が出たとき数が変わって ★ になる**
+#   (「このページは違ってよい」とだけ書くと、以後そのページは野放しになる)。
+HTML_DIFF_OK = {
+    "csv.html": (2, "英語版だけに段落が1つ多い。見本データが日本語なのはなぜか"
+                    "(ASCIIだけのファイルでは文字コード判定に仕事が無い)の説明で、"
+                    "日本語で読む人には要らない"),
+    "date.html": (10, "元号の `option value` を訳している(令和→Reiwa)。"
+                      "値は画面にも出る名前で、JS 側の対応表も同じ文字列で引くので日英で揃っている"),
+}
+
+
+class Skeleton(HTMLParser):
+    """タグ名と構造にかかわる属性だけを並べる。文言・URL・文中の強調は落とす。"""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.out = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in INLINE and not any(k in ("id", "class") for k, _ in attrs):
+            return
+        d = dict(attrs)
+        keep = [(k, d[k]) for k in STRUCT_ATTRS if k in d]
+        keep += [(k, v) for k, v in sorted(d.items()) if k.startswith("data-")]
+        self.out.append(tag + "".join(" %s=%s" % kv for kv in sorted(keep)))
+
+    def handle_endtag(self, tag):
+        if tag in INLINE:
+            return          # 開き側を落としたので閉じ側も落とす(class つきは稀なので割り切る)
+        self.out.append("/" + tag)
+
+
+def skeleton(html):
+    p = Skeleton()
+    p.feed(NAV_BLOCK.sub("", html))
+    return p.out
+
+
+def html_parity(docs, names, show):
+    """生成ページについて HTML の骨組みと CSS を日英で比べる。(行, ★の数)。"""
+    lines, bad, waived = [], 0, []
+    seen = 0
+    for name in names:
+        if name not in GENERATED:
+            continue                      # 手書きは一致しないのが普通
+        ja_p, en_p = docs / PAIRS[name], docs / "en" / name
+        if not (ja_p.exists() and en_p.exists()):
+            continue
+        ja, en = ja_p.read_text(encoding="utf-8"), en_p.read_text(encoding="utf-8")
+        seen += 1
+
+        a, b = skeleton(ja), skeleton(en)
+        if a != b:
+            d = [ln for ln in difflib.unified_diff(a, b, lineterm="", n=0)
+                 if ln[:1] in "+-" and ln[:3] not in ("+++", "---")]
+            want, why = HTML_DIFF_OK.get(name, (0, None))
+            if why and len(d) == want:
+                waived.append("  わざと違う: %s(%d か所)— %s" % (name, want, why))
+            else:
+                extra = "" if why is None else \
+                    "(わざと違うのは %d か所のはず。数が変わった)" % want
+                lines.append("★ %s: HTML の骨組みが %d か所ちがう%s" % (name, len(d), extra))
+                lines += ["    " + ln[:140] for ln in d[:show]]
+                bad += 1
+
+        # ★CSS のコメントは文言なので落とす(JS で blank() がやっているのと同じ線引き)。
+        #   最初はそのまま比べていて6ページで差が出たが、**6ページとも中身は
+        #   翻訳された注釈だけ**だった。規則そのものは1バイトも違わない。
+        sa, sb = [css_rules(x) for x in STYLE_BLOCK.findall(ja)], \
+                 [css_rules(x) for x in STYLE_BLOCK.findall(en)]
+        if sa != sb:
+            lines.append("★ %s: <style> の中身が日英で違う(%d 個 / %d 個)"
+                         % (name, len(sa), len(sb)))
+            bad += 1
+
+    lines += waived
+    lines.append("わざと違う扱い: %d ページ(数を固定してあるので、増えれば ★ になる)"
+                 % len(waived))
+    lines.append("見た範囲: 生成ページ %d 組の**タグの骨組み**"
+                 "(タグ名 + %s + data-*)と **<style> の中身**"
+                 % (seen, "/".join(STRUCT_ATTRS[:4])))
+    lines.append("見ていない範囲: 文言 / href・content(URL は日英で違ってよい)/ "
+                 "`<nav class=\"hl-nav\">`(言語ごとに中身が違うのが仕様。"
+                 "check_site.py と sync_en_nav.py が見ている)/ 手書きの2ページ / "
+                 "**JS が組み立てる HTML**(take-home の `data-k` はテンプレート文字列の中なので"
+                 "ここには映らない。あちらは <script> のバイト一致が見ている)")
+    return lines, bad
+
+
 def coverage(docs):
     """`docs/` を数えて、**対応表の外**を名指しする(2026-09-02 夜 新設)。
 
@@ -126,8 +252,8 @@ def coverage(docs):
                  " / 英語版なし %d 本(%s) / `NO_EN` の記載 %d 本"
                  % (len(ja), len(en), len(PAIRS), len(missing),
                     " ".join(missing) if missing else "無し", len(NO_EN)))
-    lines.append("見ていない範囲: HTML と CSS(比べるのは <script> の中だけ)/ "
-                 "画面の文言そのもの / 一覧ページ(トップ・en/)")
+    lines.append("見ていない範囲: 画面の文言そのもの / 一覧ページ(トップ・en/)"
+                 "(HTML と CSS は 2026-09-03 から上の節で見ている)")
     return lines, bad
 
 
@@ -183,13 +309,19 @@ def main():
     print("\n生成 %d ページ / 手書き %d ページ(%s)"
           % (len(rows) - len(hand), len(hand), " ".join(r[0] for r in hand)))
 
+    # ★2026-09-03 追加: HTML と CSS(それまで、この検査の外だった)
+    h_lines, h_bad = html_parity(docs, names, args.show)
+    print("\n--- HTML と CSS の日英パリティ ---")
+    for ln in h_lines:
+        print(ln)
+
     # ★ページ単位で見たあと、**対応表そのもの**を docs/ と突き合わせる。
     #   --page で1ページだけ見たときも必ず回す(範囲の話はページと独立なので)。
     cov_lines, cov_bad = coverage(docs)
     print("\n--- 対応表の網羅 ---")
     for ln in cov_lines:
         print(ln)
-    return 1 if (bad or cov_bad) else 0
+    return 1 if (bad or cov_bad or h_bad) else 0
 
 
 if __name__ == "__main__":
