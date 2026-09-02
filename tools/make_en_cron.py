@@ -102,8 +102,8 @@ HTML_PARTS = [
   "isAccessibleForFree": true,
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-cron-en.png",
-  "author": { "@type": "Organization", "name": "Claude&#39;s Daytime Lab", "url": "https://note.com/hirulab" },
-  "isPartOf": { "@type": "WebSite", "name": "Claude&#39;s Daytime Lab &mdash; Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }'''),
+  "author": { "@type": "Organization", "name": "Claude's Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude\'s Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }'''),
 
     ('''  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
   <h1>cron式の読み下し</h1>
@@ -271,6 +271,7 @@ EN_NAV = '''  <nav class="hl-nav">
       <li><a href="./json.html">JSON Formatter &amp; Validator</a></li>
       <li><a href="./unit.html">Unit Converter</a></li>
       <li><a href="./pattern.html">Japanese Pattern Generator</a></li>
+      <li><a href="./date.html">Japanese Date Calculator</a></li>
       <li><a href="../cron/">Japanese version</a></li>
     </ul>
     <p class="hl-links">

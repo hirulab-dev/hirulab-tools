@@ -35,9 +35,23 @@
 **この2つの差が「出ること自体」を検査している**(黙って合わせない)。ほかに差は無い。
 名前の綴りも3つだけ違う(jpholiday 側に中黒の重複がある)ので、それも明示して許す。
 
+## ★2026-09-02 昼: 英語版にも同じ検査を当てられるようにした
+
+英語版( `docs/en/date.html` )は日本語版から生成していて、**文字列の中身を空にすると
+コードがバイト単位で一致する**。だから計算そのものは同じはずだが、
+**訳したせいで画面が壊れていないか**はページを読まないと分からない。
+
+そのために2つ変えた。
+1. **カードを `data-k`(言葉でない名札)で引く**。前はラベルの文字(「満年齢」)で引いていたので、
+   英語版にはそのままでは当たらなかった(url/headers/jwt の `data-code` と同じ手)。
+2. **言葉の比較を言語パック(`LANGS`)に分けた**。数・ISO形式・日付の並びは言葉を読まないので
+   両方に当たる。祝日の名前と元号の英語表記は**この表に独立に書いてある**
+   (生成器の訳表を import すると、訳が間違っていても気づけないため。**わざと2か所に書いている**)。
+
 使い方:
     python lab/scripts/test_date.py                       # 手元のページ
     python lab/scripts/test_date.py --page <html>          # 本番から落としたHTMLに当てる
+    python lab/scripts/test_date.py --lang en              # 英語版に当てる(既定は ja)
     python lab/scripts/test_date.py --n 300                # 見本の数(既定 300)
     python lab/scripts/test_date.py --sabotage             # わざと壊して、検査が捕まえるか見る
 """
@@ -57,10 +71,102 @@ from dateutil.relativedelta import relativedelta  # noqa: E402  第三者(月・
 from playwright.async_api import async_playwright  # noqa: E402
 
 D = dt.date
-WD = ["月", "火", "水", "木", "金", "土", "日"]      # Python の weekday() の順
-WD_JS = ["日", "月", "火", "水", "木", "金", "土"]   # 道具の表示の順
+# 曜日・月の名前は言語パック(LANGS)に持たせる。ここでは持たない
 
 DEFAULT_PAGE = pathlib.Path.home() / "hirulab-tools" / "docs" / "date" / "index.html"
+EN_PAGE = pathlib.Path.home() / "hirulab-tools" / "docs" / "en" / "date.html"
+
+MON_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+WD_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]      # 道具の表示の順
+
+# ---- 言語ごとに違うのは「言葉」だけ。数・ISO形式・並びはどちらでも同じ ----
+#
+# ⚠ 祝日の名前と元号の英語表記は **生成器(make_en_date.py)から import しない**。
+#    同じ表を見に行くと「訳が間違っていても一致する」ので、検査の意味が消える。
+#    ここは内閣府の英語表記から独立に書いた**2つ目の写し**で、食い違えば落ちる。
+HOLIDAY_EN = {
+    "元日": "New Year's Day",
+    "成人の日": "Coming of Age Day",
+    "建国記念の日": "National Foundation Day",
+    "天皇誕生日": "The Emperor's Birthday",
+    "春分の日": "Vernal Equinox Day",
+    "みどりの日": "Greenery Day",
+    "昭和の日": "Showa Day",
+    "憲法記念日": "Constitution Memorial Day",
+    "こどもの日": "Children's Day",
+    "海の日": "Marine Day",
+    "山の日": "Mountain Day",
+    "敬老の日": "Respect for the Aged Day",
+    "秋分の日": "Autumnal Equinox Day",
+    "スポーツの日": "Sports Day",
+    "体育の日": "Health and Sports Day",
+    "文化の日": "Culture Day",
+    "勤労感謝の日": "Labor Thanksgiving Day",
+    "振替休日": "Substitute holiday",
+    "国民の休日": "Citizens' holiday",
+    "皇太子明仁親王の結婚の儀": "Wedding of Crown Prince Akihito",
+    "昭和天皇の大喪の礼": "Funeral of Emperor Showa",
+    "即位礼正殿の儀": "Enthronement Ceremony at the Seiden",
+    "皇太子徳仁親王の結婚の儀": "Wedding of Crown Prince Naruhito",
+    "天皇の即位の日": "Enthronement Day of the Emperor",
+}
+ERA_EN = {"令和": "Reiwa", "平成": "Heisei", "昭和": "Showa", "大正": "Taisho", "明治": "Meiji"}
+
+
+def _grade_ja(g):
+    return (("年長(小学校入学の前年度)" if g == 0 else "小学校入学まであと%d年度" % (1 - g))
+            if g < 1 else
+            "小学%d年生" % g if g <= 6 else
+            "中学%d年生" % (g - 6) if g <= 9 else
+            "高校%d年生" % (g - 9) if g <= 12 else
+            "大学%d年生相当" % (g - 12) if g <= 16 else
+            "高校卒業から%d年度目" % (g - 12))
+
+
+def _grade_en(g):
+    return (("Final nursery year (the year before school starts)" if g == 0 else
+             "%d school years before elementary school" % (1 - g))
+            if g < 1 else
+            "Elementary school, year %d" % g if g <= 6 else
+            "Junior high school, year %d" % (g - 6) if g <= 9 else
+            "High school, year %d" % (g - 9) if g <= 12 else
+            "University, year %d (equivalent)" % (g - 12) if g <= 16 else
+            "%d school years since high school" % (g - 12))
+
+
+LANGS = {
+    "ja": {
+        "wd": ["日", "月", "火", "水", "木", "金", "土"],
+        "fmt": lambda d, L: "%d年%d月%d日(%s)" % (d.year, d.month, d.day,
+                                                  L["wd"][(d.weekday() + 1) % 7]),
+        "ymd": lambda y, m, dd: "%d年%dか月%d日" % (y, m, dd),
+        "wareki": lambda era, n, m, dd: "%s%s年%d月%d日" % (era, "元" if n == 1 else n, m, dd),
+        "era": lambda ja: ja,
+        "dow": lambda d, L: L["wd"][(d.weekday() + 1) % 7] + "曜日",
+        "fiscal": lambda y: "%d年度" % y,
+        "grade": _grade_ja,
+        "hol_name": lambda ja: ja,
+        "hol_date": lambda d: "%d月%d日" % (d.month, d.day),
+        "summary": r"計 (\d+) 日 .* (\d+) 日",
+        "errs": ["開始", "開始", "入って", "存在"],
+    },
+    "en": {
+        "wd": WD_EN,
+        "fmt": lambda d, L: "%d %s %d (%s)" % (d.year, MON_EN[d.month - 1], d.day,
+                                               L["wd"][(d.weekday() + 1) % 7]),
+        "ymd": lambda y, m, dd: "%dy %dm %dd" % (y, m, dd),
+        "wareki": lambda era, n, m, dd: "%s %d, %s %d" % (era, n, MON_EN[m - 1], dd),
+        "era": lambda ja: ERA_EN[ja],
+        "dow": lambda d, L: L["wd"][(d.weekday() + 1) % 7],
+        "fiscal": lambda y: "FY%d" % y,
+        "grade": _grade_en,
+        "hol_name": lambda ja: HOLIDAY_EN[ja],
+        "hol_date": lambda d: "%s %d" % (MON_EN[d.month - 1], d.day),
+        "summary": r"(\d+) holidays in total — (\d+) of them",
+        "errs": ["is before", "is before", "falls inside", "No such date"],
+    },
+}
 
 # ---- 参照(jpholiday)と法律の食い違い。ここに書いたものだけを許す ----
 NAME_VARIANTS = {                                  # jpholiday 側の綴り: 法令の名称
@@ -76,12 +182,17 @@ ERAS = [("令和", D(2019, 5, 1)), ("平成", D(1989, 1, 8)), ("昭和", D(1926,
         ("大正", D(1912, 7, 30)), ("明治", D(1868, 1, 25))]
 
 
-def to_wareki(d):
+def wareki_parts(d):
+    """(元号の日本語名, 何年目)。見せ方は言語パックに任せる。"""
     for name, start in ERAS:
         if d >= start:
-            n = d.year - start.year + 1
-            return "%s%s年%d月%d日" % (name, "元" if n == 1 else str(n), d.month, d.day)
+            return name, d.year - start.year + 1
     return None
+
+
+def to_wareki(d, L):
+    p = wareki_parts(d)
+    return None if not p else L["wareki"](L["era"](p[0]), p[1], d.month, d.day)
 
 
 def school_grade(birth, at):
@@ -118,7 +229,9 @@ def ref_holidays_by_law(y):
 
 # ============================ 道具を読む ============================
 
+# ★カードは `data-k` で引く(ラベルの文字で引くと英語版に当たらない。2026-09-02)
 READ_CARDS = """sel => Array.from(document.querySelectorAll(sel + ' .card')).map(c => ({
+  k: c.dataset.k || '',
   label: c.querySelector('.label').textContent.trim(),
   value: c.querySelector('.value').textContent.trim(),
   note: (c.querySelector('.note') || { textContent: '' }).textContent.trim()
@@ -133,7 +246,12 @@ READ_HOLIDAYS = """y => { const m = holidays(y); const o = {};
 
 
 def cards_to_map(cards):
-    return {c["label"]: c for c in cards}
+    """名札(`data-k`)でカードを引けるようにする。
+
+    ★名札が空のカードがあったら、それ自体を食い違いとして見えるようにする
+      (`data-k` を落とすと、カードが出ていない扱いになって検査に掛かる)。
+    """
+    return {c["k"]: c for c in cards if c["k"]}
 
 
 def missing(c, labels):
@@ -182,8 +300,12 @@ class Report:
         print("\n食い違い合計: %d" % len(self.bad))
 
 
-async def check_holidays(pg, rep):
-    """1949〜2099年の祝日を jpholiday と突き合わせる。"""
+async def check_holidays(pg, rep, L):
+    """1949〜2099年の祝日を jpholiday と突き合わせる。
+
+    ★英語版では、名前は `HOLIDAY_EN`(この検査に独立に書いた表)を通して比べる。
+      道具の訳表とは別の写しなので、綴りが食い違えばここで落ちる。
+    """
     bad, n, dropped_total = [], 0, 0
     for y in range(1949, 2100):
         got_raw = await pg.evaluate(READ_HOLIDAYS, y)
@@ -196,8 +318,9 @@ async def check_holidays(pg, rep):
                 bad.append("%s 道具にだけある: %s" % (d, got[d]))
             elif d not in got:
                 bad.append("%s 参照にだけある: %s" % (d, ref[d]))
-            elif got[d] != ref[d]:
-                bad.append("%s 名前が違う: 道具=%s 参照=%s" % (d, got[d], ref[d]))
+            elif got[d] != L["hol_name"](ref[d]):
+                bad.append("%s 名前が違う: 道具=%s 参照=%s"
+                           % (d, got[d], L["hol_name"](ref[d])))
     rep.line("祝日 vs jpholiday(1949〜2099年)", n, bad)
     return dropped_total
 
@@ -227,7 +350,7 @@ async def check_law_gap(pg, rep):
     rep.line("法律と参照の差が出ること自体", len(cases) + 2, bad)
 
 
-async def check_diff(pg, rep, cases):
+async def check_diff(pg, rep, cases, L):
     """期間タブ。日数・年月日の内訳・週・営業日・土日・平日の祝日。"""
     bad = []
     await pg.click("#tab-diff")
@@ -239,20 +362,20 @@ async def check_diff(pg, rep, cases):
         await pg.wait_for_timeout(12)
         c = cards_to_map(await pg.evaluate(READ_CARDS, "#d-out"))
         s, e = (a, b) if a <= b else (b, a)
-        lack = missing(c, ["日数", "年月日で", "週数", "営業日", "土日", "平日の祝日"])
+        lack = missing(c, ["days", "ymd", "weeks", "biz", "weekend", "holiday-weekday"])
         if lack:
             bad.append("%s〜%s カードが出ていない: %s" % (s, e, lack)); continue
         days = (e - s).days + (1 if incl else 0)
-        if num_of(c["日数"]["value"]) != days:
+        if num_of(c["days"]["value"]) != days:
             bad.append("%s〜%s incl=%s 日数 道具=%s 参照=%d"
-                       % (s, e, incl, c["日数"]["value"], days))
+                       % (s, e, incl, c["days"]["value"], days))
         rd = relativedelta(e, s)
-        want = "%d年%dか月%d日" % (rd.years, rd.months, rd.days)
-        if c["年月日で"]["value"] != want:
-            bad.append("%s〜%s 内訳 道具=%s 参照=%s" % (s, e, c["年月日で"]["value"], want))
-        if abs(num_of(c["週数"]["value"]) - round(days / 7, 1)) > 1e-9:
+        want = L["ymd"](rd.years, rd.months, rd.days)
+        if c["ymd"]["value"] != want:
+            bad.append("%s〜%s 内訳 道具=%s 参照=%s" % (s, e, c["ymd"]["value"], want))
+        if abs(num_of(c["weeks"]["value"]) - round(days / 7, 1)) > 1e-9:
             bad.append("%s〜%s 週数 道具=%s 参照=%.1f"
-                       % (s, e, c["週数"]["value"], days / 7))
+                       % (s, e, c["weeks"]["value"], days / 7))
         # 営業日・土日・平日の祝日 ─ numpy に数えさせる(休日一覧は jpholiday から)
         last = e if incl else e - dt.timedelta(days=1)
         if last >= s:
@@ -265,14 +388,14 @@ async def check_diff(pg, rep, cases):
             holw = sum(1 for d in hol if d.weekday() < 5)
         else:
             biz = wknd = holw = 0
-        for label, want_n in [("営業日", biz), ("土日", wknd), ("平日の祝日", holw)]:
-            if num_of(c[label]["value"]) != want_n:
+        for k, want_n in [("biz", biz), ("weekend", wknd), ("holiday-weekday", holw)]:
+            if num_of(c[k]["value"]) != want_n:
                 bad.append("%s〜%s incl=%s %s 道具=%s 参照=%d"
-                           % (s, e, incl, label, c[label]["value"], want_n))
+                           % (s, e, incl, k, c[k]["value"], want_n))
     rep.line("期間(日数・内訳・週・営業日)", len(cases) * 6, bad)
 
 
-async def check_add(pg, rep, cases):
+async def check_add(pg, rep, cases, L):
     """加減算タブ。日・週・月・年・営業日。"""
     bad = []
     await pg.click("#tab-add")
@@ -282,7 +405,7 @@ async def check_add(pg, rep, cases):
         await pg.select_option("#a-unit", unit)
         await pg.wait_for_timeout(12)
         c = cards_to_map(await pg.evaluate(READ_CARDS, "#a-out"))
-        lack = missing(c, ["結果", "ISO形式", "和暦", "基準日からの実日数"])
+        lack = missing(c, ["result", "iso", "wareki", "elapsed"])
         if lack:
             bad.append("%s %+d %s カードが出ていない: %s" % (base, n, unit, lack)); continue
         if unit == "day":
@@ -302,23 +425,23 @@ async def check_add(pg, rep, cases):
                 want += dt.timedelta(days=step)
                 if want.weekday() < 5 and want not in hol:
                     left -= 1
-        if c["ISO形式"]["value"] != want.isoformat():
+        if c["iso"]["value"] != want.isoformat():
             bad.append("%s %+d %s → 道具=%s 参照=%s"
-                       % (base, n, unit, c["ISO形式"]["value"], want))
+                       % (base, n, unit, c["iso"]["value"], want))
             continue
-        if c["結果"]["value"] != "%d年%d月%d日(%s)" % (want.year, want.month, want.day,
-                                                       WD_JS[(want.weekday() + 1) % 7]):
-            bad.append("%s %+d %s 表示 道具=%s" % (base, n, unit, c["結果"]["value"]))
-        if num_of(c["基準日からの実日数"]["value"]) != (want - base).days:
+        if c["result"]["value"] != L["fmt"](want, L):
+            bad.append("%s %+d %s 表示 道具=%s 参照=%s"
+                       % (base, n, unit, c["result"]["value"], L["fmt"](want, L)))
+        if num_of(c["elapsed"]["value"]) != (want - base).days:
             bad.append("%s %+d %s 実日数 道具=%s 参照=%d"
-                       % (base, n, unit, c["基準日からの実日数"]["value"], (want - base).days))
-        w = to_wareki(want)
-        if w and c["和暦"]["value"] != w:
-            bad.append("%s %+d %s 和暦 道具=%s 参照=%s" % (base, n, unit, c["和暦"]["value"], w))
+                       % (base, n, unit, c["elapsed"]["value"], (want - base).days))
+        w = to_wareki(want, L)
+        if w and c["wareki"]["value"] != w:
+            bad.append("%s %+d %s 和暦 道具=%s 参照=%s" % (base, n, unit, c["wareki"]["value"], w))
     rep.line("加減算(日・週・月・年・営業日)", len(cases) * 4, bad)
 
 
-async def check_age(pg, rep, cases):
+async def check_age(pg, rep, cases, L):
     """年齢・学年タブ。"""
     bad = []
     await pg.click("#tab-age")
@@ -327,40 +450,32 @@ async def check_age(pg, rep, cases):
         await set_date(pg, "#g-at", at)
         await pg.wait_for_timeout(12)
         c = cards_to_map(await pg.evaluate(READ_CARDS, "#g-out"))
-        lack = missing(c, ["満年齢", "数え年", "生まれてからの日数", "生まれた曜日",
-                           "学年(日本の年度)"])
+        lack = missing(c, ["age", "kazoe", "lived", "birth-dow", "grade"])
         if lack:
             bad.append("%s→%s カードが出ていない: %s" % (birth, at, lack)); continue
         age = relativedelta(at, birth).years                      # 第三者に数えさせる
-        if num_of(c["満年齢"]["value"]) != age:
-            bad.append("%s→%s 満年齢 道具=%s 参照=%d" % (birth, at, c["満年齢"]["value"], age))
-        if num_of(c["数え年"]["value"]) != at.year - birth.year + 1:
-            bad.append("%s→%s 数え年 道具=%s" % (birth, at, c["数え年"]["value"]))
-        if num_of(c["生まれてからの日数"]["value"]) != (at - birth).days:
+        if num_of(c["age"]["value"]) != age:
+            bad.append("%s→%s 満年齢 道具=%s 参照=%d" % (birth, at, c["age"]["value"], age))
+        if num_of(c["kazoe"]["value"]) != at.year - birth.year + 1:
+            bad.append("%s→%s 数え年 道具=%s" % (birth, at, c["kazoe"]["value"]))
+        if num_of(c["lived"]["value"]) != (at - birth).days:
             bad.append("%s→%s 日数 道具=%s 参照=%d"
-                       % (birth, at, c["生まれてからの日数"]["value"], (at - birth).days))
-        if c["生まれた曜日"]["value"] != WD[birth.weekday()] + "曜日":
+                       % (birth, at, c["lived"]["value"], (at - birth).days))
+        if c["birth-dow"]["value"] != L["dow"](birth, L):
             bad.append("%s 曜日 道具=%s 参照=%s"
-                       % (birth, c["生まれた曜日"]["value"], WD[birth.weekday()]))
+                       % (birth, c["birth-dow"]["value"], L["dow"](birth, L)))
         grade, fiscal = school_grade(birth, at)
-        if c["学年(日本の年度)"]["note"] != "%d年度" % fiscal:
-            bad.append("%s→%s 年度 道具=%s 参照=%d年度"
-                       % (birth, at, c["学年(日本の年度)"]["note"], fiscal))
-        want_label = (
-            ("年長(小学校入学の前年度)" if grade == 0 else "小学校入学まであと%d年度" % (1 - grade))
-            if grade < 1 else
-            "小学%d年生" % grade if grade <= 6 else
-            "中学%d年生" % (grade - 6) if grade <= 9 else
-            "高校%d年生" % (grade - 9) if grade <= 12 else
-            "大学%d年生相当" % (grade - 12) if grade <= 16 else
-            "高校卒業から%d年度目" % (grade - 12))
-        if c["学年(日本の年度)"]["value"] != want_label:
+        if c["grade"]["note"] != L["fiscal"](fiscal):
+            bad.append("%s→%s 年度 道具=%s 参照=%s"
+                       % (birth, at, c["grade"]["note"], L["fiscal"](fiscal)))
+        want_label = L["grade"](grade)
+        if c["grade"]["value"] != want_label:
             bad.append("%s→%s 学年 道具=%s 参照=%s"
-                       % (birth, at, c["学年(日本の年度)"]["value"], want_label))
+                       % (birth, at, c["grade"]["value"], want_label))
     rep.line("年齢・学年", len(cases) * 6, bad)
 
 
-async def check_wareki(pg, rep, cases):
+async def check_wareki(pg, rep, cases, L):
     """和暦タブ。西暦→和暦と、和暦→西暦の往復。"""
     bad = []
     await pg.click("#tab-wareki")
@@ -368,44 +483,44 @@ async def check_wareki(pg, rep, cases):
         await set_date(pg, "#w-date", d)
         await pg.wait_for_timeout(12)
         c = cards_to_map(await pg.evaluate(READ_CARDS, "#w-out"))
-        lack = missing(c, ["和暦", "年度", "曜日", "その年の通算日"])
+        lack = missing(c, ["wareki", "fiscal", "dow", "yday"])
         if lack:
             bad.append("%s カードが出ていない: %s" % (d, lack)); continue
-        want = to_wareki(d)
-        if want and c["和暦"]["value"] != want:
-            bad.append("%s 和暦 道具=%s 参照=%s" % (d, c["和暦"]["value"], want))
+        want = to_wareki(d, L)
+        if want and c["wareki"]["value"] != want:
+            bad.append("%s 和暦 道具=%s 参照=%s" % (d, c["wareki"]["value"], want))
         fiscal = d.year - 1 if d.month < 4 else d.year
-        if c["年度"]["value"] != "%d年度" % fiscal:
-            bad.append("%s 年度 道具=%s 参照=%d年度" % (d, c["年度"]["value"], fiscal))
-        if c["曜日"]["value"] != WD[d.weekday()] + "曜日":
-            bad.append("%s 曜日 道具=%s" % (d, c["曜日"]["value"]))
+        if c["fiscal"]["value"] != L["fiscal"](fiscal):
+            bad.append("%s 年度 道具=%s 参照=%s" % (d, c["fiscal"]["value"], L["fiscal"](fiscal)))
+        if c["dow"]["value"] != L["dow"](d, L):
+            bad.append("%s 曜日 道具=%s 参照=%s" % (d, c["dow"]["value"], L["dow"](d, L)))
         yday = d.timetuple().tm_yday
-        if num_of(c["その年の通算日"]["value"]) != yday:
-            bad.append("%s 通算日 道具=%s 参照=%d" % (d, c["その年の通算日"]["value"], yday))
-        # 和暦 → 西暦(往復)
-        m = re.match(r"^(..)(元|\d+)年(\d+)月(\d+)日$", want or "")
-        if m:
-            era, wy = m.group(1), 1 if m.group(2) == "元" else int(m.group(2))
-            await pg.select_option("#w-era", era)
-            await pg.fill("#w-y", str(wy))
+        if num_of(c["yday"]["value"]) != yday:
+            bad.append("%s 通算日 道具=%s 参照=%d" % (d, c["yday"]["value"], yday))
+        # 和暦 → 西暦(往復)。元号の名前は言語で違うので、部品から引き直す
+        p = wareki_parts(d)
+        if p:
+            await pg.select_option("#w-era", L["era"](p[0]))
+            await pg.fill("#w-y", str(p[1]))
             await pg.fill("#w-m", str(d.month))
             await pg.fill("#w-d", str(d.day))
             await pg.wait_for_timeout(12)
             c2 = cards_to_map(await pg.evaluate(READ_CARDS, "#w-out2"))
-            if not c2 or c2["ISO形式"]["value"] != d.isoformat():
-                bad.append("%s 往復 道具=%s" % (d, c2.get("ISO形式", {}).get("value")))
+            if not c2 or c2["iso"]["value"] != d.isoformat():
+                bad.append("%s 往復 道具=%s" % (d, c2.get("iso", {}).get("value")))
     rep.line("和暦・年度・通算日・往復", len(cases) * 5, bad)
 
 
-async def check_wareki_errors(pg, rep):
+async def check_wareki_errors(pg, rep, L):
     """和暦の入力が範囲外・存在しない日のとき、黙って通さないこと。"""
     bad = []
     await pg.click("#tab-wareki")
-    cases = [("令和", 1, 4, 30, "開始"),      # 令和は5月1日から
-             ("平成", 1, 1, 7, "開始"),        # 平成は1月8日から
-             ("昭和", 64, 1, 8, "入って"),     # 1989-01-08 は平成
-             ("令和", 2, 2, 30, "存在")]       # 2月30日
-    for era, wy, m, d, want in cases:
+    cases = [("令和", 1, 4, 30, L["errs"][0]),    # 令和は5月1日から
+             ("平成", 1, 1, 7, L["errs"][1]),     # 平成は1月8日から
+             ("昭和", 64, 1, 8, L["errs"][2]),    # 1989-01-08 は平成
+             ("令和", 2, 2, 30, L["errs"][3])]    # 2月30日
+    for era_ja, wy, m, d, want in cases:
+        era = L["era"](era_ja)
         await pg.select_option("#w-era", era)
         await pg.fill("#w-y", str(wy)); await pg.fill("#w-m", str(m)); await pg.fill("#w-d", str(d))
         await pg.wait_for_timeout(12)
@@ -416,7 +531,7 @@ async def check_wareki_errors(pg, rep):
     rep.line("和暦の入力を拒むところ", len(cases), bad)
 
 
-async def check_hol_table(pg, rep, years):
+async def check_hol_table(pg, rep, years, L):
     """祝日一覧タブ。画面の表が holidays() と同じことと、土曜と重なる日数。"""
     bad = []
     await pg.click("#tab-hol")
@@ -426,21 +541,25 @@ async def check_hol_table(pg, rep, years):
         rows = await pg.evaluate(
             "() => Array.from(document.querySelectorAll('#h-out tr'))"
             ".map(r => Array.from(r.children).map(c => c.textContent.trim()))")
-        shown = [r for r in rows if len(r) == 3 and r[0].endswith("日") and "月" in r[0]]
+        # ★見出し行は「最初の3列の行」として落とす(言葉で判定しない。前は「日で終わり月を含む」
+        #   で選んでいて、英語版では1行も残らなかった。日付が違う行を落とさないためにも
+        #   ここは中身で選ばないほうがよい)
         ref, _ = ref_holidays_by_law(y)
+        shown = [r for r in rows if len(r) == 3][1:]
         if len(shown) != len(ref):
             bad.append("%d年 表の行数 道具=%d 参照=%d" % (y, len(shown), len(ref)))
             continue
         for r, d in zip(shown, sorted(ref)):
-            if r[0] != "%d月%d日" % (d.month, d.day):
-                bad.append("%d年 日付 道具=%s 参照=%d月%d日" % (y, r[0], d.month, d.day))
-            if r[1] != WD[d.weekday()]:
-                bad.append("%d年 %s 曜日 道具=%s 参照=%s" % (y, r[0], r[1], WD[d.weekday()]))
-            if r[2] != ref[d]:
-                bad.append("%d年 %s 名称 道具=%s 参照=%s" % (y, r[0], r[2], ref[d]))
+            if r[0] != L["hol_date"](d):
+                bad.append("%d年 日付 道具=%s 参照=%s" % (y, r[0], L["hol_date"](d)))
+            if r[1] != L["wd"][(d.weekday() + 1) % 7]:
+                bad.append("%d年 %s 曜日 道具=%s 参照=%s"
+                           % (y, r[0], r[1], L["wd"][(d.weekday() + 1) % 7]))
+            if r[2] != L["hol_name"](ref[d]):
+                bad.append("%d年 %s 名称 道具=%s 参照=%s" % (y, r[0], r[2], L["hol_name"](ref[d])))
         tail = [r for r in rows if len(r) == 1][-1][0] if any(len(r) == 1 for r in rows) else ""
         want_sat = sum(1 for d in ref if d.weekday() == 5)
-        m = re.search(r"計 (\d+) 日 .* (\d+) 日", tail)
+        m = re.search(L["summary"], tail)
         if not m or int(m.group(1)) != len(ref) or int(m.group(2)) != want_sat:
             bad.append("%d年 まとめ 道具=%r 参照=計%d日/土曜%d日" % (y, tail, len(ref), want_sat))
     rep.line("祝日一覧の表(画面の読み戻し)", len(years), bad)
@@ -530,8 +649,14 @@ SABOTAGE = [
      ('  const schoolYearBase = (b.getMonth()+1 < 4 || (b.getMonth()+1 === 4 && b.getDate() === 1))',
       '  const schoolYearBase = (b.getMonth()+1 < 4)')),
     ("和暦の元年を1年と書く",
-     ('label: `${e.name}${n === 1 ? "元" : n}年${dt.getMonth()+1}月${dt.getDate()}日` };',
-      'label: `${e.name}${n}年${dt.getMonth()+1}月${dt.getDate()}日` };')),
+     ('label: `${e.name}${n === 1 ? "元" : n}年${MN[dt.getMonth()]}${dt.getDate()}日` };',
+      'label: `${e.name}${n}年${MN[dt.getMonth()]}${dt.getDate()}日` };')),
+    ("カードの名札(data-k)を落とす(検証がカードを引けなくなる)",
+     ('<div class="card${hl ? " hl" : ""}${label === "" ? " wide" : ""}" data-k="${k}">',
+      '<div class="card${hl ? " hl" : ""}${label === "" ? " wide" : ""}">')),
+    ("月の名前の表を1つずらす(9/2に足した MN の取り違え)",
+     ('const MN = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];',
+      'const MN = ["2月","1月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];')),
     ("営業日の加減算で祝日を見ない",
      ('    while (left > 0) { r = addDays(r, step); if (isBusiness(r)) left--; }',
       '    while (left > 0) { r = addDays(r, step); if (!isWeekend(r)) left--; }')),
@@ -540,9 +665,10 @@ SABOTAGE = [
 
 # ============================ 走らせる ============================
 
-async def run(html_path, n, seed, quiet=False):
+async def run(html_path, n, seed, quiet=False, lang="ja"):
     rng = random.Random(seed)
     diff, add, age, wareki = make_cases(rng, n)
+    L = LANGS[lang]
     rep = Report()
     async with async_playwright() as p:
         b = await p.chromium.launch()
@@ -550,14 +676,15 @@ async def run(html_path, n, seed, quiet=False):
         errs = []
         pg.on("pageerror", lambda e: errs.append(str(e)))
         await pg.goto(pathlib.Path(html_path).resolve().as_uri())
-        dropped = await check_holidays(pg, rep)
+        dropped = await check_holidays(pg, rep, L)
         await check_law_gap(pg, rep)
-        await check_diff(pg, rep, diff)
-        await check_add(pg, rep, add)
-        await check_age(pg, rep, age)
-        await check_wareki(pg, rep, wareki)
-        await check_wareki_errors(pg, rep)
-        await check_hol_table(pg, rep, [1949, 1973, 1986, 1999, 2000, 2019, 2020, 2021, 2026, 2099])
+        await check_diff(pg, rep, diff, L)
+        await check_add(pg, rep, add, L)
+        await check_age(pg, rep, age, L)
+        await check_wareki(pg, rep, wareki, L)
+        await check_wareki_errors(pg, rep, L)
+        await check_hol_table(pg, rep,
+                              [1949, 1973, 1986, 1999, 2000, 2019, 2020, 2021, 2026, 2099], L)
         if errs:
             rep.line("JSエラー", 0, errs)
         await b.close()
@@ -568,7 +695,7 @@ async def run(html_path, n, seed, quiet=False):
     return rep
 
 
-async def sabotage(html_path, n, seed):
+async def sabotage(html_path, n, seed, lang="ja"):
     src = pathlib.Path(html_path).read_text(encoding="utf-8")
     tmp = pathlib.Path(html_path).with_name("_sabotage_date.html")
     print("わざと壊して、検査が捕まえるか見る(%d 種)\n" % len(SABOTAGE))
@@ -580,7 +707,7 @@ async def sabotage(html_path, n, seed):
                 missed.append(name)
                 continue
             tmp.write_text(src.replace(a, b, 1), encoding="utf-8", newline="\n")
-            rep = await run(tmp, max(60, n // 4), seed + i, quiet=True)
+            rep = await run(tmp, max(60, n // 4), seed + i, quiet=True, lang=lang)
             caught = [nm for nm, _ in rep.bad]
             if rep.ok():
                 print("%2d. %-46s ★素通り" % (i, name))
@@ -598,14 +725,17 @@ async def sabotage(html_path, n, seed):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--page", default=str(DEFAULT_PAGE))
+    ap.add_argument("--page", default=None)
+    ap.add_argument("--lang", choices=sorted(LANGS), default="ja")
     ap.add_argument("--n", type=int, default=300)
     ap.add_argument("--seed", type=int, default=20260901)
     ap.add_argument("--sabotage", action="store_true")
     args = ap.parse_args()
+    page = args.page or str(EN_PAGE if args.lang == "en" else DEFAULT_PAGE)
+    print("当てるページ: %s (%s)" % (page, args.lang))
     if args.sabotage:
-        return asyncio.run(sabotage(args.page, args.n, args.seed))
-    rep = asyncio.run(run(args.page, args.n, args.seed))
+        return asyncio.run(sabotage(page, args.n, args.seed, args.lang))
+    rep = asyncio.run(run(page, args.n, args.seed, lang=args.lang))
     return 0 if rep.ok() else 1
 
 

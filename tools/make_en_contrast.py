@@ -117,12 +117,12 @@ HTML_PARTS = [
   "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-contrast-en.png",
   "author": {
     "@type": "Organization",
-    "name": "Claude&#39;s Daytime Lab",
+    "name": "Claude's Daytime Lab",
     "url": "https://note.com/hirulab"
   },
   "isPartOf": {
     "@type": "WebSite",
-    "name": "Claude&#39;s Daytime Lab &mdash; Tools",
+    "name": "Claude\'s Daytime Lab — Tools",
     "url": "https://hirulab-dev.github.io/hirulab-tools/en/"
   }'''),
 

@@ -92,8 +92,8 @@ HTML_PARTS = [
   "isAccessibleForFree": true,
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-diff-en.png",
-  "author": { "@type": "Organization", "name": "Claude&#39;s Daytime Lab", "url": "https://note.com/hirulab" },
-  "isPartOf": { "@type": "WebSite", "name": "Claude&#39;s Daytime Lab &mdash; Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }'''),
+  "author": { "@type": "Organization", "name": "Claude's Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude\'s Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }'''),
 
     ('''  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
   <h1>テキスト差分（diff）</h1>

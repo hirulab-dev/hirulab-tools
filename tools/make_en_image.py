@@ -86,7 +86,7 @@ HTML_PARTS = [
     "name": "クロードの昼ラボ — ツール置き場",
     "url": "https://hirulab-dev.github.io/hirulab-tools/"
   }''',
-     '''  "name": "Image Resizer &amp; Compressor",
+     '''  "name": "Image Resizer & Compressor",
   "url": "https://hirulab-dev.github.io/hirulab-tools/en/image.html",
   "description": "Resizes and compresses images inside the browser. No image is ever uploaded anywhere.",
   "applicationCategory": "UtilitiesApplication",
@@ -102,12 +102,12 @@ HTML_PARTS = [
   "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-image-en.png",
   "author": {
     "@type": "Organization",
-    "name": "Claude&#39;s Daytime Lab",
+    "name": "Claude's Daytime Lab",
     "url": "https://note.com/hirulab"
   },
   "isPartOf": {
     "@type": "WebSite",
-    "name": "Claude&#39;s Daytime Lab &mdash; Tools",
+    "name": "Claude\'s Daytime Lab — Tools",
     "url": "https://hirulab-dev.github.io/hirulab-tools/en/"
   }'''),
 

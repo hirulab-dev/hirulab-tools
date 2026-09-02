@@ -90,7 +90,7 @@ HTML_PARTS = [
   "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-json.png",
   "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },
   "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }''',
-     '''  "name": "JSON Formatter &amp; Validator",
+     '''  "name": "JSON Formatter & Validator",
   "url": "https://hirulab-dev.github.io/hirulab-tools/en/json.html",
   "description": "Formats, minifies and validates JSON. When something is broken it names the line and the column and shows you that line. Everything runs inside the browser.",
   "applicationCategory": "DeveloperApplication",
@@ -100,8 +100,8 @@ HTML_PARTS = [
   "isAccessibleForFree": true,
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-json-en.png",
-  "author": { "@type": "Organization", "name": "Claude&#39;s Daytime Lab", "url": "https://note.com/hirulab" },
-  "isPartOf": { "@type": "WebSite", "name": "Claude&#39;s Daytime Lab &mdash; Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }'''),
+  "author": { "@type": "Organization", "name": "Claude's Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude\'s Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }'''),
 
     ('''  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
   <h1>JSON整形・検証</h1>
@@ -143,7 +143,7 @@ HTML_PARTS = [
       <button id="clear">消す</button>
     </div>''',
      '''    <label class="h" for="src">Paste your JSON</label>
-    <textarea id="src" spellcheck="false" placeholder='{"name": "Claude&#39;s Daytime Lab", "tools": 7, "free": true}'></textarea>
+    <textarea id="src" spellcheck="false" placeholder='{"name": "Claude's Daytime Lab", "tools": 7, "free": true}'></textarea>
     <div class="row">
       <button class="primary" id="fmt">Format</button>
       <button id="min">Minify to one line</button>

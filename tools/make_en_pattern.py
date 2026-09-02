@@ -127,8 +127,8 @@ HTML_PARTS = [
      '  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "%s/" }'
      % (BASE, BASE),
      '  "image": "%s/ogp/ogp-pattern-en.png",\n'
-     '  "author": { "@type": "Organization", "name": "Claude&#39;s Daytime Lab", "url": "https://note.com/hirulab" },\n'
-     '  "isPartOf": { "@type": "WebSite", "name": "Claude&#39;s Daytime Lab — Tools", "url": "%s/en/" }'
+     '  "author": { "@type": "Organization", "name": "Claude\'s Daytime Lab", "url": "https://note.com/hirulab" },\n'
+     '  "isPartOf": { "@type": "WebSite", "name": "Claude\'s Daytime Lab — Tools", "url": "%s/en/" }'
      % (BASE, BASE)),
 
     ('<h1>和柄シームレスパターン作成</h1>\n'

@@ -328,6 +328,7 @@ NAV_LINKS_EN = '''var NAV_LINKS = [
   ["./json.html", "JSON Formatter &amp; Validator"],
   ["./unit.html", "Unit Converter"],
   ["./pattern.html", "Japanese Pattern Generator"],
+  ["./date.html", "Japanese Date Calculator"],
   ["../password/", "Japanese version"]
 ];'''
 

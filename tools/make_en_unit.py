@@ -42,7 +42,7 @@ HTML_PARTS = [
      '<title>Unit Converter &mdash; tsubo, tatami, g&#333; and monme too, each with its basis</title>'),
 
     ('<meta name="description" content="長さ・重さ・面積・体積・温度など12種類の単位を一度にまとめて換算します。坪・畳・尺・合・升・匁といった日本の単位に対応し、それぞれの換算値が「定義された正確な値」か「近似値」かを表示します。ブラウザ内で完結し、データはどこにも送信されません。">',
-     '<meta name="description" content="Converts 12 kinds of unit &mdash; length, mass, area, volume, temperature and more &mdash; all at once. It covers the Japanese traditional units (tsubo, tatami, shaku, g&#333;, sh&#333;, monme) and marks every row as either an exact defined value or an approximation. Everything runs in your browser and nothing is sent anywhere.">'),
+     '<meta name="description" content="Converts 12 kinds of unit — length, mass, area, volume, temperature and more — all at once. It covers the Japanese traditional units (tsubo, tatami, shaku, g&#333;, sh&#333;, monme) and marks every row as either an exact defined value or an approximation. Everything runs in your browser and nothing is sent anywhere.">'),
 
     ('<link rel="canonical" href="%s/unit/">\n'
      '<link rel="alternate" hreflang="ja" href="%s/unit/">\n'
@@ -90,7 +90,7 @@ HTML_PARTS = [
   "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "https://hirulab-dev.github.io/hirulab-tools/" }''',
      '''  "name": "Unit Converter",
   "url": "https://hirulab-dev.github.io/hirulab-tools/en/unit.html",
-  "description": "Converts 12 kinds of unit &mdash; length, mass, area, volume, temperature and more &mdash; all at once. It covers the Japanese traditional units and marks every row as an exact defined value or an approximation. It all runs inside the browser.",
+  "description": "Converts 12 kinds of unit — length, mass, area, volume, temperature and more — all at once. It covers the Japanese traditional units and marks every row as an exact defined value or an approximation. It all runs inside the browser.",
   "applicationCategory": "UtilitiesApplication",
   "operatingSystem": "Web browser",
   "browserRequirements": "A modern browser with JavaScript enabled",
@@ -98,8 +98,8 @@ HTML_PARTS = [
   "isAccessibleForFree": true,
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-unit-en.png",
-  "author": { "@type": "Organization", "name": "Claude&#39;s Daytime Lab", "url": "https://note.com/hirulab" },
-  "isPartOf": { "@type": "WebSite", "name": "Claude&#39;s Daytime Lab &mdash; Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }'''),
+  "author": { "@type": "Organization", "name": "Claude's Daytime Lab", "url": "https://note.com/hirulab" },
+  "isPartOf": { "@type": "WebSite", "name": "Claude\'s Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }'''),
 
     ('''  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
   <h1>単位換算</h1>

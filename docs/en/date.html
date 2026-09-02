@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>日付計算機 — 期間・営業日・年齢・和暦</title>
-<meta name="description" content="2つの日付の期間、営業日を数えた日数計算、満年齢と学年、西暦と和暦の相互変換をまとめて。日本の祝日(振替休日・国民の休日・春分秋分)を自動計算します。AI(Claude)が作ったブラウザ完結ツール。データは送信されません。">
+<title>Japanese Date Calculator — business days, Japanese holidays, wareki (era) converter</title>
+<meta name="description" content="Measure the span between two dates in Japanese business days, add or subtract days, months and business days, work out age and the Japanese school year, and convert between Western years and Japanese eras (Reiwa, Heisei, Showa, Taisho, Meiji). Holidays are computed under the law as it stood in each year, 1949 to 2099. Runs entirely in your browser; nothing is sent anywhere.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --text:#1a1a1a; --sub:#666;
@@ -57,50 +57,50 @@
   .sun { color:var(--err); } .sat { color:var(--accent); } .hol { color:var(--err); font-weight:600; }
   footer { color:var(--sub); font-size:.78rem; margin-top:32px; border-top:1px solid var(--border); padding-top:12px; }
 </style>
-<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/date/">
+<link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/date.html">
 <link rel="alternate" hreflang="ja" href="https://hirulab-dev.github.io/hirulab-tools/date/">
 <link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/date.html">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="クロードの昼ラボ">
-<meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="日付計算機 — クロードの昼ラボ">
-<meta property="og:description" content="期間・営業日・満年齢・学年・和暦をまとめて計算。日本の祝日に自動対応。">
-<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/date/">
-<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-date.png">
+<meta property="og:site_name" content="Claude&#39;s Daytime Lab">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Japanese Date Calculator — Claude&#39;s Daytime Lab">
+<meta property="og:description" content="Spans, business days, age and school year, and Western ⇄ Japanese era conversion. Japanese holidays are computed under the law of that year, not today&#39;s.">
+<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/date.html">
+<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-date-en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="日付計算機 — クロードの昼ラボ">
-<meta name="twitter:description" content="期間・営業日・満年齢・学年・和暦をまとめて計算。日本の祝日に自動対応。">
-<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-date.png">
+<meta name="twitter:title" content="Japanese Date Calculator — Claude&#39;s Daytime Lab">
+<meta name="twitter:description" content="Spans, business days, age, school year and Western ⇄ Japanese era conversion, with Japanese holidays computed per year.">
+<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-date-en.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "日付計算機",
-  "url": "https://hirulab-dev.github.io/hirulab-tools/date/",
-  "description": "期間・営業日・満年齢・学年・和暦をまとめて計算します。日本の祝日に自動対応。",
+  "name": "Japanese Date Calculator",
+  "url": "https://hirulab-dev.github.io/hirulab-tools/en/date.html",
+  "description": "Measures the span between two dates in days, weeks and Japanese business days, adds and subtracts days, months, years and business days, works out full age, traditional kazoe age and the Japanese school year, and converts between Western years and Japanese eras. Japanese public holidays are computed under the law as it stood in each year from 1949 to 2099, including substitute holidays, citizens' holidays, the equinoxes and the one-off holidays. Everything runs in the browser and no date you enter is sent anywhere.",
   "applicationCategory": "UtilitiesApplication",
   "operatingSystem": "Web browser",
-  "browserRequirements": "JavaScript が有効なモダンブラウザ",
-  "inLanguage": "ja",
+  "browserRequirements": "A modern browser with JavaScript enabled",
+  "inLanguage": "en",
   "isAccessibleForFree": true,
   "offers": {
     "@type": "Offer",
     "price": "0",
-    "priceCurrency": "JPY"
+    "priceCurrency": "USD"
   },
-  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-date.png",
+  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-date-en.png",
   "author": {
     "@type": "Organization",
-    "name": "クロードの昼ラボ",
+    "name": "Claude's Daytime Lab",
     "url": "https://note.com/hirulab"
   },
   "isPartOf": {
     "@type": "WebSite",
-    "name": "クロードの昼ラボ — ツール置き場",
-    "url": "https://hirulab-dev.github.io/hirulab-tools/"
+    "name": "Claude's Daytime Lab — Tools",
+    "url": "https://hirulab-dev.github.io/hirulab-tools/en/"
   }
 }
 </script>
@@ -120,173 +120,171 @@
 </head>
 <body>
 <div class="wrap">
-  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
-  <h1>日付計算機</h1>
-  <div class="tagline">期間・営業日・年齢・和暦をまとめて計算します。日本の祝日は<b>その年の規則で</b>出します(1949年からの法改正・五輪の移動・一日限りの休日まで)。すべてブラウザ内で完結し、入力した日付はどこにも送信されません。</div>
+  <a class="hl-back" href="./">← Claude&#39;s Daytime Lab tools</a>
+  <h1>Japanese Date Calculator</h1>
+  <div class="tagline">Spans, business days, age and Japanese era conversion in one place. Japanese public holidays are computed <b>under the law as it stood in that year</b> — every amendment since 1949, the days the Olympics moved, and the one-off holidays. Everything runs inside your browser; no date you enter is sent anywhere.</div>
 
   <div class="tabs" role="tablist">
-    <button role="tab" id="tab-diff"  aria-selected="true"  aria-controls="s-diff">期間を測る</button>
-    <button role="tab" id="tab-add"   aria-selected="false" aria-controls="s-add">日数を足す・引く</button>
-    <button role="tab" id="tab-age"   aria-selected="false" aria-controls="s-age">年齢・学年</button>
-    <button role="tab" id="tab-wareki" aria-selected="false" aria-controls="s-wareki">西暦 ⇄ 和暦</button>
-    <button role="tab" id="tab-hol"   aria-selected="false" aria-controls="s-hol">祝日一覧</button>
+    <button role="tab" id="tab-diff"  aria-selected="true"  aria-controls="s-diff">Span between dates</button>
+    <button role="tab" id="tab-add"   aria-selected="false" aria-controls="s-add">Add or subtract</button>
+    <button role="tab" id="tab-age"   aria-selected="false" aria-controls="s-age">Age and school year</button>
+    <button role="tab" id="tab-wareki" aria-selected="false" aria-controls="s-wareki">Western ⇄ Japanese era</button>
+    <button role="tab" id="tab-hol"   aria-selected="false" aria-controls="s-hol">Holidays</button>
   </div>
 
-  <!-- ===== 期間 ===== -->
+  <!-- ===== span ===== -->
   <section id="s-diff" class="panel" role="tabpanel">
     <div class="inline" style="gap:16px">
       <div class="field" style="margin:0">
-        <div class="label">開始日</div><input type="date" id="d-from">
+        <div class="label">Start date</div><input type="date" id="d-from">
       </div>
       <div class="field" style="margin:0">
-        <div class="label">終了日</div><input type="date" id="d-to">
+        <div class="label">End date</div><input type="date" id="d-to">
       </div>
-      <button class="go" id="d-today">今日→今日</button>
+      <button class="go" id="d-today">Today → today</button>
     </div>
-    <label class="chk" style="margin-top:12px"><input type="checkbox" id="d-incl"> 終了日を含めて数える(初日算入)</label>
+    <label class="chk" style="margin-top:12px"><input type="checkbox" id="d-incl"> Count the end date as well (inclusive)</label>
     <div class="grid" id="d-out"></div>
     <div class="msg" id="d-msg"></div>
   </section>
 
-  <!-- ===== 加減算 ===== -->
+  <!-- ===== add / subtract ===== -->
   <section id="s-add" class="panel" role="tabpanel" hidden>
     <div class="inline" style="gap:16px">
       <div class="field" style="margin:0">
-        <div class="label">基準日</div><input type="date" id="a-base">
+        <div class="label">Base date</div><input type="date" id="a-base">
       </div>
       <div class="field" style="margin:0">
-        <div class="label">増減</div>
+        <div class="label">Change by</div>
         <div class="inline">
           <input type="number" id="a-n" value="30" step="1">
           <select id="a-unit">
-            <option value="day">日</option>
-            <option value="biz">営業日(土日祝を除く)</option>
-            <option value="week">週</option>
-            <option value="month">か月</option>
-            <option value="year">年</option>
+            <option value="day">days</option>
+            <option value="biz">business days (no weekends or holidays)</option>
+            <option value="week">weeks</option>
+            <option value="month">months</option>
+            <option value="year">years</option>
           </select>
         </div>
       </div>
     </div>
     <div class="grid" id="a-out"></div>
-    <div class="hint">「か月」「年」の加算で存在しない日(1/31の1か月後など)になる場合は、その月の末日に丸めます(民法の期間計算と同じ扱い)。</div>
+    <div class="hint">When adding months or years lands on a date that does not exist — one month after 31 January, say — the result is clamped to the last day of that month, which is how the Japanese Civil Code counts periods.</div>
     <div class="msg" id="a-msg"></div>
   </section>
 
-  <!-- ===== 年齢 ===== -->
+  <!-- ===== age ===== -->
   <section id="s-age" class="panel" role="tabpanel" hidden>
     <div class="inline" style="gap:16px">
       <div class="field" style="margin:0">
-        <div class="label">生年月日</div><input type="date" id="g-birth">
+        <div class="label">Date of birth</div><input type="date" id="g-birth">
       </div>
       <div class="field" style="margin:0">
-        <div class="label">基準日(既定は今日)</div><input type="date" id="g-at">
+        <div class="label">As of (today by default)</div><input type="date" id="g-at">
       </div>
     </div>
     <div class="grid" id="g-out"></div>
-    <div class="hint">学年は「4月2日〜翌年4月1日生まれが同学年」という日本の区切り(年齢は誕生日の前日に加算される、という法の扱いによる)で計算しています。</div>
+    <div class="hint">School years in Japan group everyone born from 2 April to 1 April of the following year. The 1 April boundary comes from the legal rule that a person turns a year older on the day before their birthday.</div>
     <div class="msg" id="g-msg"></div>
   </section>
 
-  <!-- ===== 和暦 ===== -->
+  <!-- ===== era ===== -->
   <section id="s-wareki" class="panel" role="tabpanel" hidden>
     <div class="field">
-      <div class="label">西暦の日付</div><input type="date" id="w-date">
+      <div class="label">Western (Gregorian) date</div><input type="date" id="w-date">
     </div>
     <div class="grid" id="w-out"></div>
     <div class="field" style="margin-top:20px">
-      <div class="label">和暦から西暦へ</div>
+      <div class="label">Japanese era → Western</div>
       <div class="inline">
         <select id="w-era">
-          <option value="令和">令和</option><option value="平成">平成</option>
-          <option value="昭和">昭和</option><option value="大正">大正</option><option value="明治">明治</option>
+          <option value="Reiwa">Reiwa</option><option value="Heisei">Heisei</option>
+          <option value="Showa">Showa</option><option value="Taisho">Taisho</option><option value="Meiji">Meiji</option>
         </select>
-        <input type="number" id="w-y" value="8" min="1" style="width:80px"> 年
-        <input type="number" id="w-m" value="8" min="1" max="12" style="width:70px"> 月
-        <input type="number" id="w-d" value="16" min="1" max="31" style="width:70px"> 日
+        <input type="number" id="w-y" value="8" min="1" style="width:80px"> year
+        <input type="number" id="w-m" value="8" min="1" max="12" style="width:70px"> month
+        <input type="number" id="w-d" value="16" min="1" max="31" style="width:70px"> day
       </div>
     </div>
     <div class="grid" id="w-out2"></div>
     <div class="msg" id="w-msg"></div>
   </section>
 
-  <!-- ===== 祝日 ===== -->
+  <!-- ===== holidays ===== -->
   <section id="s-hol" class="panel" role="tabpanel" hidden>
     <div class="inline">
       <div class="field" style="margin:0">
-        <div class="label">年</div><input type="number" id="h-year" value="2026" min="1949" max="2099" style="width:110px">
+        <div class="label">Year</div><input type="number" id="h-year" value="2026" min="1949" max="2099" style="width:110px">
       </div>
-      <span class="hint" style="margin:0">1949年〜2099年に対応</span>
+      <span class="hint" style="margin:0">Supported range: 1949 to 2099</span>
     </div>
     <div class="hint" style="margin-top:8px;line-height:1.5">
-      <b>その年の規則で計算します。</b>祝日は何度も法律が変わっているので、いまの規則を昔の年に当てると違う日が出ます。
-      成人の日は1999年まで1月15日、天皇誕生日は平成のあいだ12月23日、海の日は1995年まで無く、
-      体育の日は1999年まで10月10日でした。2020・2021年は五輪で海の日・山の日・スポーツの日が動いています。
-      振替休日は1973年4月12日から、国民の休日は1986年から。一日限りの休日(即位の礼など)も6つ入れてあります。
-      <b>ここは期間タブの「営業日」の数にも効きます。</b>
+      <b>Computed under the law of that year.</b> The Holidays Act has been amended many times, so applying today&#39;s rules to an older year gives the wrong dates.
+      Coming of Age Day was 15 January until 1999; the Emperor&#39;s Birthday was 23 December throughout the Heisei era; Marine Day did not exist before 1996;
+      Health and Sports Day was 10 October until 1999. In 2020 and 2021 the Olympics moved Marine Day, Mountain Day and Sports Day.
+      Substitute holidays start on 12 April 1973 and citizens&#39; holidays in 1986. The six one-off holidays (enthronement ceremonies and the like) are included.
+      <b>All of this also feeds the business-day count on the first tab.</b>
     </div>
     <table id="h-out"></table>
     <div class="msg" id="h-msg"></div>
   </section>
 
   <nav class="hl-nav">
-    <h2>ほかの道具</h2>
+    <h2>Other tools</h2>
     <ul>
-      <li><a href="../regex/">正規表現テスタ</a></li>
-      <li><a href="../char-counter/">文字数カウンタ</a></li>
-      <li><a href="../contrast/">コントラスト比チェッカー</a></li>
-      <li><a href="../image/">画像リサイズ・圧縮</a></li>
-      <li><a href="../take-home/">手取り計算機</a></li>
-      <li><a href="../json/">JSON整形・検証</a></li>
-      <li><a href="../diff/">テキスト差分（diff）</a></li>
-      <li><a href="../unit/">単位換算</a></li>
-      <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
-      <li><a href="../qr/">QRコード作成</a></li>
-      <li><a href="../palette/">カラーパレット生成</a></li>
-      <li><a href="../frima-profit/">フリマ手取り計算機</a></li>
-      <li><a href="../cron/">cron式の読み下し</a></li>
-      <li><a href="../tz/">タイムゾーン変換</a></li>
-      <li><a href="../csv/">CSVプレビュー・診断</a></li>
-      <li><a href="../url/">URLの分解・組み立て</a></li>
-      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
-      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
-      <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
-      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
-      <li><a href="../jwt/">JWTの読み下し</a></li>
-      <li><a href="../password/">パスワード生成・強度診断</a></li>
-      <li><a href="../base64/">Base64・データURLの分解</a></li>
-      <li><a href="../pattern/">和柄シームレスパターン作成</a></li>
-      <li><a href="../en/date.html">English version</a></li>
+      <li><a href="./regex-why.html">Why doesn&#39;t my regex match?</a></li>
+      <li><a href="./replace.html">Regex Replacement Preview</a></li>
+      <li><a href="./railroad.html">Regex Railroad Diagrams</a></li>
+      <li><a href="./regex-tester.html">Regex Tester</a></li>
+      <li><a href="./char-counter.html">Character Counter</a></li>
+      <li><a href="./palette.html">Color Palette Generator</a></li>
+      <li><a href="./timezone.html">Time Zone Converter</a></li>
+      <li><a href="./csv.html">CSV Preview &amp; Diagnostics</a></li>
+      <li><a href="./url.html">URL Parser &amp; Builder</a></li>
+      <li><a href="./headers.html">HTTP Header Explainer</a></li>
+      <li><a href="./jwt.html">JWT Explainer</a></li>
+      <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
+      <li><a href="./qr.html">QR Code Generator</a></li>
+      <li><a href="./cron.html">Cron Expression Explainer</a></li>
+      <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
+      <li><a href="./image.html">Image Resizer &amp; Compressor</a></li>
+      <li><a href="./page-contrast.html">Whole-Page Contrast Audit</a></li>
+      <li><a href="./diff.html">Text Diff</a></li>
+      <li><a href="./json.html">JSON Formatter &amp; Validator</a></li>
+      <li><a href="./unit.html">Unit Converter</a></li>
+      <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
+      <li><a href="./pattern.html">Japanese Pattern Generator</a></li>
+      <li><a href="../date/">Japanese version</a></li>
     </ul>
     <p class="hl-links">
-      <a href="../">道具箱のトップ</a> ・
-      <a href="https://note.com/hirulab">実験ログ（note）</a> ・
-      <a href="https://x.com/hirulab_ai">X</a> ・
-      <a href="https://github.com/hirulab-dev/hirulab-tools">ソース</a>
+      <a href="./">Tools index</a> &middot;
+      <a href="https://note.com/hirulab">Experiment log (JP)</a> &middot;
+      <a href="https://x.com/hirulab_ai">X</a> &middot;
+      <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
     </p>
   </nav>
   <footer>
-    祝日は現行(2026年時点)の国民の祝日に関する法律にもとづいて計算しています。<strong>過去の年について当時の法律との差が出る場合があります</strong>(ハッピーマンデー導入前、天皇誕生日の移動、オリンピック特措法による移動など)。
-    春分・秋分の日は 1980〜2099 年で有効な近似式によるもので、公式には前年2月の官報で確定します。重要な予定は必ず公式の暦で確認してください。
-    <br>作: <strong>クロードの昼ラボ</strong>(AIのClaudeが書いています) — このページは通信を一切行いません。
+    Holidays follow the Act on National Holidays as amended over time, so each year is computed under the rules in force that year. <strong>Verify anything that matters against an official calendar.</strong>
+    The vernal and autumnal equinox dates come from the approximation valid for 1980–2099; officially each year is fixed by the government gazette in February of the preceding year.
+    <br>Made by <strong>Claude&#39;s Daytime Lab</strong> (written by Claude, an AI) — this page makes no network requests at all.
   </footer>
 </div>
 
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const WD = ["日","月","火","水","木","金","土"];
+const WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 /* 月の名前。日本語では「9月」、英語では「Sep」。
    ★英語版のために表にした(2026-09-02)。日本語の表示は前と1文字も変わらない。
    直に `${dt.getMonth()+1}月` と書くと、英語版で語順を変えられない
    (日英でコードをバイト単位で一致させる縛りがあり、`${…}` の並びは動かせないため)。 */
-const MN = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+const MN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const MS = 86400000;
 
 /* ---------- 日付ユーティリティ(すべてローカル時刻の 0:00 で扱う) ---------- */
 const mk = (y,m,d) => { const dt = new Date(y, m-1, d); dt.setHours(0,0,0,0); return dt; };
 const key = dt => dt.getFullYear()*10000 + (dt.getMonth()+1)*100 + dt.getDate();
-const fmt = dt => `${dt.getFullYear()}年${MN[dt.getMonth()]}${dt.getDate()}日(${WD[dt.getDay()]})`;
+const fmt = dt => `${dt.getFullYear()} ${MN[dt.getMonth()]} ${dt.getDate()} (${WD[dt.getDay()]})`;
 const iso = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
 function parseInput(el) {
   if (!el.value) return null;
@@ -323,12 +321,12 @@ const autumnal = y => y <= 1979
 
 /* 一日限りの休日(その日のためだけに法律が作られたもの) */
 const ONE_OFF = [
-  [1959, 4, 10, "皇太子明仁親王の結婚の儀"],
-  [1989, 2, 24, "昭和天皇の大喪の礼"],
-  [1990, 11, 12, "即位礼正殿の儀"],
-  [1993, 6, 9, "皇太子徳仁親王の結婚の儀"],
-  [2019, 5, 1, "天皇の即位の日"],
-  [2019, 10, 22, "即位礼正殿の儀"]
+  [1959, 4, 10, "Wedding of Crown Prince Akihito"],
+  [1989, 2, 24, "Funeral of Emperor Showa"],
+  [1990, 11, 12, "Enthronement Ceremony at the Seiden"],
+  [1993, 6, 9, "Wedding of Crown Prince Naruhito"],
+  [2019, 5, 1, "Enthronement Day of the Emperor"],
+  [2019, 10, 22, "Enthronement Ceremony at the Seiden"]
 ];
 
 /** その年の祝日を {キー: 名称} で返す(振替休日・国民の休日を含む)
@@ -354,34 +352,34 @@ function holidays(y) {
   const base = [];   // [Date, 名称]
   const push = (dt, name) => base.push([dt, name]);
 
-  push(mk(y,1,1), "元日");
-  push(y < 2000 ? mk(y,1,15) : nthMonday(y,1,2), "成人の日");          // 2000年からハッピーマンデー
-  if (y >= 1967) push(mk(y,2,11), "建国記念の日");
-  if (y <= 1988) push(mk(y,4,29), "天皇誕生日");                        // 昭和
-  else if (y <= 2018) push(mk(y,12,23), "天皇誕生日");                  // 平成
-  else if (y >= 2020) push(mk(y,2,23), "天皇誕生日");                   // 令和(2019年は無い)
-  push(mk(y, 3, vernal(y)), "春分の日");
-  if (y >= 1989 && y <= 2006) push(mk(y,4,29), "みどりの日");           // 4月29日だった時期
-  else if (y >= 2007) { push(mk(y,5,4), "みどりの日"); push(mk(y,4,29), "昭和の日"); }
-  push(mk(y,5,3), "憲法記念日");
-  push(mk(y,5,5), "こどもの日");
-  if (y === 2020) push(mk(y,7,23), "海の日");                           // 東京五輪で移動
-  else if (y === 2021) push(mk(y,7,22), "海の日");
-  else if (y >= 1996 && y <= 2002) push(mk(y,7,20), "海の日");          // 新設時は7月20日
-  else if (y >= 2003) push(nthMonday(y,7,3), "海の日");
-  if (y === 2020) push(mk(y,8,10), "山の日");
-  else if (y === 2021) push(mk(y,8,8), "山の日");
-  else if (y >= 2016) push(mk(y,8,11), "山の日");
-  if (y >= 1966 && y <= 2002) push(mk(y,9,15), "敬老の日");
-  else if (y >= 2003) push(nthMonday(y,9,3), "敬老の日");
-  push(mk(y, 9, autumnal(y)), "秋分の日");
-  if (y === 2020) push(mk(y,7,24), "スポーツの日");
-  else if (y === 2021) push(mk(y,7,23), "スポーツの日");
-  else if (y >= 1966 && y <= 1999) push(mk(y,10,10), "体育の日");
-  else if (y >= 2000 && y <= 2019) push(nthMonday(y,10,2), "体育の日");
-  else if (y >= 2022) push(nthMonday(y,10,2), "スポーツの日");
-  push(mk(y,11,3), "文化の日");
-  push(mk(y,11,23), "勤労感謝の日");
+  push(mk(y,1,1), "New Year's Day");
+  push(y < 2000 ? mk(y,1,15) : nthMonday(y,1,2), "Coming of Age Day");          // 2000年からハッピーマンデー
+  if (y >= 1967) push(mk(y,2,11), "National Foundation Day");
+  if (y <= 1988) push(mk(y,4,29), "The Emperor's Birthday");                        // 昭和
+  else if (y <= 2018) push(mk(y,12,23), "The Emperor's Birthday");                  // 平成
+  else if (y >= 2020) push(mk(y,2,23), "The Emperor's Birthday");                   // 令和(2019年は無い)
+  push(mk(y, 3, vernal(y)), "Vernal Equinox Day");
+  if (y >= 1989 && y <= 2006) push(mk(y,4,29), "Greenery Day");           // 4月29日だった時期
+  else if (y >= 2007) { push(mk(y,5,4), "Greenery Day"); push(mk(y,4,29), "Showa Day"); }
+  push(mk(y,5,3), "Constitution Memorial Day");
+  push(mk(y,5,5), "Children's Day");
+  if (y === 2020) push(mk(y,7,23), "Marine Day");                           // 東京五輪で移動
+  else if (y === 2021) push(mk(y,7,22), "Marine Day");
+  else if (y >= 1996 && y <= 2002) push(mk(y,7,20), "Marine Day");          // 新設時は7月20日
+  else if (y >= 2003) push(nthMonday(y,7,3), "Marine Day");
+  if (y === 2020) push(mk(y,8,10), "Mountain Day");
+  else if (y === 2021) push(mk(y,8,8), "Mountain Day");
+  else if (y >= 2016) push(mk(y,8,11), "Mountain Day");
+  if (y >= 1966 && y <= 2002) push(mk(y,9,15), "Respect for the Aged Day");
+  else if (y >= 2003) push(nthMonday(y,9,3), "Respect for the Aged Day");
+  push(mk(y, 9, autumnal(y)), "Autumnal Equinox Day");
+  if (y === 2020) push(mk(y,7,24), "Sports Day");
+  else if (y === 2021) push(mk(y,7,23), "Sports Day");
+  else if (y >= 1966 && y <= 1999) push(mk(y,10,10), "Health and Sports Day");
+  else if (y >= 2000 && y <= 2019) push(nthMonday(y,10,2), "Health and Sports Day");
+  else if (y >= 2022) push(nthMonday(y,10,2), "Sports Day");
+  push(mk(y,11,3), "Culture Day");
+  push(mk(y,11,23), "Labor Thanksgiving Day");
   ONE_OFF.forEach(([oy, om, od, name]) => { if (oy === y) push(mk(oy, om, od), name); });
 
   const map = {};
@@ -396,9 +394,9 @@ function holidays(y) {
       let c = addDays(dt, 1);
       if (y >= 2007) {
         while (map[key(c)]) c = addDays(c, 1);
-        map[key(c)] = "振替休日";
+        map[key(c)] = "Substitute holiday";
       } else if (!map[key(c)]) {
-        map[key(c)] = "振替休日";
+        map[key(c)] = "Substitute holiday";
       }
     });
   }
@@ -410,7 +408,7 @@ function holidays(y) {
       const dt = mk(Math.floor(k/10000), Math.floor(k/100)%100, k%100);
       const gap = addDays(dt, 1), next = addDays(dt, 2);
       if (!map[key(gap)] && map[key(next)] && gap.getDay() !== 0) {
-        map[key(gap)] = "国民の休日";
+        map[key(gap)] = "Citizens' holiday";
       }
     });
   }
@@ -424,27 +422,27 @@ const isBusiness = dt => !isWeekend(dt) && !holidayName(dt);
 
 /* ---------- 和暦 ---------- */
 const ERAS = [
-  { name:"令和", start: mk(2019,5,1) },
-  { name:"平成", start: mk(1989,1,8) },
-  { name:"昭和", start: mk(1926,12,25) },
-  { name:"大正", start: mk(1912,7,30) },
-  { name:"明治", start: mk(1868,1,25) }
+  { name:"Reiwa", start: mk(2019,5,1) },
+  { name:"Heisei", start: mk(1989,1,8) },
+  { name:"Showa", start: mk(1926,12,25) },
+  { name:"Taisho", start: mk(1912,7,30) },
+  { name:"Meiji", start: mk(1868,1,25) }
 ];
 function toWareki(dt) {
   const e = ERAS.find(x => dt >= x.start);
   if (!e) return null;
   const n = dt.getFullYear() - e.start.getFullYear() + 1;
-  return { era: e.name, year: n, label: `${e.name}${n === 1 ? "元" : n}年${MN[dt.getMonth()]}${dt.getDate()}日` };
+  return { era: e.name, year: n, label: `${e.name} ${n === 1 ? "1" : n}, ${MN[dt.getMonth()]} ${dt.getDate()}` };
 }
 function fromWareki(era, wy, m, d) {
   const e = ERAS.find(x => x.name === era);
-  if (!e) return { err: "元号が不明です" };
+  if (!e) return { err: "Unknown era" };
   const y = e.start.getFullYear() + wy - 1;
   const dt = mk(y, m, d);
-  if (isNaN(dt) || dt.getMonth()+1 !== m || dt.getDate() !== d) return { err: "そのような日付は存在しません" };
-  if (dt < e.start) return { err: `${era}${wy}年${m}月${d}日 は ${era} の開始(${fmt(e.start)})より前です` };
+  if (isNaN(dt) || dt.getMonth()+1 !== m || dt.getDate() !== d) return { err: "No such date" };
+  if (dt < e.start) return { err: `${era} ${wy}/${m}/${d} is before ${era} began (${fmt(e.start)})` };
   const idx = ERAS.findIndex(x => x.name === era);
-  if (idx > 0 && dt >= ERAS[idx-1].start) return { err: `${era}${wy}年${m}月${d}日 は ${ERAS[idx-1].name} に入っています` };
+  if (idx > 0 && dt >= ERAS[idx-1].start) return { err: `${era} ${wy}/${m}/${d} falls inside ${ERAS[idx-1].name}` };
   return { date: dt };
 }
 
@@ -469,7 +467,7 @@ TABS.forEach(t => $("tab-"+t).addEventListener("click", () => {
 function calcDiff() {
   const a = parseInput($("d-from")), b = parseInput($("d-to"));
   $("d-msg").textContent = "";
-  if (!a || !b) { $("d-out").innerHTML = ""; $("d-msg").textContent = "両方の日付を入れてください。"; return; }
+  if (!a || !b) { $("d-out").innerHTML = ""; $("d-msg").textContent = "Enter both dates."; return; }
   const incl = $("d-incl").checked;
   const [s, e] = a <= b ? [a, b] : [b, a];
   const rawDays = Math.round((e - s) / MS);
@@ -497,14 +495,14 @@ function calcDiff() {
     else if (h) hol++;
     else biz++;
   }
-  const sign = a <= b ? "" : "(逆順で入力されたので入れ替えました)";
+  const sign = a <= b ? "" : "(entered in reverse order, so they were swapped)";
   $("d-out").innerHTML =
-    card("days", "日数", `${days.toLocaleString()}日`, incl ? "初日算入" : "終了日は含まない", true) +
-    card("ymd", "年月日で", `${yy}年${mm}か月${dd}日`, "") +
-    card("weeks", "週数", `${(days/7).toFixed(1)}週`, "") +
-    card("biz", "営業日", `${biz.toLocaleString()}日`, "土日祝を除く", true) +
-    card("weekend", "土日", `${wknd.toLocaleString()}日`, "") +
-    card("holiday-weekday", "平日の祝日", `${hol.toLocaleString()}日`, "") +
+    card("days", "Days", `${days.toLocaleString()}`, incl ? "end date included" : "end date not counted", true) +
+    card("ymd", "Years, months, days", `${yy}y ${mm}m ${dd}d`, "") +
+    card("weeks", "Weeks", `${(days/7).toFixed(1)}`, "") +
+    card("biz", "Business days", `${biz.toLocaleString()}`, "weekends and holidays excluded", true) +
+    card("weekend", "Weekend days", `${wknd.toLocaleString()}`, "") +
+    card("holiday-weekday", "Holidays on weekdays", `${hol.toLocaleString()}`, "") +
     card("range", "", `${fmt(s)} 〜 ${fmt(e)} ${sign}`, "");
   $("d-msg").textContent = "";
 }
@@ -519,8 +517,8 @@ function calcAdd() {
   const base = parseInput($("a-base"));
   const n = parseInt($("a-n").value, 10);
   $("a-msg").textContent = "";
-  if (!base || !Number.isFinite(n)) { $("a-out").innerHTML = ""; $("a-msg").textContent = "基準日と数値を入れてください。"; return; }
-  if (Math.abs(n) > 100000) { $("a-out").innerHTML = ""; $("a-msg").textContent = "数値が大きすぎます(10万以内)。"; return; }
+  if (!base || !Number.isFinite(n)) { $("a-out").innerHTML = ""; $("a-msg").textContent = "Enter a base date and a number."; return; }
+  if (Math.abs(n) > 100000) { $("a-out").innerHTML = ""; $("a-msg").textContent = "That number is too large (100,000 at most)."; return; }
   const unit = $("a-unit").value;
   let r;
   if (unit === "day") r = addDays(base, n);
@@ -535,10 +533,10 @@ function calcAdd() {
   }
   const h = holidayName(r);
   $("a-out").innerHTML =
-    card("result", "結果", fmt(r), h ? h : (isWeekend(r) ? "休日" : "平日"), true) +
-    card("iso", "ISO形式", iso(r), "") +
-    card("wareki", "和暦", (toWareki(r) || {}).label || "対応範囲外", "") +
-    card("elapsed", "基準日からの実日数", `${Math.round((r - base)/MS).toLocaleString()}日`, "");
+    card("result", "Result", fmt(r), h ? h : (isWeekend(r) ? "non-working day" : "working day"), true) +
+    card("iso", "ISO format", iso(r), "") +
+    card("wareki", "Japanese era", (toWareki(r) || {}).label || "outside the supported range", "") +
+    card("elapsed", "Days from the base date", `${Math.round((r - base)/MS).toLocaleString()}`, "");
   $("a-msg").textContent = "";
 }
 ["a-base","a-n","a-unit"].forEach(id => $(id).addEventListener("input", calcAdd));
@@ -549,8 +547,8 @@ function calcAge() {
   let at = parseInput($("g-at"));
   if (!at) { at = new Date(); at.setHours(0,0,0,0); }
   $("g-msg").textContent = "";
-  if (!b) { $("g-out").innerHTML = ""; $("g-msg").textContent = "生年月日を入れてください。"; return; }
-  if (b > at) { $("g-out").innerHTML = ""; $("g-msg").textContent = "生年月日が基準日より後になっています。"; return; }
+  if (!b) { $("g-out").innerHTML = ""; $("g-msg").textContent = "Enter a date of birth."; return; }
+  if (b > at) { $("g-out").innerHTML = ""; $("g-msg").textContent = "The date of birth is later than the base date."; return; }
 
   /* ★2026-09-01 是正: 前は月日をそのまま比べていたので、**2月29日生まれの平年**だけ
      「次の誕生日まで: 今日です」と出しているのに満年齢が1つ足りない、という食い違いが出た
@@ -574,21 +572,21 @@ function calcAge() {
   const fiscalYear = (at.getMonth()+1 < 4) ? at.getFullYear() - 1 : at.getFullYear();
   const grade = fiscalYear - schoolYearBase - 5;      // 小1 = 1
   const gradeLabel =
-    grade < 1 ? (grade === 0 ? "年長(小学校入学の前年度)" : `小学校入学まであと${1-grade}年度`) :
-    grade <= 6 ? `小学${grade}年生` :
-    grade <= 9 ? `中学${grade-6}年生` :
-    grade <= 12 ? `高校${grade-9}年生` :
-    grade <= 16 ? `大学${grade-12}年生相当` : `高校卒業から${grade-12}年度目`;
+    grade < 1 ? (grade === 0 ? "Final nursery year (the year before school starts)" : `${1-grade} school years before elementary school`) :
+    grade <= 6 ? `Elementary school, year ${grade}` :
+    grade <= 9 ? `Junior high school, year ${grade-6}` :
+    grade <= 12 ? `High school, year ${grade-9}` :
+    grade <= 16 ? `University, year ${grade-12} (equivalent)` : `${grade-12} school years since high school`;
 
   const w = toWareki(b);
   $("g-out").innerHTML =
-    card("age", "満年齢", `${age}歳`, `基準日 ${fmt(at)} 時点`, true) +
-    card("kazoe", "数え年", `${kazoe}歳`, "") +
-    card("lived", "生まれてからの日数", `${lived.toLocaleString()}日`, "") +
-    card("next-birthday", "次の誕生日まで", toNext === 0 ? "今日です 🎂" : `${toNext}日`, toNext === 0 ? "" : fmt(nextB)) +
-    card("grade", "学年(日本の年度)", gradeLabel, `${fiscalYear}年度`, true) +
-    card("birth", "生年月日", `${fmt(b)}`, w ? w.label : "") +
-    card("birth-dow", "生まれた曜日", `${WD[b.getDay()]}曜日`, "");
+    card("age", "Age", `${age}`, `as of ${fmt(at)}`, true) +
+    card("kazoe", "Kazoe age (traditional)", `${kazoe}`, "") +
+    card("lived", "Days lived", `${lived.toLocaleString()}`, "") +
+    card("next-birthday", "Days to next birthday", toNext === 0 ? "Today 🎂" : `${toNext}`, toNext === 0 ? "" : fmt(nextB)) +
+    card("grade", "School year (Japan)", gradeLabel, `FY${fiscalYear}`, true) +
+    card("birth", "Date of birth", `${fmt(b)}`, w ? w.label : "") +
+    card("birth-dow", "Day of the week born", `${WD[b.getDay()]}`, "");
   $("g-msg").textContent = "";
 }
 ["g-birth","g-at"].forEach(id => $(id).addEventListener("input", calcAge));
@@ -601,19 +599,19 @@ function calcWareki() {
     const w = toWareki(d);
     const h = holidayName(d);
     $("w-out").innerHTML = w
-      ? card("wareki", "和暦", w.label, "", true) +
-        card("fiscal", "年度", `${(d.getMonth()+1) < 4 ? d.getFullYear()-1 : d.getFullYear()}年度`, "4月始まり") +
-        card("dow", "曜日", `${WD[d.getDay()]}曜日`, h ? h : (isWeekend(d) ? "休日" : "平日")) +
-        card("yday", "その年の通算日", `${Math.round((d - mk(d.getFullYear(),1,1))/MS) + 1}日目`, "")
-      : card("wareki", "和暦", "明治より前は未対応", "");
+      ? card("wareki", "Japanese era", w.label, "", true) +
+        card("fiscal", "Fiscal year", `FY${(d.getMonth()+1) < 4 ? d.getFullYear()-1 : d.getFullYear()}`, "starts in April") +
+        card("dow", "Day of the week", `${WD[d.getDay()]}`, h ? h : (isWeekend(d) ? "non-working day" : "working day")) +
+        card("yday", "Day of the year", `Day ${Math.round((d - mk(d.getFullYear(),1,1))/MS) + 1}`, "")
+      : card("wareki", "Japanese era", "Before Meiji is not supported", "");
   }
   const r = fromWareki($("w-era").value, +$("w-y").value, +$("w-m").value, +$("w-d").value);
   if (r.err) { $("w-out2").innerHTML = ""; $("w-msg").textContent = r.err; }
   else {
     $("w-msg").textContent = "";
     $("w-out2").innerHTML =
-      card("seireki", "西暦", fmt(r.date), "", true) +
-      card("iso", "ISO形式", iso(r.date), "");
+      card("seireki", "Western date", fmt(r.date), "", true) +
+      card("iso", "ISO format", iso(r.date), "");
   }
 }
 ["w-date","w-era","w-y","w-m","w-d"].forEach(id => $(id).addEventListener("input", calcWareki));
@@ -622,23 +620,23 @@ function calcWareki() {
 function calcHol() {
   const y = parseInt($("h-year").value, 10);
   if (!Number.isFinite(y) || y < 1949 || y > 2099) {
-    $("h-out").innerHTML = ""; $("h-msg").textContent = "1949〜2099年の範囲で入れてください。"; return;
+    $("h-out").innerHTML = ""; $("h-msg").textContent = "Enter a year between 1949 and 2099."; return;
   }
   $("h-msg").textContent = "";
   const map = holidays(y);
   const rows = Object.keys(map).map(Number).sort((a,b)=>a-b).map(k => {
     const dt = mk(Math.floor(k/10000), Math.floor(k/100)%100, k%100);
     const cls = dt.getDay() === 0 ? "sun" : dt.getDay() === 6 ? "sat" : "";
-    return `<tr><td class="num">${MN[dt.getMonth()]}${dt.getDate()}日</td>
+    return `<tr><td class="num">${MN[dt.getMonth()]} ${dt.getDate()}</td>
       <td class="${cls}">${WD[dt.getDay()]}</td><td class="hol">${map[k]}</td></tr>`;
   }).join("");
   const cnt = Object.keys(map).length;
   const weekendLoss = Object.keys(map).map(Number)
     .filter(k => { const dt = mk(Math.floor(k/10000), Math.floor(k/100)%100, k%100); return dt.getDay() === 6; }).length;
   $("h-out").innerHTML =
-    `<tr><th>日付</th><th>曜日</th><th>名称</th></tr>${rows}` +
+    `<tr><th>Date</th><th>Day</th><th>Name</th></tr>${rows}` +
     `<tr><td colspan="3" style="color:var(--sub);border:0;padding-top:10px">
-      計 ${cnt} 日 — うち土曜と重なって損をするのが ${weekendLoss} 日</td></tr>`;
+      ${cnt} holidays in total — ${weekendLoss} of them fall on a Saturday and are lost</td></tr>`;
 }
 $("h-year").addEventListener("input", calcHol);
 

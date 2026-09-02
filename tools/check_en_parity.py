@@ -41,6 +41,7 @@ PAIRS = {
     "contrast.html": "contrast/index.html",
     "cron.html": "cron/index.html",
     "csv.html": "csv/index.html",
+    "date.html": "date/index.html",
     "diff.html": "diff/index.html",
     "headers.html": "headers/index.html",
     "image.html": "image/index.html",
@@ -62,7 +63,8 @@ PAIRS = {
 
 # 生成器を持つページ(= 日英でコードが一致していなければならない)
 GENERATED = {
-    "base64.html", "contrast.html", "cron.html", "csv.html", "diff.html", "headers.html",
+    "base64.html", "contrast.html", "cron.html", "csv.html", "date.html", "diff.html",
+    "headers.html",
     "image.html", "json.html", "jwt.html", "page-contrast.html", "palette.html",
     "password.html", "pattern.html", "qr.html", "railroad.html", "regex-tester.html",
     "regex-why.html",

@@ -122,12 +122,12 @@ HTML_PARTS = [
      '  "image": "https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-en-regex.png",\n'
      '  "author": {\n'
      '    "@type": "Organization",\n'
-     '    "name": "Claude&#39;s Daytime Lab",\n'
+     '    "name": "Claude\'s Daytime Lab",\n'
      '    "url": "https://note.com/hirulab"\n'
      '  },\n'
      '  "isPartOf": {\n'
      '    "@type": "WebSite",\n'
-     '    "name": "Claude&#39;s Daytime Lab — Tools",\n'
+     '    "name": "Claude\'s Daytime Lab — Tools",\n'
      '    "url": "https://hirulab-dev.github.io/hirulab-tools/en/"\n'
      '  }'),
 
