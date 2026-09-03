@@ -250,7 +250,7 @@
 "use strict";
 const $ = id => document.getElementById(id);
 
-/* ---- 色変換 ---- */
+/* ---- Color conversion ---- */
 function hexToRgb(h) {
   const m = h.replace("#", "");
   return [parseInt(m.slice(0,2),16), parseInt(m.slice(2,4),16), parseInt(m.slice(4,6),16)];
@@ -284,7 +284,7 @@ const shift = (hex, dh, ds=0, dl=0) => {
   return rgbToHex(...hslToRgb(h+dh, Math.max(0,Math.min(1,s+ds)), Math.max(0,Math.min(1,l+dl))));
 };
 
-/* ---- WCAG 2.1 のコントラスト比 ---- */
+/* ---- WCAG 2.1 contrast ratio ---- */
 function luminance(hex) {
   const [r,g,b] = hexToRgb(hex).map(v => {
     v /= 255;
@@ -298,23 +298,23 @@ function contrast(a, b) {
 }
 const readableOn = hex => contrast(hex, "#ffffff") >= contrast(hex, "#1a1a1a") ? "#ffffff" : "#1a1a1a";
 
-/* ---- 基準を満たす一番近い明るさを探す --------------------------------
-   色相と彩度は動かさない。L だけを二分探索する。上下どちらにも探して、
-   満たせたほうのうち移動量が小さいほうを採る。
+/* ---- Find the nearest lightness that meets the target ------------------
+   Hue and saturation stay put; only L is searched, by bisection. Both
+   directions are tried and the smaller move wins.
 
-   HSL は L=0 が黒・L=1 が白なので、理屈のうえでは **どんな色でも必ず満たせる**。
-   だが黄色に白文字を載せる例だと、4.5:1 に届くには L を 26 ポイント下げることになり、
-   出てくるのは #7a7a00 のオリーブで、もう黄色ではない。
-   「必ず直せる」は「必ず直していい」ではないので、動かす量に上限を置いて、
-   超えるものは **直さずに、必要な量を伝える** ことにした。 */
-const MAX_MOVE = 0.30;      // L を 30 ポイント以上動かすなら、それは別の色
+   In HSL, L=0 is black and L=1 is white, so in theory **any color can be fixed**.
+   But white text on yellow needs L to drop 26 points to reach 4.5:1, and what
+   comes out is the olive #7a7a00, which is no longer yellow.
+   "Can always be fixed" is not "should always be fixed", so the move is capped and
+   anything past the cap is **left alone, with the required amount reported**. */
+const MAX_MOVE = 0.30;      // Moving L by 30 points or more makes it a different color
 
 function nudgeToContrast(hex, fg, need) {
   if (contrast(hex, fg) >= need) return { hex, moved: 0 };
   const [h, s, l0] = rgbToHsl(...hexToRgb(hex));
   const at = l => rgbToHex(...hslToRgb(h, s, l));
 
-  const search = (lo, hi) => {           // lo 側が未達、hi 側が達成、である前提で詰める
+  const search = (lo, hi) => {           // Narrows on the assumption that lo fails and hi passes
     for (let i = 0; i < 24; i++) {
       const mid = (lo + hi) / 2;
       if (contrast(at(mid), fg) >= need) hi = mid; else lo = mid;
@@ -323,8 +323,8 @@ function nudgeToContrast(hex, fg, need) {
   };
 
   const cands = [];
-  if (contrast(at(0), fg) >= need) cands.push(search(l0, 0));   // 暗くして満たす
-  if (contrast(at(1), fg) >= need) cands.push(search(l0, 1));   // 明るくして満たす
+  if (contrast(at(0), fg) >= need) cands.push(search(l0, 0));   // Darken until it passes
+  if (contrast(at(1), fg) >= need) cands.push(search(l0, 1));   // Lighten until it passes
   if (!cands.length) return null;
 
   let best = cands[0];
@@ -334,7 +334,7 @@ function nudgeToContrast(hex, fg, need) {
   return { hex: at(best), moved };
 }
 
-/* ---- パレット定義 ---- */
+/* ---- Palette definitions ---- */
 function palettes(base) {
   return [
     ["Analogous", "Neighbouring hues only. Cohesive, but short on contrast.",
@@ -354,8 +354,8 @@ function palettes(base) {
 
 function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-/* data-contrast-demo は「わざと不合格の例を見せている」印。
-   自前のコントラスト検査スクリプトはこの印が付いた要素を数えない。 */
+/* data-contrast-demo marks a swatch that fails on purpose, shown as an example.
+   Our own contrast-checking script does not count elements carrying this mark. */
 function badge(bg, fg, label, need) {
   const c = contrast(bg, fg);
   const mark = c >= need ? "○" : "×";
@@ -383,8 +383,8 @@ function render() {
         const r = nudgeToContrast(c0, fg, need);
         if (r === null || r.tooFar) {
           nImpossible++;
-          // 長い文にするとスウォッチの高さが揃わなくなるので、ここは短く。
-          // 事情は下の説明文（fixnote）と details に書いてある。
+          // Keep this short: long sentences leave the swatch heights uneven.
+          // The reasoning is spelled out in the fixnote below and in the details block.
           movedText = `<span class="moved">${r && r.tooFar ? "needs " + r.tooFar + " · left as is" : "cannot reach it"}</span>`;
         }
         else if (r.moved !== 0) {
@@ -402,7 +402,7 @@ function render() {
         </div>
         <div class="meta">${esc(c)}${movedText}</div>
       </button>`;
-      // 区切りは落とさずハイフンにする(英語版の "Split complementary" が1語に潰れないように)
+      // Turn the separator into a hyphen instead of dropping it (so "Split complementary" survives)
       cssLines.push(`--${name.replace(/[^\p{L}\p{N}]+/gu, "-")}-${i + 1}: ${c};`);
     });
     html += "</div>";

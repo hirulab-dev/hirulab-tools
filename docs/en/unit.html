@@ -280,12 +280,12 @@
 const $ = id => document.getElementById(id);
 
 /* ============================================================
-   単位定義
-   f  = 基準単位に直すための倍率（value_base = x * f）
-   to / from = 倍率で表せないものだけ使う関数
-   d  = true なら「定義値」、false なら「近似値」
-   n  = 注意書き
-   jp = true なら日本の単位（尺貫法など）
+   Unit definitions
+   f  = factor that converts to the base unit (value_base = x * f)
+   to / from = functions, used only where a factor cannot express it
+   d  = true for an exact definition, false for an approximation
+   n  = a note shown next to the row
+   jp = true for a traditional Japanese unit (the shakkanho system)
    ============================================================ */
 const C = [
 {
@@ -432,9 +432,9 @@ const C = [
     {s:'bar', nm:'bar', f:1e5, d:true},
     {s:'atm', nm:'atmosphere', f:101325, d:true, n:'Standard atmospheric pressure, defined as exactly 101,325 Pa.'},
     {s:'mmHg',nm:'millimetre of mercury', f:101325/760, d:true, n:'The same as the torr. The unit of blood pressure.'},
-    /* psi = 1ポンド重 / 1平方インチ = 0.45359237kg × 9.80665m/s² ÷ (0.0254m)²
-       ちょうど 8896443230521/1290320000 Pa。小数で書き下すと最後の1ビットがずれるので、
-       割り算のままにして倍精度に丸めさせる（2026-08-31 修正） */
+    /* psi = 1 pound-force / 1 square inch = 0.45359237kg x 9.80665m/s^2 / (0.0254m)^2
+       which is exactly 8896443230521/1290320000 Pa. Writing that out as a decimal
+       shifts the last bit, so we keep the division (fixed 2026-08-31) */
     {s:'psi', nm:'pound-force per square inch', f:8896443230521/1290320000, d:true, n:'Tyre pressure. Japanese filling stations usually show kPa instead.'}
   ]
 },
@@ -477,14 +477,14 @@ const C = [
 }
 ];
 
-/* ---------- 換算の中身（ここだけ独立してテストできるようにしてある） ---------- */
+/* ---------- The conversion itself (kept separate so it can be tested alone) ---------- */
 function toBase(u, x){ return u.to ? u.to(x) : x * u.f; }
 function fromBase(u, b){ return u.from ? u.from(b) : b / u.f; }
-/* 同じ単位どうしは基準を経由しない。温度のように往復で誤差が出る式だと、
-   0℉ の行に 1.06581×10⁻¹⁴ のような値が出てしまうため（2026-08-31 修正）。 */
+/* A unit paired with itself skips the base unit. With round-trip formulas such as
+   temperature, the 0F row would otherwise show 1.06581e-14 (fixed 2026-08-31). */
 function convert(u1, u2, x){ return u1 === u2 ? x : fromBase(u2, toBase(u1, x)); }
 
-/* ---------- 数値の入力（分数・カンマ・全角に対応） ---------- */
+/* ---------- Number input (fractions, commas and full-width digits) ---------- */
 function parseNum(src){
   if (src == null) return { ok:false, msg:'Enter a number.' };
   let s = String(src)
@@ -493,7 +493,7 @@ function parseNum(src){
     .replace(/[，、]/g, ',').replace(/[\s　]+/g, ' ')
     .trim();
   if (s === '') return { ok:false, msg:'Enter a number.' };
-  s = s.replace(/(\d),(?=\d{3}(\D|$))/g, '$1');   // 桁区切りのカンマだけ落とす
+  s = s.replace(/(\d),(?=\d{3}(\D|$))/g, '$1');   // Drop the thousands separators only
   let m;
   if ((m = s.match(/^(-?)(\d+) (\d+)\/(\d+)$/))) {      // 5 3/8
     const den = +m[4];
@@ -511,7 +511,7 @@ function parseNum(src){
   return { ok:false, msg:'“' + String(src).trim() + '” could not be read as a number. Try a form like 1.5 / 3/8 / 5 3/8 / 1,200.' };
 }
 
-/* ---------- 数値の表示 ---------- */
+/* ---------- Number output ---------- */
 const SUP = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻','+':'' };
 const sup = n => String(n).split('').map(c => SUP[c] ?? c).join('');
 function trimZeros(s){
@@ -530,7 +530,7 @@ function fmt(v, sig){
   if (!isFinite(v)) return v > 0 ? '∞' : '-∞';
   if (v === 0) return '0';
   const a = Math.abs(v);
-  if (sig === 0){                                  // まるめない
+  if (sig === 0){                                  // Do not round
     if (a >= 1e21 || a < 1e-6) return expo(v.toExponential());
     return group(trimZeros(v.toPrecision(17)));
   }
@@ -545,7 +545,7 @@ function expo(s){
   return trimZeros(m[1]) + '×10' + sup(parseInt(m[2], 10));
 }
 
-/* ---------- 画面 ---------- */
+/* ---------- Screen ---------- */
 let cat = C[0];
 let tatamiM2 = 1.62;
 
@@ -612,7 +612,7 @@ function run(){
     const td2 = document.createElement('td'); td2.className = 'unit';
     const sy = document.createElement('span'); sy.className = 'sym'; sy.textContent = u.s;
     td2.appendChild(sy);
-    if (u.nm !== u.s) {   // 「日 日」のように記号と名前が同じ行では名前を出さない
+    if (u.nm !== u.s) {   // Skip the name where symbol and name are the same, to avoid rows like "d d"
       const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = u.nm;
       td2.appendChild(nm);
     }
@@ -679,7 +679,7 @@ $('swapTop').addEventListener('click', () => {
 
 buildCats(); buildUnits(); run();
 
-/* テスト用に中身を外へ出す（画面の動作には関係ありません） */
+/* Exposed for the tests (nothing on screen depends on this) */
 window.__unit = { C, convert, toBase, fromBase, parseNum, fmt, unitsOf:()=>unitsOf(cat) };
 </script>
 </body>
