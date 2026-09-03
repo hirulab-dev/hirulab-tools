@@ -40,8 +40,8 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank, literals  # noqa: E402
-from en_common import (JA_CHARS, code_japanese, script_span,  # noqa: E402
-                       translate_literals)
+from en_common import (JA_CHARS, code_japanese, comments, script_span,  # noqa: E402
+                       translate_comments, translate_literals)
 
 BASE = "https://hirulab-dev.github.io/hirulab-tools/"
 OGP = BASE + "ogp/ogp-en-char-counter.png"
@@ -163,6 +163,20 @@ CODE_DIFF = [
      "単位そのものが違うので、訳ではなく別の式になる"),
 ]
 
+# JS のコメント(2026-09-03 昼 追加)。それまで**訳していなかった**ので、
+# 英語ページのソースに日本語の注釈が3行そのまま載っていた。⚠ 訳は行数を変えないこと
+COMMENTS = {
+    '// Xの数え方(twitter-text の公開設定 v3)。「全角なら2」ではない。':
+    "// How X counts (twitter-text's published configuration v3). It is not \"full-width counts 2\".",
+    '// 重みが1になるのはこの4つの範囲の符号位置だけで、それ以外はすべて2。':
+    '// Only code points in these four ranges weigh 1; everything else weighs 2.',
+    '// 絵文字は書記素クラスタ1つで2(肌の色・ZWJ・国旗をつないでも増えない)。URLは長さによらず23。':
+    '// An emoji weighs 2 per grapheme cluster (skin tone, ZWJ and flags do not add). Any URL counts 23.',
+    '// 古いブラウザでは符号位置ごと(絵文字は多めに出る)':
+    '// Older browsers fall back to per-code-point counting (emoji come out high)',
+    '// URLを23枠のプレースホルダに': '// Replace each URL with a 23-wide placeholder',
+}
+
 # スクリプトの中の文字列リテラル。中身の完全一致で差し替える
 TR = {
     "(超過)": "(over)",
@@ -208,7 +222,11 @@ def main():
     en = en[:nav.start()] + en_nav(docs) + en[nav.end():]
 
     s, e = script_span(en)
-    core_en, missing = translate_literals(en[s:e], TR, KEEP)
+    core_en, missing = translate_comments(en[s:e], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(m[:100] for m in missing[:8])))
+    core_en, missing = translate_literals(core_en, TR, KEEP)
     if missing:
         sys.exit("訳されていない文字列が %d 件あります:\n  %s"
                  % (len(missing), "\n  ".join(sorted(set(missing))[:12])))
@@ -233,6 +251,11 @@ def main():
     ident = code_japanese(en[s2:e2])
     if ident:
         sys.exit("スクリプトの中に文字列でない日本語があります: %s" % ident[:4])
+
+    # ★コメントにも日本語が残っていないこと(2026-09-03 昼 追加)
+    ja_com = [c for c in comments(en[s2:e2]) if JA_CHARS.search(c)]
+    if ja_com:
+        sys.exit("コメントに日本語が %d 件残っています: %s" % (len(ja_com), ja_com[0][:120]))
 
     # (4) 文字列の中身を空にすると、日英でコードが一致すること。
     #     ★このページだけは CODE_DIFF のぶん**違う行があってよい**。ただし

@@ -39,7 +39,8 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank, literals  # noqa: E402
-from en_common import (JA_CHARS, code_japanese, translate_literals,  # noqa: E402
+from en_common import (JA_CHARS, code_japanese, comments,  # noqa: E402
+                       translate_comments, translate_literals,
                        script_span as _script_span)
 
 
@@ -193,6 +194,52 @@ HTML_PARTS = [
 # ⚠ 訳の表は**文字列の中身で引く**ので、同じ日本語は必ず同じ英語になる。
 #    「文字列「」そのもの」が i フラグの有無で2通りあるのは、
 #    **日本語側で別の文字列にしてある**から書き分けられている。
+# JS のコメント(2026-09-03 昼 追加)。それまで**訳していなかった**ので、
+# 英語ページのソースに日本語の注釈が18行そのまま載っていた。⚠ 訳は行数を変えないこと
+COMMENTS = {
+    '// ---- 日本語解説(簡易パーサ) ----':
+    '// ---- Plain-language explanation (small parser) ----',
+
+    '// ★2026-09-02 追加: 捕獲グループの数を先に数える。':
+    '// ★Added 2026-09-02: count the capturing groups first.',
+    '//   `\\3` が「グループ3と同じ文字列」なのか、それとも8進エスケープ(制御文字)なのかは':
+    '//   Whether `\\3` means "the same text as group 3" or an octal escape (a control character)',
+    '//   **その式にグループが3つ以上あるか**で決まる(ECMAScript の Annex B)。':
+    '//   depends on **whether the pattern has at least 3 groups** (ECMAScript Annex B).',
+    '//   数えずに書いていたので、`(a)\\3` を「グループ3と同じ文字列」と説明していた。':
+    '//   Without counting, `(a)\\3` was being explained as "the same text as group 3".',
+    '//   実際は U+0003 なので当たらず、画面は「マッチなし」と出る = 説明と結果が食い違っていた。':
+    '//   It is really U+0003, so nothing matches — the explanation contradicted the result.',
+
+    '// ★2026-09-02 追加: 説明の「種類」(kind)を持たせて画面の data-kind に出す。':
+    '// ★Added 2026-09-02: give each explanation a kind, and put it in data-kind on the page.',
+    '//   文言は日英で変わるが種類は変わらないので、**検証が日英どちらのページにも当たる**':
+    '//   The wording differs by language but the kind does not, so **one verification fits both**',
+    '//   (url・headers・jwt の data-code と同じ手)。':
+    '//   (the same trick as data-code in the url, headers and jwt tools).',
+
+    '// no は捕獲グループの番号(それ以外は 0)。画面の data-group に出して検証に使う':
+    '// `no` is the capturing group number (0 otherwise). It goes in data-group for the tests',
+    '// ★グループがその番号まで無いときは後方参照ではない(Annex B の8進エスケープ)':
+    '// ★If the pattern has no group with that number this is not a back-reference (Annex B octal)',
+    '// 直後の量指定子を拾って直前の説明に付ける':
+    '// Pick up the quantifier that follows and attach it to the previous explanation',
+
+    '// ★2026-09-02: 500件で止めたうえで件数もその数を出していたので、':
+    '// ★2026-09-02: matching stopped at 500 but the count printed that same number,',
+    '//   600件あるのに「501 件マッチ」と表示していた(画面の数字が単に違う)。':
+    '//   so 600 matches were reported as "501 matches" (the number on screen was simply wrong).',
+    '//   → 数えるのと描くのを分け、打ち切ったときは打ち切ったと書く。':
+    '//   → Counting and drawing are now separate, and a truncated list says it was truncated.',
+
+    '// ★長さ0のマッチは印が見えないので、細い縦線を立てる(文字は足さない)':
+    '// ★A zero-length match has nothing to highlight, so draw a thin bar (without adding text)',
+    '// ★ここで `|| 1` と書いていたため、長さ0のマッチのたびに1文字ぶん**出力から落ちていた**':
+    '// ★This said `|| 1`, which **dropped one character from the output** per zero-length match',
+    '//   (`a*` を `bb` に当てるとテスト文字列が画面から消える)':
+    '//   (running `a*` against `bb` made the test string vanish from the screen)',
+}
+
 TR = {
     # プリセット(名前と式。英語圏向けに中身ごと差し替える)
     "メールアドレス": "Email address",
@@ -303,7 +350,11 @@ def main():
     en = en[:nav.start()] + en_nav(docs) + en[nav.end():]
 
     s, e = script_span(en)
-    core_en, missing = translate_literals(en[s:e], TR, KEEP)
+    core_en, missing = translate_comments(en[s:e], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(m[:100] for m in missing[:8])))
+    core_en, missing = translate_literals(core_en, TR, KEEP)
     if missing:
         sys.exit("訳されていない文字列が %d 件あります:\n  %s"
                  % (len(missing), "\n  ".join(sorted(set(missing))[:12])))
@@ -325,6 +376,11 @@ def main():
             kept.append(body)
 
     # (3) 識別子として書かれた日本語
+    # ★コメントにも日本語が残っていないこと(2026-09-03 昼 追加)
+    ja_com = [c for c in comments(en[s2:e2]) if JA_CHARS.search(c)]
+    if ja_com:
+        sys.exit("コメントに日本語が %d 件残っています: %s" % (len(ja_com), ja_com[0][:120]))
+
     ident = code_japanese(en[s2:e2])
     if ident:
         sys.exit("識別子として書かれた日本語が %d 箇所あります:\n  %s"

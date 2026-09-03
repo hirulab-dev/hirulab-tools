@@ -123,6 +123,13 @@ def translate_comments(src, tr):
     missing = [c for c in comments(src) if JA_CHARS.search(c) and c not in tr]
     if missing:
         return src, missing
+    # ⚠ 行数が変わる訳は**全部まとめて**出す(1件ずつ止めると、直すたびに次が出て往復が増える。
+    #   2026-09-03 昼、date の37件を訳したときに実際にそうなった)
+    bad = ["%d行 → %d行: %s" % (c.count("\n") + 1, tr[c].count("\n") + 1, c[:70])
+           for c in comments(src) if c in tr and tr[c].count("\n") != c.count("\n")]
+    if bad:
+        sys.exit("コメントの訳で行数が変わっています(検査が壊れます)。%d 件:\n  %s"
+                 % (len(bad), "\n  ".join(bad)))
     out, i, n = [], 0, len(src)
     while i < n:
         c = src[i]

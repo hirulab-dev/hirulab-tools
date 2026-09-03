@@ -40,7 +40,8 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank, literals  # noqa: E402
-from en_common import (JA_CHARS, code_japanese, script_span,  # noqa: E402
+from en_common import (JA_CHARS, code_japanese, comments,  # noqa: E402
+                       translate_comments, script_span,
                        translate_literals)
 
 BASE = "https://hirulab-dev.github.io/hirulab-tools"
@@ -278,6 +279,146 @@ HTML_PARTS = [
 # ⚠ 訳の表は**文字列の中身で引く**ので、同じ日本語は必ず同じ英語になる。
 #    逆に、**別の意味で同じ日本語を使っていると衝突する**(このページの "日" が
 #    「日数の単位」と「日曜」の両方だった)。原本側で鍵が分かれるように直してある。
+# JS のコメント(2026-09-03 昼 追加)。それまで**訳していなかった**ので、
+# 英語ページのソースに日本語の注釈が71行そのまま載っていた(4ページ中いちばん多い)。
+# ⚠ 訳は行数を変えないこと(日英のコード突き合わせが行単位のため)
+COMMENTS = {
+    '''/* 月の名前。日本語では「9月」、英語では「Sep」。
+   ★英語版のために表にした(2026-09-02)。日本語の表示は前と1文字も変わらない。
+   直に `${dt.getMonth()+1}月` と書くと、英語版で語順を変えられない
+   (日英でコードをバイト単位で一致させる縛りがあり、`${…}` の並びは動かせないため)。 */''':
+    '''/* Month names. Japanese writes the number then a suffix ("9-gatsu"); English writes "Sep".
+   ★Turned into a table for the English version (2026-09-02). The Japanese output is unchanged.
+   Writing the number and its suffix inline would leave no way to reorder the words in English
+   (the two pages must match byte for byte, so the order of `${…}` cannot move). */''',
+
+    '/* ---------- 日付ユーティリティ(すべてローカル時刻の 0:00 で扱う) ---------- */':
+    '/* ---------- Date helpers (everything is local time at 00:00) ---------- */',
+
+    '// 存在しない日は末日に丸める': '// a date that does not exist rounds down to the last day of the month',
+
+    '/* ---------- 日本の祝日 ---------- */': '/* ---------- Japanese public holidays ---------- */',
+
+    '// 最初の月曜までの日数': '// days until the first Monday',
+
+    '''/* 春分・秋分は「その年の何日か」を近似式で出す。★1980年の前後で定数が違う
+   (2026-09-01 まではあとの式だけを全部の年に当てていて、1979年以前が1日ずれていた)。
+   Math.trunc であって Math.floor ではない: 負の年差で 0 のほうに丸める式なので、
+   floor にすると 1979年以前がまた1日ずれる。 */''':
+    '''/* The equinoxes are approximated as "which day of that month". ★The constants differ
+   before and after 1980 (until 2026-09-01 only the later formula was used for every year,
+   so anything before 1979 was a day out). This is Math.trunc, not Math.floor: the formula
+   rounds toward zero for negative year offsets, and floor puts pre-1979 back off by a day. */''',
+
+    '/* 一日限りの休日(その日のためだけに法律が作られたもの) */':
+    '/* One-off holidays (a law was passed for that single day) */',
+
+    '''/** その年の祝日を {キー: 名称} で返す(振替休日・国民の休日を含む)
+ *
+ * ★2026-09-01: それまで**いまの規則を1949年から2099年まで全部の年に当てていた**。
+ *   画面は1949年から受け付けるので、1949〜2021年の73年ぶんが黙って間違っていた
+ *   (成人の日は1999年まで1月15日、天皇誕生日は平成のあいだ12月23日、
+ *    海の日は1995年まで無く、2020・2021年は五輪で動いた、など)。
+ *   祝日は期間の「営業日」の数にも効くので、間違いは日数計算にも回っていた。
+ *   → 改正の年で切り替える形に直した。
+ *
+ * ⚠ 2つだけ、よく使われている参照実装(Python の jpholiday)と食い違う。
+ *   どちらもこちらが法律どおりで、向こうが**規則を過去にさかのぼって当てている**:
+ *   - 国民の休日は昭和60年法律第103号(1985-12-27施行)なので、**最初は1986年5月4日**。
+ *     jpholiday は1949年からの5月4日を全部そう呼ぶ(31日ぶん)
+ *   - 振替休日は昭和48年法律第10号(1973-04-12施行)なので、**最初は1973年4月30日**。
+ *     jpholiday は同じ年の2月12日も振替休日にする
+ *   この2つを除けば1949〜2099年の151年ぶんが完全に一致する(`test_date.py` で毎回確かめている)。
+ */''':
+    '''/** Holidays for one year as {key: name} (substitute and citizens' holidays included)
+ *
+ * ★2026-09-01: this used to **apply today's rules to every year from 1949 to 2099**.
+ *   The page accepts dates from 1949, so 73 years (1949-2021) were quietly wrong
+ *   (Coming of Age Day was 15 January until 1999, the Emperor's Birthday was 23 December
+ *    through Heisei, Marine Day did not exist before 1996, and 2020-2021 moved for the
+ *    Olympics). Holidays also feed the working-day counts, so the error spread there too.
+ *   → Rules now switch at the year each amendment took effect.
+ *
+ * ⚠ Two cases disagree with the usual reference implementation (Python's jpholiday).
+ *   In both, this page follows the statute and jpholiday **applies it retroactively**:
+ *   - Citizens' holidays come from Act No. 103 of 1985 (in force 1985-12-27), so the
+ *     **first one is 4 May 1986**. jpholiday calls every 4 May from 1949 one (31 days).
+ *   - Substitute holidays come from Act No. 10 of 1973 (in force 1973-04-12), so the
+ *     **first one is 30 April 1973**. jpholiday also marks 12 February of that year.
+ *   Apart from those two, all 151 years 1949-2099 match exactly (`test_date.py` checks).
+ */''',
+
+    '// [Date, 名称]': '// [Date, name]',
+    '// 2000年からハッピーマンデー': '// moved to a Monday from 2000 (the "Happy Monday" amendment)',
+    '// 昭和': '// Showa',
+    '// 平成': '// Heisei',
+    '// 令和(2019年は無い)': '// Reiwa (not in 2019)',
+    '// 4月29日だった時期': '// the years when it fell on 29 April',
+    '// 東京五輪で移動': '// moved for the Tokyo Olympics',
+    '// 新設時は7月20日': '// 20 July when it was first introduced',
+    '// 振替休日(1973-04-12 施行。最初に効いたのは同年4月30日)':
+    '// substitute holidays (in force 1973-04-12; the first one was 30 April that year)',
+    '// 2007年からは「その日より後の、いちばん近い祝日でない日」。それより前は「翌日」だけ。':
+    '// from 2007 it is "the nearest later day that is not a holiday"; before that, just "the next day".',
+    '// 国民の休日: 祝日に挟まれた日(1985-12-27 施行。最初に効いたのは1986年5月4日)':
+    "// citizens' holiday: a day sandwiched between two holidays (in force 1985-12-27; first 1986-05-04)",
+
+    '/* ---------- 和暦 ---------- */': '/* ---------- Japanese era years ---------- */',
+    '/* ---------- 出力の組み立て ---------- */': '/* ---------- Building the output ---------- */',
+
+    '''/* 第1引数の k は**言葉ではない名札**。画面には出ないが、検証がカードを引くときに使う。
+   ラベルの文字で引くと、英語版に同じ検証を当てられない(2026-09-02。
+   url・headers・jwt の data-code、正規表現テスタの data-kind と同じ手)。 */''':
+    '''/* The first argument k is a **tag, not words**. It never appears on screen; the tests use
+   it to find a card. Looking cards up by their label would make the same tests impossible
+   to run against the English page (2026-09-02; same trick as data-code and data-kind). */''',
+
+    '/* ---------- タブ ---------- */': '/* ---------- Tabs ---------- */',
+    '/* ---------- 1. 期間 ---------- */': '/* ---------- 1. Between two dates ---------- */',
+
+    '''/* 年月日の内訳。★2026-09-01 是正: 前は「終了日の前の月の日数を借りて引く」形だったが、
+     **月末から数え始めたときに、この道具自身の加減算タブと答えが合わなかった**。
+     例: 2008-10-31 → 2009-12-23 を「1年1か月22日」と出すが、
+     加減算タブで 2008-10-31 に1年1か月を足すと 2009-11-30(存在しない日は末日に丸める)で、
+     そこから22日は 2009-12-22。1日ずれる。
+     → **足し戻すと元に戻る形**に変えた。まず「足しても行き過ぎない月数」を出し、
+     残りを日数で数える。addMonths と同じ丸め方を通るので、ずれようがない。 */''':
+    '''/* Years/months/days breakdown. ★Fixed 2026-09-01: this borrowed the length of the month before
+     the end date, which **disagreed with this tool's own add/subtract tab whenever the count
+     started on the last day of a month**. Example: 2008-10-31 → 2009-12-23 came out as
+     "1 year 1 month 22 days", but adding 1 year 1 month to 2008-10-31 on the other tab gives
+     2009-11-30 (a date that does not exist rounds down), and 22 days later is 2009-12-22.
+     → Now **adding the result back returns the original**: take the largest number of months
+     that does not overshoot, then count the rest in days, through the same rounding. */''',
+
+    '// 営業日・週末・祝日を数える(終了日を含むかは incl に従う)':
+    '// count working days, weekend days and holidays (whether the end date counts follows `incl`)',
+
+    '/* ---------- 2. 加減算 ---------- */': '/* ---------- 2. Add and subtract ---------- */',
+    '// 営業日': '// working days',
+    '/* ---------- 3. 年齢・学年 ---------- */': '/* ---------- 3. Age and school year ---------- */',
+
+    '''/* ★2026-09-01 是正: 前は月日をそのまま比べていたので、**2月29日生まれの平年**だけ
+     「次の誕生日まで: 今日です」と出しているのに満年齢が1つ足りない、という食い違いが出た
+     (次の誕生日の欄は 2月28日に丸めていて、こちらは丸めていなかった)。
+     → 応当日を同じように末日に丸めてから比べる。民法143条2項の「応当する日がないときは
+     その月の末日に満了する」とも同じ側になる。 */''':
+    '''/* ★Fixed 2026-09-01: this compared month and day directly, so someone born on 29 February
+     saw "next birthday: today" in a common year while the age below it was one year short
+     (the next-birthday field rounded to 28 February; this one did not).
+     → The anniversary is now rounded down to the end of the month the same way before
+     comparing, which also matches Article 143(2) of the Civil Code. */''',
+
+    '// 数え年': '// kazoedoshi (the traditional count, where you are 1 at birth)',
+    '// 学年(4/2〜翌4/1 が同学年)。入学年度 = 満6歳になる年度の翌年度4月':
+    '// school year (2 Apr - 1 Apr). Entry = April of the year after the year you turn 6',
+    '// 早生まれは1つ前の年度扱い': '// born Jan-Apr 1 counts as the previous school year',
+    '// 小1 = 1': '// first year of primary school = 1',
+    '/* ---------- 4. 和暦 ---------- */': '/* ---------- 4. Era years ---------- */',
+    '/* ---------- 5. 祝日一覧 ---------- */': '/* ---------- 5. Holiday list ---------- */',
+    '/* ---------- 初期化 ---------- */': '/* ---------- Start-up ---------- */',
+}
+
 TR = {
     # 曜日(JS の getDay() の順)と月の名前
     "日": "Sun", "月": "Mon", "火": "Tue", "水": "Wed", "木": "Thu", "金": "Fri", "土": "Sat",
@@ -456,7 +597,11 @@ def main():
     en = en[:nav.start()] + en_nav(docs) + en[nav.end():]
 
     s, e = script_span(en)
-    core_en, missing = translate_literals(en[s:e], TR, KEEP)
+    core_en, missing = translate_comments(en[s:e], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(m[:100] for m in missing[:8])))
+    core_en, missing = translate_literals(core_en, TR, KEEP)
     if missing:
         sys.exit("訳されていない文字列が %d 件あります:\n  %s"
                  % (len(missing), "\n  ".join(sorted(set(missing))[:12])))
@@ -478,6 +623,11 @@ def main():
             kept.append(body)
 
     # (3) 識別子として書かれた日本語
+    # ★コメントにも日本語が残っていないこと(2026-09-03 昼 追加)
+    ja_com = [c for c in comments(en[s2:e2]) if JA_CHARS.search(c)]
+    if ja_com:
+        sys.exit("コメントに日本語が %d 件残っています: %s" % (len(ja_com), ja_com[0][:120]))
+
     ident = code_japanese(en[s2:e2])
     if ident:
         sys.exit("識別子として書かれた日本語が %d 箇所あります:\n  %s"

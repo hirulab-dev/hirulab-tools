@@ -28,7 +28,8 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank, literals  # noqa: E402
-from en_common import (JA_CHARS, code_japanese, script_span,  # noqa: E402
+from en_common import (JA_CHARS, code_japanese, comments,  # noqa: E402
+                       translate_comments, script_span,
                        translate_literals)
 
 BASE = "https://hirulab-dev.github.io/hirulab-tools/"
@@ -268,6 +269,58 @@ HTML_PARTS = [
 </footer>'''),
 ]
 
+# JS のコメント(2026-09-03 昼 追加)。それまで**訳していなかった**ので、
+# 英語ページのソースに日本語の注釈が12行そのまま載っていた。⚠ 訳は行数を変えないこと
+COMMENTS = {
+    '// Math.round(-0) は -0 のままで "-0" と表示されてしまうので 0 に正規化する':
+    '// Math.round(-0) stays -0 and prints as "-0", so normalise it to 0',
+
+    '// 社会保険料の上限（標準報酬月額の最高等級と、賞与の上限）':
+    '// Caps on social insurance (the top standard-monthly-remuneration grade, and the bonus caps)',
+
+    '// 課税所得の下限, 税率%, 控除額':
+    '// lower bound of taxable income, rate %, fixed deduction',
+
+    '/* 給与所得控除（2020年分以降の一般的な区分） */':
+    '/* Employment income deduction (the ordinary brackets from tax year 2020 on) */',
+
+    '''/* 社会保険料。★2026-09-01 是正: それまで**額面に料率を掛けるだけ**で上限を見ていなかった。
+     そのせいで「うち賞与の合計」の欄が結果を1円も変えず(どう割り振っても合計が同じ)、
+     年収が高いほど実際より大きく引かれる形になっていた
+     (例: 年収2,000万・うち賞与400万を年2回なら、厚生年金を183万と出していた。
+      上限を入れると98.8万 = 月給ぶん71.4万 + 賞与ぶん27.5万。84万円ぶん多く引いていた)。
+     → 月給ぶんと賞与ぶんを分け、それぞれの上限で頭打ちにする。これで賞与の欄が効く。
+     ⚠ 標準報酬月額の等級表は使わず、月額をそのまま上限で切っている(画面に書いてあるとおりの近似)。
+     ⚠ 上限額も下の欄で直せる(制度が変わるので固定値を信じさせない、というこの道具の方針)。 */''':
+    '''/* Social insurance. ★Fixed 2026-09-01: this used to multiply gross pay by the rates, no caps.
+     Because of that the "of which bonuses" field changed the result by zero yen (any split gave
+     the same total), and the higher the income the more it over-deducted
+     (20M yen with 4M paid as two bonuses reported 1.83M yen of employees' pension;
+      with the caps it is 0.988M = 0.714M monthly + 0.275M bonus — 840k yen too much).
+     → Monthly pay and bonuses are computed separately, each capped. That makes the field matter.
+     ⚠ The grade table is not used; the monthly amount is clipped at the cap (the stated approximation).
+     ⚠ The caps are editable below (this tool never asks you to trust a fixed figure). */''',
+
+    '// 月給ぶん: 月額を上限で切って12か月 / 賞与ぶん: 1回ぶんを上限で切って回数':
+    '// monthly: clip the monthly amount at the cap, times 12 / bonus: clip one payment, times the count',
+
+    '''/* ★2026-09-02 夜: object のキーに表示名を使うのをやめ、[名札, 表示名, 金額] の並びにした。
+     英語版を作るとき、表示名は訳されるが**名札は日英で同じ**でなければ検証が両方に当たらない
+     (9/2 昼の日付計算機で `data-k` を足したのと同じ話)。 */''':
+    '''/* ★2026-09-02: the object key is no longer the display name; the shape is [tag, label, amount].
+     The label gets translated, but the tag has to stay identical in both languages or the
+     verification cannot run against both pages (same as the date calculator's `data-k`). */''',
+
+    '// 健保の賞与は「年度の累計」が上限なので、1回ぶんではなく年間で切る':
+    '// the health-insurance bonus cap is a running fiscal-year total, so clip yearly, not per payment',
+
+    '// 雇用保険に上限は無い': '// employment insurance has no cap',
+    '// 所得税': '// income tax',
+    '// 住民税': '// residence tax',
+    '// 表示': '// render',
+    '// 初期化': '// start-up',
+}
+
 # スクリプトの中の文字列リテラル。中身の完全一致で差し替える(引用符の種類は問わない)
 TR = {
     # 内訳の行の名前。★これは画面に出る「値」なので実体参照は書かない
@@ -332,7 +385,11 @@ def main():
     en = en[:nav.start()] + en_nav(docs) + en[nav.end():]
 
     s, e = script_span(en)
-    core_en, missing = translate_literals(en[s:e], TR, KEEP)
+    core_en, missing = translate_comments(en[s:e], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(m[:100] for m in missing[:8])))
+    core_en, missing = translate_literals(core_en, TR, KEEP)
     if missing:
         sys.exit("訳されていない文字列が %d 件あります:\n  %s"
                  % (len(missing), "\n  ".join(sorted(set(missing))[:12])))
@@ -354,6 +411,11 @@ def main():
             kept.append(body)
 
     # (3) 文字列でもコメントでも正規表現でもない日本語(識別子・object のキー)が無いこと
+    # ★コメントにも日本語が残っていないこと(2026-09-03 昼 追加)
+    ja_com = [c for c in comments(en[s2:e2]) if JA_CHARS.search(c)]
+    if ja_com:
+        sys.exit("コメントに日本語が %d 件残っています: %s" % (len(ja_com), ja_com[0][:120]))
+
     ident = code_japanese(en[s2:e2])
     if ident:
         sys.exit("スクリプトの中に文字列でない日本語があります: %s" % ident[:4])

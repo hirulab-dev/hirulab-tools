@@ -163,23 +163,23 @@
 const $ = id => document.getElementById(id);
 const URL_RE = /https?:\/\/[^\s]+/g;
 
-// Xの数え方(twitter-text の公開設定 v3)。「全角なら2」ではない。
-// 重みが1になるのはこの4つの範囲の符号位置だけで、それ以外はすべて2。
-// 絵文字は書記素クラスタ1つで2(肌の色・ZWJ・国旗をつないでも増えない)。URLは長さによらず23。
+// How X counts (twitter-text's published configuration v3). It is not "full-width counts 2".
+// Only code points in these four ranges weigh 1; everything else weighs 2.
+// An emoji weighs 2 per grapheme cluster (skin tone, ZWJ and flags do not add). Any URL counts 23.
 const W1 = [[0, 4351], [8192, 8205], [8208, 8223], [8242, 8247]];
 const EMOJI_RE = /\p{Emoji_Presentation}|\uFE0F|\u20E3|\p{Regional_Indicator}|\p{Emoji_Modifier}/u;
 const SEG = (typeof Intl !== "undefined" && Intl.Segmenter)
   ? new Intl.Segmenter("und", { granularity: "grapheme" }) : null;
 
 function clusters(t) {
-  if (!SEG) { return [...t]; }        // 古いブラウザでは符号位置ごと(絵文字は多めに出る)
+  if (!SEG) { return [...t]; }        // Older browsers fall back to per-code-point counting (emoji come out high)
   const out = [];
   for (const s of SEG.segment(t)) { out.push(s.segment); }
   return out;
 }
 
 function xWeight(text) {
-  const t = text.replace(URL_RE, "U".repeat(23)); // URLを23枠のプレースホルダに
+  const t = text.replace(URL_RE, "U".repeat(23)); // Replace each URL with a 23-wide placeholder
   let w = 0;
   for (const cl of clusters(t)) {
     if (EMOJI_RE.test(cl)) { w += 2; continue; }

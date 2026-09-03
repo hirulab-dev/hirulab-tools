@@ -292,17 +292,17 @@
 <script>
 "use strict";
 const $ = s => document.querySelector(s);
-// Math.round(-0) は -0 のままで "-0" と表示されてしまうので 0 に正規化する
+// Math.round(-0) stays -0 and prints as "-0", so normalise it to 0
 const yen = n => "¥" + (Math.round(n) || 0).toLocaleString("en-US");
 
 const DEFAULT_RATES = {
   r_health:5.00, r_care:0.80, r_pension:9.15, r_emp:0.55,
   r_res:10.0, r_resflat:5000, d_basic:480000, d_basic_r:430000,
   d_dep:380000, d_dep_r:330000, r_recon:2.1,
-  // 社会保険料の上限（標準報酬月額の最高等級と、賞与の上限）
+  // Caps on social insurance (the top standard-monthly-remuneration grade, and the bonus caps)
   c_health_m:1390000, c_pension_m:650000, c_health_b:5730000, c_pension_b:1500000
 };
-// 課税所得の下限, 税率%, 控除額
+// lower bound of taxable income, rate %, fixed deduction
 const DEFAULT_BRACKETS = [
   [0,        5,  0],
   [1950000,  10, 97500],
@@ -317,7 +317,7 @@ let brackets = load("hirulab.takehome.brackets") || DEFAULT_BRACKETS.map(b=>b.sl
 function load(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
 function save(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 
-/* 給与所得控除（2020年分以降の一般的な区分） */
+/* Employment income deduction (the ordinary brackets from tax year 2020 on) */
 function salaryDeduction(income){
   if (income <= 1625000) return Math.min(income, 550000);
   if (income <= 1800000) return income*0.4 - 100000;
@@ -343,54 +343,54 @@ function calc(){
   const age    = +$("#age").value || 0;
   const deps   = Math.max(0, +$("#deps").value || 0);
 
-  /* 社会保険料。★2026-09-01 是正: それまで**額面に料率を掛けるだけ**で上限を見ていなかった。
-     そのせいで「うち賞与の合計」の欄が結果を1円も変えず(どう割り振っても合計が同じ)、
-     年収が高いほど実際より大きく引かれる形になっていた
-     (例: 年収2,000万・うち賞与400万を年2回なら、厚生年金を183万と出していた。
-      上限を入れると98.8万 = 月給ぶん71.4万 + 賞与ぶん27.5万。84万円ぶん多く引いていた)。
-     → 月給ぶんと賞与ぶんを分け、それぞれの上限で頭打ちにする。これで賞与の欄が効く。
-     ⚠ 標準報酬月額の等級表は使わず、月額をそのまま上限で切っている(画面に書いてあるとおりの近似)。
-     ⚠ 上限額も下の欄で直せる(制度が変わるので固定値を信じさせない、というこの道具の方針)。 */
+  /* Social insurance. ★Fixed 2026-09-01: this used to multiply gross pay by the rates, no caps.
+     Because of that the "of which bonuses" field changed the result by zero yen (any split gave
+     the same total), and the higher the income the more it over-deducted
+     (20M yen with 4M paid as two bonuses reported 1.83M yen of employees' pension;
+      with the caps it is 0.988M = 0.714M monthly + 0.275M bonus — 840k yen too much).
+     → Monthly pay and bonuses are computed separately, each capped. That makes the field matter.
+     ⚠ The grade table is not used; the monthly amount is clipped at the cap (the stated approximation).
+     ⚠ The caps are editable below (this tool never asks you to trust a fixed figure). */
   const bonusN = Math.max(1, Math.round(+$("#bonusN").value || 1));
   const monthlyPay = Math.max(0, annual - bonus) / 12;
   const perBonus = bonus / bonusN;
-  // 月給ぶん: 月額を上限で切って12か月 / 賞与ぶん: 1回ぶんを上限で切って回数
+  // monthly: clip the monthly amount at the cap, times 12 / bonus: clip one payment, times the count
   const si2 = (rate, capM, capB) =>
     Math.min(monthlyPay, capM) * 12 * rate/100 +
     Math.min(perBonus, capB) * bonusN * rate/100;
   let si = 0;
-  /* ★2026-09-02 夜: object のキーに表示名を使うのをやめ、[名札, 表示名, 金額] の並びにした。
-     英語版を作るとき、表示名は訳されるが**名札は日英で同じ**でなければ検証が両方に当たらない
-     (9/2 昼の日付計算機で `data-k` を足したのと同じ話)。 */
+  /* ★2026-09-02: the object key is no longer the display name; the shape is [tag, label, amount].
+     The label gets translated, but the tag has to stay identical in both languages or the
+     verification cannot run against both pages (same as the date calculator's `data-k`). */
   const parts = [];
   if ($("#health").checked){
-    // 健保の賞与は「年度の累計」が上限なので、1回ぶんではなく年間で切る
+    // the health-insurance bonus cap is a running fiscal-year total, so clip yearly, not per payment
     const healthB = Math.min(bonus, R.c_health_b);
     const health = r => Math.min(monthlyPay, R.c_health_m) * 12 * r/100 + healthB * r/100;
     parts.push(["health", "Health insurance", health(R.r_health)]);
     if (age >= 40 && age < 65) parts.push(["care", "Long-term care insurance", health(R.r_care)]);
   }
   if ($("#pension").checked) parts.push(["pension", "Employees' pension", si2(R.r_pension, R.c_pension_m, R.c_pension_b)]);
-  if ($("#empIns").checked)  parts.push(["emp", "Employment insurance", annual * R.r_emp/100]);   // 雇用保険に上限は無い
+  if ($("#empIns").checked)  parts.push(["emp", "Employment insurance", annual * R.r_emp/100]);   // employment insurance has no cap
   for (const p of parts) si += p[2];
 
   const salDed = salaryDeduction(annual);
   const incomeAfterSal = Math.max(0, annual - salDed);
 
-  // 所得税
+  // income tax
   const dedI = R.d_basic + deps*R.d_dep + si;
   const taxableI = Math.floor(Math.max(0, incomeAfterSal - dedI) / 1000) * 1000;
   const baseTax = incomeTax(taxableI);
   const incTax = baseTax * (1 + R.r_recon/100);
 
-  // 住民税
+  // residence tax
   const dedR = R.d_basic_r + deps*R.d_dep_r + si;
   const taxableR = Math.floor(Math.max(0, incomeAfterSal - dedR) / 1000) * 1000;
   const resTax = taxableR > 0 ? taxableR * R.r_res/100 + R.r_resflat : 0;
 
   const net = annual - si - incTax - resTax;
 
-  // 表示
+  // render
   $("#netY").textContent = yen(net);
   $("#netM").textContent = yen(net/12);
   $("#rate").textContent = annual ? (net/annual*100).toFixed(1) + "%" : "—";
@@ -443,7 +443,7 @@ function renderBrackets(){
   });
 }
 
-// 初期化
+// start-up
 (function init(){
   const savedRates = load("hirulab.takehome.rates");
   for (const k in DEFAULT_RATES){

@@ -210,7 +210,7 @@ const PRESETS = [
   { name: "Date (YYYY-MM-DD)", p: String.raw`\d{4}-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01])` },
 ];
 
-// ---- 日本語解説(簡易パーサ) ----
+// ---- Plain-language explanation (small parser) ----
 const CLASS_DESC = {
   "\\d": "a digit (0-9)", "\\D": "anything but a digit", "\\w": "a letter, digit, or underscore", "\\W": "anything but a word character",
   "\\s": "a whitespace character (space, tab, newline)", "\\S": "anything but whitespace", "\\b": "a word boundary", "\\B": "not a word boundary",
@@ -230,11 +230,11 @@ function quantDesc(t) {
   return "";
 }
 
-// ★2026-09-02 追加: 捕獲グループの数を先に数える。
-//   `\3` が「グループ3と同じ文字列」なのか、それとも8進エスケープ(制御文字)なのかは
-//   **その式にグループが3つ以上あるか**で決まる(ECMAScript の Annex B)。
-//   数えずに書いていたので、`(a)\3` を「グループ3と同じ文字列」と説明していた。
-//   実際は U+0003 なので当たらず、画面は「マッチなし」と出る = 説明と結果が食い違っていた。
+// ★Added 2026-09-02: count the capturing groups first.
+//   Whether `\3` means "the same text as group 3" or an octal escape (a control character)
+//   depends on **whether the pattern has at least 3 groups** (ECMAScript Annex B).
+//   Without counting, `(a)\3` was being explained as "the same text as group 3".
+//   It is really U+0003, so nothing matches — the explanation contradicted the result.
 function countGroups(pattern) {
   let n = 0, i = 0, inClass = false;
   while (i < pattern.length) {
@@ -251,9 +251,9 @@ function countGroups(pattern) {
   return n;
 }
 
-// ★2026-09-02 追加: 説明の「種類」(kind)を持たせて画面の data-kind に出す。
-//   文言は日英で変わるが種類は変わらないので、**検証が日英どちらのページにも当たる**
-//   (url・headers・jwt の data-code と同じ手)。
+// ★Added 2026-09-02: give each explanation a kind, and put it in data-kind on the page.
+//   The wording differs by language but the kind does not, so **one verification fits both**
+//   (the same trick as data-code in the url, headers and jwt tools).
 function explain(pattern, flags) {
   const out = [];
   const nGroups = countGroups(pattern);
@@ -261,7 +261,7 @@ function explain(pattern, flags) {
   const multi = flags.indexOf("m") >= 0;
   const icase = flags.indexOf("i") >= 0;
   let i = 0, groupNo = 0;
-  // no は捕獲グループの番号(それ以外は 0)。画面の data-group に出して検証に使う
+  // `no` is the capturing group number (0 otherwise). It goes in data-group for the tests
   const push = (tok, desc, kind, no) => out.push({ tok, desc, kind, no: no || 0 });
   while (i < pattern.length) {
     const rest = pattern.slice(i);
@@ -300,7 +300,7 @@ function explain(pattern, flags) {
     } else if ((m = rest.match(/^\\([1-9])/)) && Number(m[1]) <= nGroups) {
       push(m[0], "the same text as group " + m[1] + "", "backref"); i += m[0].length;
     } else if ((m = rest.match(/^\\(\d)/))) {
-      // ★グループがその番号まで無いときは後方参照ではない(Annex B の8進エスケープ)
+      // ★If the pattern has no group with that number this is not a back-reference (Annex B octal)
       push(m[0], "octal escape (a control character) — the pattern only has " + nGroups +
                  " group(s), so this is not a backreference", "octal");
       i += m[0].length;
@@ -318,7 +318,7 @@ function explain(pattern, flags) {
            icase ? "literal-i" : "literal");
       i += lit.length;
     }
-    // 直後の量指定子を拾って直前の説明に付ける
+    // Pick up the quantifier that follows and attach it to the previous explanation
     const q = pattern.slice(i).match(/^(\*\?|\+\?|\?\?|\*|\+|\?|\{\d+(,\d*)?\}\??)/);
     if (q && out.length) {
       out[out.length - 1].tok += q[0];
@@ -352,9 +352,9 @@ function render() {
     li.appendChild(code); li.appendChild(document.createTextNode(" — " + desc));
     ex.appendChild(li);
   }
-  // ★2026-09-02: 500件で止めたうえで件数もその数を出していたので、
-  //   600件あるのに「501 件マッチ」と表示していた(画面の数字が単に違う)。
-  //   → 数えるのと描くのを分け、打ち切ったときは打ち切ったと書く。
+  // ★2026-09-02: matching stopped at 500 but the count printed that same number,
+  //   so 600 matches were reported as "501 matches" (the number on screen was simply wrong).
+  //   → Counting and drawing are now separate, and a truncated list says it was truncated.
   const LIMIT = 20000, SHOW = 500;
   const matches = [];
   let truncated = false;
@@ -380,11 +380,11 @@ function render() {
     if (idx >= SHOW) return;
     frag.appendChild(document.createTextNode(text.slice(last, m.index)));
     const mk = document.createElement("mark"); mk.textContent = m[0];
-    // ★長さ0のマッチは印が見えないので、細い縦線を立てる(文字は足さない)
+    // ★A zero-length match has nothing to highlight, so draw a thin bar (without adding text)
     if (!m[0].length) mk.className = "zero";
     frag.appendChild(mk);
-    // ★ここで `|| 1` と書いていたため、長さ0のマッチのたびに1文字ぶん**出力から落ちていた**
-    //   (`a*` を `bb` に当てるとテスト文字列が画面から消える)
+    // ★This said `|| 1`, which **dropped one character from the output** per zero-length match
+    //   (running `a*` against `bb` made the test string vanish from the screen)
     last = m.index + m[0].length;
     const tr = document.createElement("tr");
     const groups = m.slice(1).map((g, gi) => "$" + (gi + 1) + "=" + (g ?? "—")).join("  ");

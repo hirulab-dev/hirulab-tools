@@ -276,14 +276,14 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-/* 月の名前。日本語では「9月」、英語では「Sep」。
-   ★英語版のために表にした(2026-09-02)。日本語の表示は前と1文字も変わらない。
-   直に `${dt.getMonth()+1}月` と書くと、英語版で語順を変えられない
-   (日英でコードをバイト単位で一致させる縛りがあり、`${…}` の並びは動かせないため)。 */
+/* Month names. Japanese writes the number then a suffix ("9-gatsu"); English writes "Sep".
+   ★Turned into a table for the English version (2026-09-02). The Japanese output is unchanged.
+   Writing the number and its suffix inline would leave no way to reorder the words in English
+   (the two pages must match byte for byte, so the order of `${…}` cannot move). */
 const MN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const MS = 86400000;
 
-/* ---------- 日付ユーティリティ(すべてローカル時刻の 0:00 で扱う) ---------- */
+/* ---------- Date helpers (everything is local time at 00:00) ---------- */
 const mk = (y,m,d) => { const dt = new Date(y, m-1, d); dt.setHours(0,0,0,0); return dt; };
 const key = dt => dt.getFullYear()*10000 + (dt.getMonth()+1)*100 + dt.getDate();
 const fmt = dt => `${dt.getFullYear()} ${MN[dt.getMonth()]} ${dt.getDate()} (${WD[dt.getDay()]})`;
@@ -301,19 +301,19 @@ function addMonths(dt, n) {
   const y = dt.getFullYear(), m = dt.getMonth()+1, d = dt.getDate();
   const t = (y*12 + (m-1)) + n;
   const ny = Math.floor(t/12), nm = (t%12+12)%12 + 1;
-  return mk(ny, nm, Math.min(d, daysInMonth(ny, nm)));  // 存在しない日は末日に丸める
+  return mk(ny, nm, Math.min(d, daysInMonth(ny, nm)));  // a date that does not exist rounds down to the last day of the month
 }
 
-/* ---------- 日本の祝日 ---------- */
+/* ---------- Japanese public holidays ---------- */
 const nthMonday = (y, m, n) => {
   const first = mk(y, m, 1);
-  const offset = (8 - first.getDay()) % 7;          // 最初の月曜までの日数
+  const offset = (8 - first.getDay()) % 7;          // days until the first Monday
   return mk(y, m, 1 + offset + (n-1)*7);
 };
-/* 春分・秋分は「その年の何日か」を近似式で出す。★1980年の前後で定数が違う
-   (2026-09-01 まではあとの式だけを全部の年に当てていて、1979年以前が1日ずれていた)。
-   Math.trunc であって Math.floor ではない: 負の年差で 0 のほうに丸める式なので、
-   floor にすると 1979年以前がまた1日ずれる。 */
+/* The equinoxes are approximated as "which day of that month". ★The constants differ
+   before and after 1980 (until 2026-09-01 only the later formula was used for every year,
+   so anything before 1979 was a day out). This is Math.trunc, not Math.floor: the formula
+   rounds toward zero for negative year offsets, and floor puts pre-1979 back off by a day. */
 const vernal  = y => y <= 1979
   ? Math.floor(20.8357 + 0.242194*(y-1980) - Math.trunc((y-1983)/4))
   : Math.floor(20.8431 + 0.242194*(y-1980) - Math.trunc((y-1980)/4));
@@ -321,7 +321,7 @@ const autumnal = y => y <= 1979
   ? Math.floor(23.2588 + 0.242194*(y-1980) - Math.trunc((y-1983)/4))
   : Math.floor(23.2488 + 0.242194*(y-1980) - Math.trunc((y-1980)/4));
 
-/* 一日限りの休日(その日のためだけに法律が作られたもの) */
+/* One-off holidays (a law was passed for that single day) */
 const ONE_OFF = [
   [1959, 4, 10, "Wedding of Crown Prince Akihito"],
   [1989, 2, 24, "Funeral of Emperor Showa"],
@@ -331,43 +331,43 @@ const ONE_OFF = [
   [2019, 10, 22, "Enthronement Ceremony at the Seiden"]
 ];
 
-/** その年の祝日を {キー: 名称} で返す(振替休日・国民の休日を含む)
+/** Holidays for one year as {key: name} (substitute and citizens' holidays included)
  *
- * ★2026-09-01: それまで**いまの規則を1949年から2099年まで全部の年に当てていた**。
- *   画面は1949年から受け付けるので、1949〜2021年の73年ぶんが黙って間違っていた
- *   (成人の日は1999年まで1月15日、天皇誕生日は平成のあいだ12月23日、
- *    海の日は1995年まで無く、2020・2021年は五輪で動いた、など)。
- *   祝日は期間の「営業日」の数にも効くので、間違いは日数計算にも回っていた。
- *   → 改正の年で切り替える形に直した。
+ * ★2026-09-01: this used to **apply today's rules to every year from 1949 to 2099**.
+ *   The page accepts dates from 1949, so 73 years (1949-2021) were quietly wrong
+ *   (Coming of Age Day was 15 January until 1999, the Emperor's Birthday was 23 December
+ *    through Heisei, Marine Day did not exist before 1996, and 2020-2021 moved for the
+ *    Olympics). Holidays also feed the working-day counts, so the error spread there too.
+ *   → Rules now switch at the year each amendment took effect.
  *
- * ⚠ 2つだけ、よく使われている参照実装(Python の jpholiday)と食い違う。
- *   どちらもこちらが法律どおりで、向こうが**規則を過去にさかのぼって当てている**:
- *   - 国民の休日は昭和60年法律第103号(1985-12-27施行)なので、**最初は1986年5月4日**。
- *     jpholiday は1949年からの5月4日を全部そう呼ぶ(31日ぶん)
- *   - 振替休日は昭和48年法律第10号(1973-04-12施行)なので、**最初は1973年4月30日**。
- *     jpholiday は同じ年の2月12日も振替休日にする
- *   この2つを除けば1949〜2099年の151年ぶんが完全に一致する(`test_date.py` で毎回確かめている)。
+ * ⚠ Two cases disagree with the usual reference implementation (Python's jpholiday).
+ *   In both, this page follows the statute and jpholiday **applies it retroactively**:
+ *   - Citizens' holidays come from Act No. 103 of 1985 (in force 1985-12-27), so the
+ *     **first one is 4 May 1986**. jpholiday calls every 4 May from 1949 one (31 days).
+ *   - Substitute holidays come from Act No. 10 of 1973 (in force 1973-04-12), so the
+ *     **first one is 30 April 1973**. jpholiday also marks 12 February of that year.
+ *   Apart from those two, all 151 years 1949-2099 match exactly (`test_date.py` checks).
  */
 const holidayCache = {};
 function holidays(y) {
   if (holidayCache[y]) return holidayCache[y];
-  const base = [];   // [Date, 名称]
+  const base = [];   // [Date, name]
   const push = (dt, name) => base.push([dt, name]);
 
   push(mk(y,1,1), "New Year's Day");
-  push(y < 2000 ? mk(y,1,15) : nthMonday(y,1,2), "Coming of Age Day");          // 2000年からハッピーマンデー
+  push(y < 2000 ? mk(y,1,15) : nthMonday(y,1,2), "Coming of Age Day");          // moved to a Monday from 2000 (the "Happy Monday" amendment)
   if (y >= 1967) push(mk(y,2,11), "National Foundation Day");
-  if (y <= 1988) push(mk(y,4,29), "The Emperor's Birthday");                        // 昭和
-  else if (y <= 2018) push(mk(y,12,23), "The Emperor's Birthday");                  // 平成
-  else if (y >= 2020) push(mk(y,2,23), "The Emperor's Birthday");                   // 令和(2019年は無い)
+  if (y <= 1988) push(mk(y,4,29), "The Emperor's Birthday");                        // Showa
+  else if (y <= 2018) push(mk(y,12,23), "The Emperor's Birthday");                  // Heisei
+  else if (y >= 2020) push(mk(y,2,23), "The Emperor's Birthday");                   // Reiwa (not in 2019)
   push(mk(y, 3, vernal(y)), "Vernal Equinox Day");
-  if (y >= 1989 && y <= 2006) push(mk(y,4,29), "Greenery Day");           // 4月29日だった時期
+  if (y >= 1989 && y <= 2006) push(mk(y,4,29), "Greenery Day");           // the years when it fell on 29 April
   else if (y >= 2007) { push(mk(y,5,4), "Greenery Day"); push(mk(y,4,29), "Showa Day"); }
   push(mk(y,5,3), "Constitution Memorial Day");
   push(mk(y,5,5), "Children's Day");
-  if (y === 2020) push(mk(y,7,23), "Marine Day");                           // 東京五輪で移動
+  if (y === 2020) push(mk(y,7,23), "Marine Day");                           // moved for the Tokyo Olympics
   else if (y === 2021) push(mk(y,7,22), "Marine Day");
-  else if (y >= 1996 && y <= 2002) push(mk(y,7,20), "Marine Day");          // 新設時は7月20日
+  else if (y >= 1996 && y <= 2002) push(mk(y,7,20), "Marine Day");          // 20 July when it was first introduced
   else if (y >= 2003) push(nthMonday(y,7,3), "Marine Day");
   if (y === 2020) push(mk(y,8,10), "Mountain Day");
   else if (y === 2021) push(mk(y,8,8), "Mountain Day");
@@ -387,8 +387,8 @@ function holidays(y) {
   const map = {};
   base.forEach(([dt, name]) => { map[key(dt)] = name; });
 
-  // 振替休日(1973-04-12 施行。最初に効いたのは同年4月30日)
-  // 2007年からは「その日より後の、いちばん近い祝日でない日」。それより前は「翌日」だけ。
+  // substitute holidays (in force 1973-04-12; the first one was 30 April that year)
+  // from 2007 it is "the nearest later day that is not a holiday"; before that, just "the next day".
   if (y >= 1973) {
     base.slice().sort((a,b) => a[0]-b[0]).forEach(([dt]) => {
       if (dt.getDay() !== 0) return;
@@ -403,7 +403,7 @@ function holidays(y) {
     });
   }
 
-  // 国民の休日: 祝日に挟まれた日(1985-12-27 施行。最初に効いたのは1986年5月4日)
+  // citizens' holiday: a day sandwiched between two holidays (in force 1985-12-27; first 1986-05-04)
   if (y >= 1986) {
     const sorted = Object.keys(map).map(Number).sort((a,b)=>a-b);
     sorted.forEach(k => {
@@ -422,7 +422,7 @@ const holidayName = dt => holidays(dt.getFullYear())[key(dt)] || null;
 const isWeekend = dt => dt.getDay() === 0 || dt.getDay() === 6;
 const isBusiness = dt => !isWeekend(dt) && !holidayName(dt);
 
-/* ---------- 和暦 ---------- */
+/* ---------- Japanese era years ---------- */
 const ERAS = [
   { name:"Reiwa", start: mk(2019,5,1) },
   { name:"Heisei", start: mk(1989,1,8) },
@@ -448,15 +448,15 @@ function fromWareki(era, wy, m, d) {
   return { date: dt };
 }
 
-/* ---------- 出力の組み立て ---------- */
-/* 第1引数の k は**言葉ではない名札**。画面には出ないが、検証がカードを引くときに使う。
-   ラベルの文字で引くと、英語版に同じ検証を当てられない(2026-09-02。
-   url・headers・jwt の data-code、正規表現テスタの data-kind と同じ手)。 */
+/* ---------- Building the output ---------- */
+/* The first argument k is a **tag, not words**. It never appears on screen; the tests use
+   it to find a card. Looking cards up by their label would make the same tests impossible
+   to run against the English page (2026-09-02; same trick as data-code and data-kind). */
 const card = (k, label, value, note, hl) =>
   `<div class="card${hl ? " hl" : ""}${label === "" ? " wide" : ""}" data-k="${k}"><div class="label">${label}</div>
    <div class="value">${value}</div>${note ? `<div class="note">${note}</div>` : ""}</div>`;
 
-/* ---------- タブ ---------- */
+/* ---------- Tabs ---------- */
 const TABS = ["diff","add","age","wareki","hol"];
 TABS.forEach(t => $("tab-"+t).addEventListener("click", () => {
   TABS.forEach(u => {
@@ -465,7 +465,7 @@ TABS.forEach(t => $("tab-"+t).addEventListener("click", () => {
   });
 }));
 
-/* ---------- 1. 期間 ---------- */
+/* ---------- 1. Between two dates ---------- */
 function calcDiff() {
   const a = parseInput($("d-from")), b = parseInput($("d-to"));
   $("d-msg").textContent = "";
@@ -475,20 +475,20 @@ function calcDiff() {
   const rawDays = Math.round((e - s) / MS);
   const days = rawDays + (incl ? 1 : 0);
 
-  /* 年月日の内訳。★2026-09-01 是正: 前は「終了日の前の月の日数を借りて引く」形だったが、
-     **月末から数え始めたときに、この道具自身の加減算タブと答えが合わなかった**。
-     例: 2008-10-31 → 2009-12-23 を「1年1か月22日」と出すが、
-     加減算タブで 2008-10-31 に1年1か月を足すと 2009-11-30(存在しない日は末日に丸める)で、
-     そこから22日は 2009-12-22。1日ずれる。
-     → **足し戻すと元に戻る形**に変えた。まず「足しても行き過ぎない月数」を出し、
-     残りを日数で数える。addMonths と同じ丸め方を通るので、ずれようがない。 */
+  /* Years/months/days breakdown. ★Fixed 2026-09-01: this borrowed the length of the month before
+     the end date, which **disagreed with this tool's own add/subtract tab whenever the count
+     started on the last day of a month**. Example: 2008-10-31 → 2009-12-23 came out as
+     "1 year 1 month 22 days", but adding 1 year 1 month to 2008-10-31 on the other tab gives
+     2009-11-30 (a date that does not exist rounds down), and 22 days later is 2009-12-22.
+     → Now **adding the result back returns the original**: take the largest number of months
+     that does not overshoot, then count the rest in days, through the same rounding. */
   let total = (e.getFullYear()*12 + e.getMonth()) - (s.getFullYear()*12 + s.getMonth());
   if (addMonths(s, total) > e) total--;
   const anchor = addMonths(s, total);
   const yy = Math.floor(total / 12), mm = total % 12;
   const dd = Math.round((e - anchor) / MS);
 
-  // 営業日・週末・祝日を数える(終了日を含むかは incl に従う)
+  // count working days, weekend days and holidays (whether the end date counts follows `incl`)
   let biz = 0, wknd = 0, hol = 0;
   const last = incl ? e : addDays(e, -1);
   for (let c = new Date(s); c <= last; c = addDays(c, 1)) {
@@ -514,7 +514,7 @@ $("d-today").addEventListener("click", () => {
   $("d-from").value = iso(t); $("d-to").value = iso(t); calcDiff();
 });
 
-/* ---------- 2. 加減算 ---------- */
+/* ---------- 2. Add and subtract ---------- */
 function calcAdd() {
   const base = parseInput($("a-base"));
   const n = parseInt($("a-n").value, 10);
@@ -527,7 +527,7 @@ function calcAdd() {
   else if (unit === "week") r = addDays(base, n*7);
   else if (unit === "month") r = addMonths(base, n);
   else if (unit === "year") r = addMonths(base, n*12);
-  else {                       // 営業日
+  else {                       // working days
     r = new Date(base);
     const step = n >= 0 ? 1 : -1;
     let left = Math.abs(n);
@@ -543,7 +543,7 @@ function calcAdd() {
 }
 ["a-base","a-n","a-unit"].forEach(id => $(id).addEventListener("input", calcAdd));
 
-/* ---------- 3. 年齢・学年 ---------- */
+/* ---------- 3. Age and school year ---------- */
 function calcAge() {
   const b = parseInput($("g-birth"));
   let at = parseInput($("g-at"));
@@ -552,27 +552,27 @@ function calcAge() {
   if (!b) { $("g-out").innerHTML = ""; $("g-msg").textContent = "Enter a date of birth."; return; }
   if (b > at) { $("g-out").innerHTML = ""; $("g-msg").textContent = "The date of birth is later than the base date."; return; }
 
-  /* ★2026-09-01 是正: 前は月日をそのまま比べていたので、**2月29日生まれの平年**だけ
-     「次の誕生日まで: 今日です」と出しているのに満年齢が1つ足りない、という食い違いが出た
-     (次の誕生日の欄は 2月28日に丸めていて、こちらは丸めていなかった)。
-     → 応当日を同じように末日に丸めてから比べる。民法143条2項の「応当する日がないときは
-     その月の末日に満了する」とも同じ側になる。 */
+  /* ★Fixed 2026-09-01: this compared month and day directly, so someone born on 29 February
+     saw "next birthday: today" in a common year while the age below it was one year short
+     (the next-birthday field rounded to 28 February; this one did not).
+     → The anniversary is now rounded down to the end of the month the same way before
+     comparing, which also matches Article 143(2) of the Civil Code. */
   const anniv = mk(at.getFullYear(), b.getMonth()+1,
                    Math.min(b.getDate(), daysInMonth(at.getFullYear(), b.getMonth()+1)));
   const hadBirthday = at >= anniv;
   let age = at.getFullYear() - b.getFullYear();
   if (!hadBirthday) age--;
 
-  const kazoe = at.getFullYear() - b.getFullYear() + 1;   // 数え年
+  const kazoe = at.getFullYear() - b.getFullYear() + 1;   // kazoedoshi (the traditional count, where you are 1 at birth)
   const nextB = mk(at.getFullYear() + (hadBirthday ? 1 : 0), b.getMonth()+1, Math.min(b.getDate(), daysInMonth(at.getFullYear() + (hadBirthday?1:0), b.getMonth()+1)));
   const toNext = Math.round((nextB - at)/MS);
   const lived = Math.round((at - b)/MS);
 
-  // 学年(4/2〜翌4/1 が同学年)。入学年度 = 満6歳になる年度の翌年度4月
+  // school year (2 Apr - 1 Apr). Entry = April of the year after the year you turn 6
   const schoolYearBase = (b.getMonth()+1 < 4 || (b.getMonth()+1 === 4 && b.getDate() === 1))
-    ? b.getFullYear() - 1 : b.getFullYear();          // 早生まれは1つ前の年度扱い
+    ? b.getFullYear() - 1 : b.getFullYear();          // born Jan-Apr 1 counts as the previous school year
   const fiscalYear = (at.getMonth()+1 < 4) ? at.getFullYear() - 1 : at.getFullYear();
-  const grade = fiscalYear - schoolYearBase - 5;      // 小1 = 1
+  const grade = fiscalYear - schoolYearBase - 5;      // first year of primary school = 1
   const gradeLabel =
     grade < 1 ? (grade === 0 ? "Final nursery year (the year before school starts)" : `${1-grade} school years before elementary school`) :
     grade <= 6 ? `Elementary school, year ${grade}` :
@@ -593,7 +593,7 @@ function calcAge() {
 }
 ["g-birth","g-at"].forEach(id => $(id).addEventListener("input", calcAge));
 
-/* ---------- 4. 和暦 ---------- */
+/* ---------- 4. Era years ---------- */
 function calcWareki() {
   const d = parseInput($("w-date"));
   if (!d) { $("w-out").innerHTML = ""; }
@@ -618,7 +618,7 @@ function calcWareki() {
 }
 ["w-date","w-era","w-y","w-m","w-d"].forEach(id => $(id).addEventListener("input", calcWareki));
 
-/* ---------- 5. 祝日一覧 ---------- */
+/* ---------- 5. Holiday list ---------- */
 function calcHol() {
   const y = parseInt($("h-year").value, 10);
   if (!Number.isFinite(y) || y < 1949 || y > 2099) {
@@ -642,7 +642,7 @@ function calcHol() {
 }
 $("h-year").addEventListener("input", calcHol);
 
-/* ---------- 初期化 ---------- */
+/* ---------- Start-up ---------- */
 (function init() {
   const t = new Date(); t.setHours(0,0,0,0);
   $("d-from").value = iso(t);
