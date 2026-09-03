@@ -24,6 +24,9 @@
   (2026-09-03 夜に追加。それまで誰も両者を比べていなかった)
 - それ以外で `tools/` にしか無いものは触らない
 - `tools/tests/` は別管理(検証スクリプト。従来どおり各回の作業で足す)
+  ⚠ **2026-09-04: 「別管理」と決めてあったが、足せているかを誰も見ていなかった。**
+  数えたら28本中 **11本が古く、1本は名前が違う**。写しはしないが、
+  **数を固定して増減を出す**ようにした(`TESTS_STALE_OK`)。揃えるのは次の枠。
 
     python lab/scripts/sync_tools_mirror.py            # 揃える
     python lab/scripts/sync_tools_mirror.py --check    # 見るだけ(ずれていたら終了コード1)
@@ -71,6 +74,60 @@ HELPERS = [
 #   ここも「手元が原本・公開側はミラー」で揃える。
 ASSETS_DIR = HERE.parent / "assets"
 ASSETS = ["make_ogp.py", "regen_ogp.py", "check_ogp_overlap.py"]
+
+
+# ★2026-09-04 追加: `tools/tests/` は上で「別管理(各回の作業で足す)」と**決めてあった**が、
+#   **足せているかを誰も見ていなかった**。数えたら28本中 **11本が古く、1本は名前が違う**
+#   (`test_pattern_tool.py` → 公開側は `test_pattern.py`)。
+#   9/2 夜の「**決めた と 見ていない は、あとから見分けがつかない**」がそのまま出た形。
+#   ⚠ **ここでは写さない**。中身の差が意図的なものかを1本ずつ見ていないので、
+#     まとめて上書きすると 9/3 に踏んだ「片方だけ直して壊す」をやる。
+#     いまは **数を固定して、増えたら ★ にする**だけにする
+#     (9/3 の `HTML_DIFF_OK` / `CODE_DIFF` と同じ考え方。鳴り続ける検査は誰も読まなくなる)。
+#   → 揃える作業は次の枠。揃えたらこの表を空にする。
+TESTS_DIR_NAME = "tests"
+TESTS_STALE_OK = {
+    "make_qr_reference.py", "test_char_counter.py", "test_cron.py", "test_frima_profit.py",
+    "test_image.py", "test_jwt.py", "test_qr.py", "test_railroad.py", "test_regex_why.py",
+    "test_replace.py", "test_timezone.py",
+    "test_pattern.py",   # 名前も中身も違う(手元は test_pattern_tool.py)
+}
+# 公開側にあって手元に同じ名前が無いもの(名前が違うだけで中身は対応している)
+TESTS_RENAMED_OK = {"test_pattern.py": "test_pattern_tool.py"}
+
+
+def _norm(path):
+    """改行だけの差は「古い」と数えない(公開側は CRLF で入っているものがある)。"""
+    return path.read_bytes().replace(b"\r\n", b"\n")
+
+
+def check_tests(dest):
+    """`tools/tests/` の食い違いを**名指しで数える**。写しはしない。"""
+    tdir = dest / TESTS_DIR_NAME
+    if not tdir.is_dir():
+        print("tests: 公開側に %s が無い" % tdir)
+        return 0
+    stale, orphan, same = [], [], 0
+    for p in sorted(tdir.glob("*.py")):
+        local_name = TESTS_RENAMED_OK.get(p.name, p.name)
+        src = HERE / local_name
+        if not src.exists():
+            orphan.append(p.name)
+        elif _norm(src) != _norm(p):
+            stale.append(p.name)
+        else:
+            same += 1
+    new_stale = sorted(set(stale) - TESTS_STALE_OK)
+    fixed = sorted(TESTS_STALE_OK - set(stale))
+    print("tests: 見た %d 本 / 一致 %d 本 / 古い %d 本(既知 %d) / 手元に同名が無い %d 本"
+          % (len(list(tdir.glob('*.py'))), same, len(stale), len(TESTS_STALE_OK), len(orphan)))
+    for n in new_stale:
+        print("  ★ 新しく古くなった: tests/%s" % n)
+    for n in fixed:
+        print("  ★ 直ったので TESTS_STALE_OK から消すこと: tests/%s" % n)
+    for n in orphan:
+        print("  ★ 手元に同名が無い: tests/%s(名前が違うなら TESTS_RENAMED_OK に足す)" % n)
+    return 1 if (new_stale or fixed or orphan) else 0
 
 
 def targets():
@@ -141,7 +198,9 @@ def main(argv=None):
     print("import の連れ: 写す %d 本すべてについて、手元のモジュールの写し漏れ %d 件"
           % (len(listed), len(lack)))
 
-    if missing_src or lack:
+    tests_ng = check_tests(dest)
+
+    if missing_src or lack or tests_ng:
         return 1
     if a.check and (added or stale):
         print("→ `python lab/scripts/sync_tools_mirror.py` で揃うこと")
