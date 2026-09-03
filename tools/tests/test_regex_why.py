@@ -116,6 +116,12 @@ def gen_subject(rnd):
     return "".join(rnd.choice(ALPHABET) for _ in range(n))
 
 
+# ページ(日英)が名乗っている件数を出したときの本数。README の使い方の例と同じ値。
+# ★ここを変えたら、ページ・英語ページ・検証のREADME の3か所も一緒に直すことになる。
+#   [5] がそれを毎回突き合わせる。
+CLAIM_N = 2500
+
+
 # 自動生成では出にくい形は手で並べる（後方参照・名前つき・アンカーの絡み）
 EDGE_PAIRS = [
     ("(a)\\1", ["aa", "ab", "a"]),
@@ -380,6 +386,7 @@ def main():
     fix_cases = build_fix_cases()
 
     html_text = page.read_text(encoding="utf-8")
+    total_compared = None      # [5] でページの名乗りと比べる件数(そのまま の回だけ入る)
     variants = [("そのまま", html_text)]
     if args.sabotage:
         variants = []
@@ -409,6 +416,8 @@ def main():
             n_cmp = len(cases) - cmp_["skip"]
             print("[1] 自前の照合器 vs ブラウザ: %d 件中 %d 件が一致（対象外 %d）"
                   % (n_cmp, n_cmp - len(cmp_["bad"]), cmp_["skip"]))
+            if label == "そのまま":
+                total_compared = n_cmp
             for b in cmp_["bad"][:8]:
                 print("    ✗ /%s/%s × %s : %s (自前 %r / 本物 %r)"
                       % (b["src"], b["flags"], json.dumps(b["subj"], ensure_ascii=False),
@@ -437,7 +446,10 @@ def main():
                          " / ".join(m["want"]), m["labels"][:3]))
 
             sw.check("[1] 照合器の突き合わせ", cmp_["skip"], len(cases))
-            sw.check("[2] 止まった位置の検算", st["skip"], len(cases))
+            # 3割前後が対象外なのは作りのとおり(**マッチする組には「止まった位置」が無い**)。
+            # 理由を渡して無条件の警告だけ外す。基準からの増加は引き続き見る
+            sw.check("[2] 止まった位置の検算", st["skip"], len(cases),
+                     by_design="マッチする組・危険な形・打ち切りは対象外")
             sw.check("[3] 直し方の名指し", skipped, len(res))
             sw.report()
             pg.close()
@@ -446,6 +458,48 @@ def main():
     ok, why = check_parser_identity(page, railroad)
     print("\n[4] 解析器が鉄道図と同一か: %s（%s）"
           % ("✓ 一致" if ok else ("✗ 違う" if ok is False else "— 確かめられず"), why))
+
+    # [5] ページが名乗っている件数を見張る(2026-09-04 追加)
+    #   このページは日英とも「7,697 件をブラウザと突き合わせた」と数を名乗っているのに、
+    #   **その数を出しているのはこの検証**で、誰も突き合わせていなかった
+    #   (9/3 の timezone・9/4 未明の jwt / qr と同じ形の4本目)。
+    #   ⚠ この数は `--n` と `--seed` に依る。**ページの 7,697 は `--n 2500` の回のもの**で、
+    #     この検証の既定(`--n 400`)では出ない(=公開してある手順で回さないと再現しない)。
+    #     よって「名乗りを出した設定」を下に書いておき、**その設定のときだけ比べる**。
+    #     違う設定のときは黙って通さず、比べていないと言う。
+    #   ★ここで見分けが要る。このページに出てくる 7,697 は**過去の回の記録**
+    #     (「7,697 件を突き合わせたら 3 件ずれた」= 8/23 にバグを見つけた回の話)で、
+    #     いまの実測に合わせて書き換えるのは**歴史のほうを直す**ことになる。
+    #     いまの規模を名乗っているのは**検証のREADMEの表**なので、突き合わせるのはそちら。
+    #     ページの数は出すだけで鳴らさない(鳴り続ける検査は誰も読まなくなる)。
+    page_nums = sorted(set(re.findall(r"([0-9][0-9,]{3,})\s*(?:件|cases)", html_text)))
+    if page_nums:
+        print("[5] ページに出てくる数(過去の回の記録なので比べません): %s" % " / ".join(page_nums))
+    if total_compared is None:
+        print("[5] 検証のREADME: 「そのまま」の回が無いので比べていません(--sabotage 中)")
+    elif (args.n, args.seed) != (CLAIM_N, ap.get_default("seed")):
+        print("[5] 検証のREADME: この回は --n %d なので比べていません"
+              "(表の数は README の使い方どおり --n %d で出したもの)" % (args.n, CLAIM_N))
+    else:
+        row = ""
+        for cand in (pathlib.Path(__file__).resolve().parent / "README.md",
+                     pathlib.Path.home() / "hirulab-tools" / "tools" / "tests" / "README.md"):
+            if cand.exists():
+                row = "\n".join(ln for ln in cand.read_text(encoding="utf-8").splitlines()
+                                if ln.startswith("|") and "test_regex_why.py" in ln)
+                break
+        claimed = re.findall(r"([0-9][0-9,]{3,})\s*件", row)
+        if not row:
+            print("[5] ★検証のREADMEが見つからないので、表の数は見ていません")
+        elif not claimed:
+            print("[5] ★検証のREADMEの表が件数を名乗っていません(名乗るなら %s 件)"
+                  % format(total_compared, ","))
+        for c in set(claimed):
+            same = int(c.replace(",", "")) == total_compared
+            print("[5] 検証のREADMEの表 %s 件 %s 実測 %s"
+                  % (c, "=" if same else "≠", format(total_compared, ",")))
+            if not same:
+                print("    ★READMEを直すこと(この数を出しているのはこの検証)")
 
 
 if __name__ == "__main__":

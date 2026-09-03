@@ -60,10 +60,19 @@ class SkipWatch:
         self.rows = []      # (ラベル, 対象外, 母数, 状態)
         self.dirty = False
 
-    def check(self, label, skipped, total):
+    def check(self, label, skipped, total, by_design=None):
         """対象外の件数を1つ記録して、基準と比べる。
 
         total は「対象外も含めた母数」。skipped/total が対象外の割合。
+
+        `by_design` は「**その割合が高いこと自体は作りのとおり**」という短い理由。
+        渡すと `ABSOLUTE_FLOOR` の無条件の警告だけを外す(基準からの増加はそのまま見る)。
+
+        ★2026-09-04 追加。`test_regex_why` の [2] は **マッチする組を対象外にする**作りなので
+        3割前後が対象外になるのが正常で、9/1 に基準を取った日から**毎回 ★ が出続けていた**。
+        鳴り続ける検査は誰も読まなくなる(この道具自身が出している助言と同じ)ので、
+        **理由を書いて無条件の警告だけ外し、変化は引き続き見る**形にした。
+        ⚠ 理由を渡すのは「高いことが説明できるとき」だけ。説明できないものは黙らせない。
         """
         skipped, total = int(skipped), int(total)
         ratio = (skipped / total) if total else 0.0
@@ -76,8 +85,10 @@ class SkipWatch:
             state = "基準を更新" if base is not None else "基準を記録"
         elif ratio > base["ratio"] + TOLERANCE:
             state = "★増えた（基準 %.1f%%）" % (base["ratio"] * 100)
-        elif ratio > ABSOLUTE_FLOOR:
+        elif ratio > ABSOLUTE_FLOOR and by_design is None:
             state = "★多い"
+        elif ratio > ABSOLUTE_FLOOR:
+            state = "多いが作りのとおり（%s）" % by_design
         elif ratio + TOLERANCE < base["ratio"]:
             # 減るのは悪いことではないが、母数の作り方が変わった合図なので出す
             state = "減った（基準 %.1f%%）" % (base["ratio"] * 100)
