@@ -32,6 +32,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import en_nav
 from jsblank import blank, literals
 from make_en_contrast import translate_literals, script_span, code_japanese
+from en_common import translate_comments
 
 JA_CHARS = re.compile("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？　]")
 
@@ -274,6 +275,37 @@ TR = {
 
 KEEP = set()
 
+# ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
+COMMENTS = {
+    '/* ---------- 1. 位置を持つJSONパーサ ---------- */':
+    '/* ---------- 1. A JSON parser that tracks positions ---------- */',
+    '// JSON.parse はエラー文言がブラウザ依存なので、行・列を確実に出すために自前で読む。':
+    '// JSON.parse error text is browser-dependent, so we read it ourselves to get line and column.',
+    '// 「何文字目」は符号位置で数える。JS の文字列は絵文字などを2つぶんとして持っているので、':
+    '// The offset is counted in code points. A JS string holds an emoji as two units, so',
+    '// 単純に idx - last と書くと、同じ行の手前に絵文字があるぶんだけ数が増えてしまう':
+    '// a plain idx - last would run high by one for every emoji earlier on the same line',
+    '// （画面の「^」の位置も同じだけずれる）。2026-08-31 の検証で気づいて直した。':
+    '// (and the caret on screen would drift by the same amount). Found while testing on 2026-08-31.',
+    '/* ---------- 2. JSONC/JSON5 のゆるい記法を落とす ---------- */':
+    '/* ---------- 2. Strip the relaxed JSONC / JSON5 notation ---------- */',
+    '// 文字列の中は触らないように、状態を見ながら1文字ずつ進む。':
+    '// Walk one character at a time, tracking state, so string contents are left alone.',
+    '// 文字列はそのまま通す': '// Pass strings through untouched',
+    '// 末尾カンマ: , の後に空白だけを挟んで } か ] が来る場合':
+    '// Trailing comma: a , followed by whitespace only and then } or ]',
+    '/* ---------- 3. 出力 ---------- */': '/* ---------- 3. Output ---------- */',
+    '// 整形済みJSON文字列に色をつける。トークン単位で置換する。':
+    '// Colorize the formatted JSON string, replacing it token by token.',
+    '/* ---------- 4. 画面 ---------- */': '/* ---------- 4. Screen ---------- */',
+    '// キーはあえて全部クォートで囲ってある。囲わないと日本語のキーが「識別子」になり、':
+    '// Every key is deliberately quoted. Unquoted, a Japanese key becomes an identifier and',
+    '// 英語版を作るときの「画面に出る日本語が残っていないか」の検査を素通りするため':
+    '// slips past the check for leftover on-screen Japanese that runs when this page is built',
+    '// （その検査は文字列リテラルしか見ない）。2026-08-31 に気づいて直した。':
+    '// (that check only looks at string literals). Noticed and fixed on 2026-08-31.',
+}
+
 
 def main():
     docs = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "docs")
@@ -295,7 +327,11 @@ def main():
         "json.html", "../json/") + en[nav.end():]
 
     s, e = script_span(en)
-    core_en, missing = translate_literals(en[s:e], TR, KEEP)
+    core_en, missing = translate_comments(en[s:e], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(m[:100] for m in missing[:8])))
+    core_en, missing = translate_literals(core_en, TR, KEEP)
     if missing:
         sys.exit("訳されていない文字列が %d 件あります:\n  %s"
                  % (len(missing), "\n  ".join(sorted(set(missing))[:12])))

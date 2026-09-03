@@ -35,7 +35,8 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank, literals  # noqa: E402
-from en_common import (JA_CHARS, code_japanese, script_span,  # noqa: E402
+from en_common import (translate_comments,  # noqa: E402
+                       JA_CHARS, code_japanese, script_span,  # noqa: E402
                        translate_literals)
 
 HTML_PARTS = [
@@ -306,6 +307,51 @@ TR = {
 
 KEEP = set()
 
+# ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
+COMMENTS = {
+    '/* ---- 色変換 ---- */': '/* ---- Color conversion ---- */',
+    '/* ---- WCAG 2.1 のコントラスト比 ---- */': '/* ---- WCAG 2.1 contrast ratio ---- */',
+
+    '/* ---- 基準を満たす一番近い明るさを探す --------------------------------\n'
+    '   色相と彩度は動かさない。L だけを二分探索する。上下どちらにも探して、\n'
+    '   満たせたほうのうち移動量が小さいほうを採る。\n'
+    '\n'
+    '   HSL は L=0 が黒・L=1 が白なので、理屈のうえでは **どんな色でも必ず満たせる**。\n'
+    '   だが黄色に白文字を載せる例だと、4.5:1 に届くには L を 26 ポイント下げることになり、\n'
+    '   出てくるのは #7a7a00 のオリーブで、もう黄色ではない。\n'
+    '   「必ず直せる」は「必ず直していい」ではないので、動かす量に上限を置いて、\n'
+    '   超えるものは **直さずに、必要な量を伝える** ことにした。 */':
+    '/* ---- Find the nearest lightness that meets the target ------------------\n'
+    '   Hue and saturation stay put; only L is searched, by bisection. Both\n'
+    '   directions are tried and the smaller move wins.\n'
+    '\n'
+    '   In HSL, L=0 is black and L=1 is white, so in theory **any color can be fixed**.\n'
+    '   But white text on yellow needs L to drop 26 points to reach 4.5:1, and what\n'
+    '   comes out is the olive #7a7a00, which is no longer yellow.\n'
+    '   "Can always be fixed" is not "should always be fixed", so the move is capped and\n'
+    '   anything past the cap is **left alone, with the required amount reported**. */',
+
+    '// L を 30 ポイント以上動かすなら、それは別の色':
+    '// Moving L by 30 points or more makes it a different color',
+    '// lo 側が未達、hi 側が達成、である前提で詰める':
+    '// Narrows on the assumption that lo fails and hi passes',
+    '// 暗くして満たす': '// Darken until it passes',
+    '// 明るくして満たす': '// Lighten until it passes',
+    '/* ---- パレット定義 ---- */': '/* ---- Palette definitions ---- */',
+
+    '/* data-contrast-demo は「わざと不合格の例を見せている」印。\n'
+    '   自前のコントラスト検査スクリプトはこの印が付いた要素を数えない。 */':
+    '/* data-contrast-demo marks a swatch that fails on purpose, shown as an example.\n'
+    '   Our own contrast-checking script does not count elements carrying this mark. */',
+
+    '// 長い文にするとスウォッチの高さが揃わなくなるので、ここは短く。':
+    '// Keep this short: long sentences leave the swatch heights uneven.',
+    '// 事情は下の説明文（fixnote）と details に書いてある。':
+    '// The reasoning is spelled out in the fixnote below and in the details block.',
+    '// 区切りは落とさずハイフンにする(英語版の "Split complementary" が1語に潰れないように)':
+    '// Turn the separator into a hyphen instead of dropping it (so "Split complementary" survives)',
+}
+
 
 def en_nav(docs):
     import en_nav as _en_nav
@@ -335,7 +381,11 @@ def main():
     en = en[:nav.start()] + en_nav(docs) + en[nav.end():]
 
     s, e = script_span(en)
-    core_en, missing = translate_literals(en[s:e], TR, KEEP)
+    core_en, missing = translate_comments(en[s:e], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(m[:100] for m in missing[:8])))
+    core_en, missing = translate_literals(core_en, TR, KEEP)
     if missing:
         sys.exit("訳されていない文字列が %d 件あります:\n  %s"
                  % (len(missing), "\n  ".join(sorted(set(missing))[:12])))

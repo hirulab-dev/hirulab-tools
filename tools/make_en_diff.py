@@ -24,6 +24,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import en_nav
 from jsblank import blank, literals
 from make_en_contrast import translate_literals, script_span
+from en_common import translate_comments
 
 JA_CHARS = re.compile("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？　]")
 
@@ -263,6 +264,50 @@ TR = {
 
 KEEP = set()
 
+# ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
+COMMENTS = {
+    '/* ---------- 1. Myers の差分アルゴリズム ---------- */':
+    '/* ---------- 1. The Myers diff algorithm ---------- */',
+    '// O(ND) greedy。trace は d ごとに必要な範囲だけを切り出して持つ（全幅を毎回コピーすると':
+    '// O(ND) greedy. The trace keeps only the window each d needs (copying the full width',
+    '// メモリが D^2 * 全幅 になって現実的でないため）。':
+    '// every time would make memory D^2 * width, which is not practical).',
+    '// 行単位の打ち切り': '// Cut-off for the line-level pass',
+    '// 行内の打ち切り': '// Cut-off for the within-line pass',
+    '// 打ち切り': '// Cut-off',
+    '// 打ち切ったときの代替。共通の先頭・末尾だけ残して、間はまるごと置き換え扱いにする。':
+    '// Fallback after a cut-off: keep the common head and tail, call everything between replaced.',
+    '/* ---------- 2. 前処理 ---------- */': '/* ---------- 2. Preparation ---------- */',
+    '// 末尾の改行は行として数えない': '// A trailing newline does not count as a line',
+    '// u フラグが要る。無いと [^…] が UTF-16 の1単位に当たるので、絵文字などが半分に割れて':
+    '// The u flag is required. Without it [^...] matches one UTF-16 unit, so an emoji is cut',
+    '// 片方だけが <del> の中に入る（画面には壊れた文字が出る）。2026-08-31 に検証で発見。':
+    '// in half and only one part lands inside <del> (a broken glyph). Found while testing 2026-08-31.',
+    '// サロゲートペアを壊さない': '// Do not break surrogate pairs',
+    '/* ---------- 3. 行の中の差分 ---------- */':
+    '/* ---------- 3. Differences within a line ---------- */',
+    '// 戻り値 {l, r, sim}。sim は 0〜1 の似ている度合い。似ていない行を無理に対応づけないための指標。':
+    '// Returns {l, r, sim}. sim is similarity from 0 to 1, used to avoid pairing unlike lines.',
+    '/* ---------- 4. 行の対応から表示用の行を組む ---------- */':
+    '/* ---------- 4. Build the display rows from the line pairing ---------- */',
+    '// これ未満なら「別の行」として上下に分けて出す':
+    '// Below this the two are shown as separate lines instead of a pair',
+    '// 1行が1行に置き換わっただけのときは、似ていなくても左右に並べる（そう見たいはずなので）。':
+    '// One line replaced by one line is shown side by side even when unlike: that is what you want.',
+    '// 複数行がまとめて入れ替わったときだけ、似ている組だけを対応づける。':
+    '// Only when several lines change together do we pair up just the similar ones.',
+    '// 似ていなかった組は、削除をまとめてから追加をまとめて出す（diff の慣習に合わせる）':
+    '// Unlike pairs print all deletions and then all additions, as diffs conventionally do',
+    '/* ---------- 5. 描画 ---------- */': '/* ---------- 5. Rendering ---------- */',
+    '// たたむときに前後に残す行数': '// Lines kept on each side of a fold',
+    '// 一度に描く行の上限': '// Upper limit of rows drawn at once',
+    '/* ---------- 7. 実行 ---------- */': '/* ---------- 7. Running it ---------- */',
+    '// 表示上限に達したかどうかの注記は render が出す':
+    '// The note about hitting the display limit is emitted by render',
+    '/* ---------- 8. 画面まわり ---------- */': '/* ---------- 8. Screen plumbing ---------- */',
+    '// 読むだけ。どこにも送らない': '// Read only; nothing is sent anywhere',
+}
+
 
 def main():
     docs = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "docs")
@@ -284,7 +329,11 @@ def main():
         "diff.html", "../diff/") + en[nav.end():]
 
     s, e = script_span(en)
-    core_en, missing = translate_literals(en[s:e], TR, KEEP)
+    core_en, missing = translate_comments(en[s:e], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(m[:100] for m in missing[:8])))
+    core_en, missing = translate_literals(core_en, TR, KEEP)
     if missing:
         sys.exit("訳されていない文字列が %d 件あります:\n  %s"
                  % (len(missing), "\n  ".join(sorted(set(missing))[:12])))

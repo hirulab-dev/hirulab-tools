@@ -276,11 +276,11 @@
 "use strict";
 const $ = id => document.getElementById(id);
 
-/* ---------- 1. Myers の差分アルゴリズム ---------- */
-// O(ND) greedy。trace は d ごとに必要な範囲だけを切り出して持つ（全幅を毎回コピーすると
-// メモリが D^2 * 全幅 になって現実的でないため）。
-const MAX_D_LINE = 1200;   // 行単位の打ち切り
-const MAX_D_CHAR = 300;    // 行内の打ち切り
+/* ---------- 1. The Myers diff algorithm ---------- */
+// O(ND) greedy. The trace keeps only the window each d needs (copying the full width
+// every time would make memory D^2 * width, which is not practical).
+const MAX_D_LINE = 1200;   // Cut-off for the line-level pass
+const MAX_D_CHAR = 300;    // Cut-off for the within-line pass
 
 function myers(a, b, maxD) {
   const N = a.length, M = b.length;
@@ -308,7 +308,7 @@ function myers(a, b, maxD) {
       if (x >= N && y >= M) return backtrack(d);
     }
   }
-  return null;   // 打ち切り
+  return null;   // Cut-off
 
   function backtrack(D) {
     const ops = [];
@@ -330,7 +330,7 @@ function myers(a, b, maxD) {
   }
 }
 
-// 打ち切ったときの代替。共通の先頭・末尾だけ残して、間はまるごと置き換え扱いにする。
+// Fallback after a cut-off: keep the common head and tail, call everything between replaced.
 function coarse(a, b) {
   const ops = [];
   let p = 0;
@@ -343,12 +343,12 @@ function coarse(a, b) {
   return ops;
 }
 
-/* ---------- 2. 前処理 ---------- */
+/* ---------- 2. Preparation ---------- */
 function splitLines(s) {
   s = s.replace(/\r\n?/g, "\n");
   if (s === "") return [];
   const out = s.split("\n");
-  if (out.length && out[out.length - 1] === "") out.pop();  // 末尾の改行は行として数えない
+  if (out.length && out[out.length - 1] === "") out.pop();  // A trailing newline does not count as a line
   return out;
 }
 function normLine(s, o) {
@@ -359,15 +359,15 @@ function normLine(s, o) {
   return t;
 }
 function tokenize(s, mode) {
-  // u フラグが要る。無いと [^…] が UTF-16 の1単位に当たるので、絵文字などが半分に割れて
-  // 片方だけが <del> の中に入る（画面には壊れた文字が出る）。2026-08-31 に検証で発見。
+  // The u flag is required. Without it [^...] matches one UTF-16 unit, so an emoji is cut
+  // in half and only one part lands inside <del> (a broken glyph). Found while testing 2026-08-31.
   if (mode === "word") return s.match(/\s+|[A-Za-z0-9_]+|[^\sA-Za-z0-9_]/gu) || [];
-  return Array.from(s);          // サロゲートペアを壊さない
+  return Array.from(s);          // Do not break surrogate pairs
 }
 const esc = s => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
-/* ---------- 3. 行の中の差分 ---------- */
-// 戻り値 {l, r, sim}。sim は 0〜1 の似ている度合い。似ていない行を無理に対応づけないための指標。
+/* ---------- 3. Differences within a line ---------- */
+// Returns {l, r, sim}. sim is similarity from 0 to 1, used to avoid pairing unlike lines.
 function innerDiff(sa, sb, mode, opts) {
   if (mode === "none") return { l: esc(sa), r: esc(sb), sim: sa === sb ? 1 : 0.5 };
   const ta = tokenize(sa, mode), tb = tokenize(sb, mode);
@@ -400,8 +400,8 @@ function innerDiff(sa, sb, mode, opts) {
   return { l, r, sim: denom ? (2 * eq) / denom : 1 };
 }
 
-/* ---------- 4. 行の対応から表示用の行を組む ---------- */
-const SIM_MIN = 0.34;   // これ未満なら「別の行」として上下に分けて出す
+/* ---------- 4. Build the display rows from the line pairing ---------- */
+const SIM_MIN = 0.34;   // Below this the two are shown as separate lines instead of a pair
 
 function buildRows(ops, A, B, mode, opts) {
   const rows = [];
@@ -414,8 +414,8 @@ function buildRows(ops, A, B, mode, opts) {
       i++;
     }
     const m = Math.min(dels.length, inss.length);
-    // 1行が1行に置き換わっただけのときは、似ていなくても左右に並べる（そう見たいはずなので）。
-    // 複数行がまとめて入れ替わったときだけ、似ている組だけを対応づける。
+    // One line replaced by one line is shown side by side even when unlike: that is what you want.
+    // Only when several lines change together do we pair up just the similar ones.
     const always = dels.length === 1 && inss.length === 1;
     const paired = [], leftover = [];
     for (let k = 0; k < m; k++) {
@@ -423,7 +423,7 @@ function buildRows(ops, A, B, mode, opts) {
       if (always || d.sim >= SIM_MIN) paired.push({ t: "mod", a: dels[k], b: inss[k], html: d });
       else leftover.push([dels[k], inss[k]]);
     }
-    // 似ていなかった組は、削除をまとめてから追加をまとめて出す（diff の慣習に合わせる）
+    // Unlike pairs print all deletions and then all additions, as diffs conventionally do
     for (const p of paired) rows.push(p);
     for (const [d] of leftover) rows.push({ t: "del", a: d });
     for (let k = m; k < dels.length; k++) rows.push({ t: "del", a: dels[k] });
@@ -433,9 +433,9 @@ function buildRows(ops, A, B, mode, opts) {
   return rows;
 }
 
-/* ---------- 5. 描画 ---------- */
-const FOLD_CTX = 3;       // たたむときに前後に残す行数
-const MAX_ROWS = 4000;    // 一度に描く行の上限
+/* ---------- 5. Rendering ---------- */
+const FOLD_CTX = 3;       // Lines kept on each side of a fold
+const MAX_ROWS = 4000;    // Upper limit of rows drawn at once
 
 function foldRows(rows, on) {
   if (!on) return rows.map(r => ({ r }));
@@ -560,7 +560,7 @@ function paintUnified(text) {
   }).join("\n");
 }
 
-/* ---------- 7. 実行 ---------- */
+/* ---------- 7. Running it ---------- */
 let lastUnified = "";
 let nameA = "before", nameB = "after";
 
@@ -608,7 +608,7 @@ function run() {
   }
 
   $("resultPanel").classList.remove("hide");
-  render(rows, A, B);          // 表示上限に達したかどうかの注記は render が出す
+  render(rows, A, B);          // The note about hitting the display limit is emitted by render
   $("uni").innerHTML = paintUnified(lastUnified);
 }
 
@@ -633,7 +633,7 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove("show"), 1500);
 }
 
-/* ---------- 8. 画面まわり ---------- */
+/* ---------- 8. Screen plumbing ---------- */
 function selectTab(which) {
   const map = { sbs: "tab-sbs", inl: "tab-inl", uni: "tab-uni" };
   for (const k in map) $(map[k]).setAttribute("aria-selected", String(k === which));
@@ -697,7 +697,7 @@ function readFile(input, target, label, which) {
       if (which === "a") nameA = f.name; else nameB = f.name;
     };
     fr.onerror = () => showToast("Could not read the file");
-    fr.readAsText(f);           // 読むだけ。どこにも送らない
+    fr.readAsText(f);           // Read only; nothing is sent anywhere
     input.value = "";
   });
 }

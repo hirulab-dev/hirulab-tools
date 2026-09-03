@@ -20,6 +20,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import en_nav
 from jsblank import blank, literals
 from make_en_contrast import translate_literals, script_span
+from en_common import translate_comments
 
 JA_CHARS = re.compile("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？　]")
 
@@ -277,6 +278,27 @@ TR = {
 
 KEEP = set()
 
+# ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
+COMMENTS = {
+    '/* ============================================================\n'
+    '   診断の本体。この関数の中身がそのままブックマークレットになる。\n'
+    '   （下で String(hirulabContrast) を取り出して javascript: URL を組み立てている）\n'
+    '   ページの外の変数に依存しないよう、必要なものは全部この中に閉じてある。\n'
+    '   ============================================================ */':
+    '/* ============================================================\n'
+    '   The diagnosis itself. The body of this function IS the bookmarklet.\n'
+    '   (below, String(hirulabContrast) is pulled out to build the javascript: URL)\n'
+    '   Everything it needs is closed inside, so it depends on nothing outside.\n'
+    '   ============================================================ */',
+    '/* 2回目は閉じる */': '/* A second run closes it */',
+    '/* 透明を遡って、実際に見えている色を探す */':
+    '/* Walk up through transparency to find the color actually seen */',
+    '/* 子要素ではなく自分が持っている文字 */':
+    '/* Text this element owns, not the text of its children */',
+    '/* ---- ブックマークレットのURLを、上の関数そのものから組み立てる ---- */':
+    '/* ---- Build the bookmarklet URL from the function above itself ---- */',
+}
+
 
 def main():
     docs = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "docs")
@@ -298,7 +320,11 @@ def main():
         "page-contrast.html", "../page-contrast/") + en[nav.end():]
 
     s, e = script_span(en)
-    core_en, missing = translate_literals(en[s:e], TR, KEEP)
+    core_en, missing = translate_comments(en[s:e], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(m[:100] for m in missing[:8])))
+    core_en, missing = translate_literals(core_en, TR, KEEP)
     if missing:
         sys.exit("訳されていない文字列が %d 件あります:\n  %s"
                  % (len(missing), "\n  ".join(sorted(set(missing))[:12])))

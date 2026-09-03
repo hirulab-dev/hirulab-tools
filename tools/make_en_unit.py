@@ -30,6 +30,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import en_nav
 from jsblank import blank, literals
 from make_en_contrast import translate_literals, script_span, code_japanese
+from en_common import translate_comments
 
 JA_CHARS = re.compile("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？　]")
 
@@ -531,6 +532,52 @@ TR = {
 
 KEEP = set()
 
+# ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
+COMMENTS = {
+    '/* ============================================================\n'
+    '   単位定義\n'
+    '   f  = 基準単位に直すための倍率（value_base = x * f）\n'
+    '   to / from = 倍率で表せないものだけ使う関数\n'
+    '   d  = true なら「定義値」、false なら「近似値」\n'
+    '   n  = 注意書き\n'
+    '   jp = true なら日本の単位（尺貫法など）\n'
+    '   ============================================================ */':
+    '/* ============================================================\n'
+    '   Unit definitions\n'
+    '   f  = factor that converts to the base unit (value_base = x * f)\n'
+    '   to / from = functions, used only where a factor cannot express it\n'
+    '   d  = true for an exact definition, false for an approximation\n'
+    '   n  = a note shown next to the row\n'
+    '   jp = true for a traditional Japanese unit (the shakkanho system)\n'
+    '   ============================================================ */',
+
+    '/* psi = 1ポンド重 / 1平方インチ = 0.45359237kg × 9.80665m/s² ÷ (0.0254m)²\n'
+    '       ちょうど 8896443230521/1290320000 Pa。小数で書き下すと最後の1ビットがずれるので、\n'
+    '       割り算のままにして倍精度に丸めさせる（2026-08-31 修正） */':
+    '/* psi = 1 pound-force / 1 square inch = 0.45359237kg x 9.80665m/s^2 / (0.0254m)^2\n'
+    '       which is exactly 8896443230521/1290320000 Pa. Writing that out as a decimal\n'
+    '       shifts the last bit, so we keep the division (fixed 2026-08-31) */',
+
+    '/* ---------- 換算の中身（ここだけ独立してテストできるようにしてある） ---------- */':
+    '/* ---------- The conversion itself (kept separate so it can be tested alone) ---------- */',
+
+    '/* 同じ単位どうしは基準を経由しない。温度のように往復で誤差が出る式だと、\n'
+    '   0℉ の行に 1.06581×10⁻¹⁴ のような値が出てしまうため（2026-08-31 修正）。 */':
+    '/* A unit paired with itself skips the base unit. With round-trip formulas such as\n'
+    '   temperature, the 0F row would otherwise show 1.06581e-14 (fixed 2026-08-31). */',
+
+    '/* ---------- 数値の入力（分数・カンマ・全角に対応） ---------- */':
+    '/* ---------- Number input (fractions, commas and full-width digits) ---------- */',
+    '// 桁区切りのカンマだけ落とす': '// Drop the thousands separators only',
+    '/* ---------- 数値の表示 ---------- */': '/* ---------- Number output ---------- */',
+    '// まるめない': '// Do not round',
+    '/* ---------- 画面 ---------- */': '/* ---------- Screen ---------- */',
+    '// 「日 日」のように記号と名前が同じ行では名前を出さない':
+    '// Skip the name where symbol and name are the same, to avoid rows like "d d"',
+    '/* テスト用に中身を外へ出す（画面の動作には関係ありません） */':
+    '/* Exposed for the tests (nothing on screen depends on this) */',
+}
+
 
 def main():
     docs = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "docs")
@@ -552,7 +599,11 @@ def main():
         "unit.html", "../unit/") + en[nav.end():]
 
     s, e = script_span(en)
-    core_en, missing = translate_literals(en[s:e], TR, KEEP)
+    core_en, missing = translate_comments(en[s:e], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(m[:100] for m in missing[:8])))
+    core_en, missing = translate_literals(core_en, TR, KEEP)
     if missing:
         sys.exit("訳されていない文字列が %d 件あります:\n  %s"
                  % (len(missing), "\n  ".join(sorted(set(missing))[:12])))

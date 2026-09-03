@@ -30,6 +30,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank, literals  # noqa: E402
 from en_common import (JA_CHARS, code_japanese, script_span,  # noqa: E402
+                       translate_comments,
                        translate_literals)
 
 HTML_PARTS = [
@@ -238,6 +239,26 @@ TR = {
 # わざと日本語のまま残すリテラル(理由つき)。今回は0件
 KEEP = set()
 
+# ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
+COMMENTS = {
+    '/* ---------- 色のパース ---------- */': '/* ---------- Parsing colors ---------- */',
+    '// ⚠ 2.55 を掛けると 50% が 127.49999999999999 になって 127 に落ちる(ブラウザは 128)。':
+    '// Note: multiplying by 2.55 turns 50% into 127.49999999999999, which drops to 127 (browsers: 128).',
+    '//    小数の指定も parseInt では切り捨てになる(1.5 → 1。ブラウザは 2)。どちらも 2026-09-01 修正。':
+    '//    parseInt also truncates fractions (1.5 -> 1; browsers: 2). Both were fixed on 2026-09-01.',
+    '/* ---------- WCAG 2.1 コントラスト比 ---------- */':
+    '/* ---------- WCAG 2.1 contrast ratio ---------- */',
+    '/* ---------- APCA(WCAG 3.0 ドラフト・参考値) ---------- */':
+    '/* ---------- APCA (WCAG 3.0 draft, shown for reference) ---------- */',
+    '/* ---------- 色覚特性シミュレーション(LMS空間での近似) ---------- */':
+    '/* ---------- Color-vision simulation (approximated in LMS space) ---------- */',
+    '/* ---------- 修正案の生成 ---------- */': '/* ---------- Building suggested fixes ---------- */',
+    '/** 色相・彩度を保ったまま明度だけ動かして目標比に届く最も近い色を探す */':
+    '/** Keep hue and saturation, move lightness only, find the nearest color that reaches the target */',
+    '// 色覚特性': '// Color vision',
+    '// 修正案': '// Suggested fixes',
+}
+
 
 def en_nav(docs):
     """英語ナビを**実ページから**組み立てる。
@@ -277,7 +298,11 @@ def main():
     en = en[:nav.start()] + "  " + en_nav(docs) + en[nav.end():]
 
     s, e = script_span(en)
-    core_en, missing = translate_literals(en[s:e], TR, KEEP)
+    core_en, missing = translate_comments(en[s:e], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(m[:100] for m in missing[:8])))
+    core_en, missing = translate_literals(core_en, TR, KEEP)
     if missing:
         sys.exit("訳されていない文字列が %d 件あります:\n  %s"
                  % (len(missing), "\n  ".join(sorted(set(missing))[:12])))

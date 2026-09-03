@@ -19,6 +19,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank, literals
 from make_en_contrast import translate_literals, script_span
+from en_common import translate_comments
 
 JA_CHARS = re.compile("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？　]")
 
@@ -267,6 +268,22 @@ TR = {
 
 KEEP = set()
 
+# ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
+COMMENTS = {
+    '/** 削減率の表示。四捨五入で 100% になっても「ゼロになった」と誤読されないよう 99% で止める */':
+    '/** Shows the reduction. Capped at 99% so that rounding to 100% is not read as "gone to zero" */',
+    '/* ---------- 入力 ---------- */': '/* ---------- Input ---------- */',
+    '/* ---------- コントロールの連動 ---------- */':
+    '/* ---------- Keeping the controls in sync ---------- */',
+    '/* ---------- 変換 ---------- */': '/* ---------- Conversion ---------- */',
+    '// 引き伸ばさない': '// Never upscale',
+    '/** 大きく縮めるときは半分ずつ段階的に縮小する(一発で縮めるとジャギる) */':
+    '/** Shrink in halving steps for large reductions (one big step comes out jagged) */',
+    '// 実際に要求した形式で出たか(未対応だとPNGで返るブラウザがある)':
+    '// Did we actually get the format we asked for (some browsers fall back to PNG)',
+    '// UIを描き直させる': '// Force the UI to redraw',
+}
+
 
 def en_nav(docs):
     """英語ナビを実ページ(`docs/en/contrast.html`)から組み立てる。
@@ -298,7 +315,11 @@ def main():
     en = en[:nav.start()] + "  " + en_nav(docs) + en[nav.end():]
 
     s, e = script_span(en)
-    core_en, missing = translate_literals(en[s:e], TR, KEEP)
+    core_en, missing = translate_comments(en[s:e], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(m[:100] for m in missing[:8])))
+    core_en, missing = translate_literals(core_en, TR, KEEP)
     if missing:
         sys.exit("訳されていない文字列が %d 件あります:\n  %s"
                  % (len(missing), "\n  ".join(sorted(set(missing))[:12])))

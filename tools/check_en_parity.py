@@ -251,6 +251,89 @@ def html_parity(docs, names, show):
     return lines, bad
 
 
+# ── ★2026-09-03 夜 追加: コメントの日英パリティ ──────────────────────────
+#
+# それまでコメントを見ていたのは**生成器の側だけ**(`en_common.translate_comments`)で、
+# この検査は `blank()` を通すのでコメントを最初から見ていなかった。
+# つまり **英語ページを手で直されたら誰も気づけない**。
+#
+# ★書いた初回に、想定していたより大きいものが出た。9/3 昼の枠は
+# 「英語ページに載っていた日本語コメントを4ページ・70行ぶん一掃」と書いたが、
+# **数えていたのがその4ページだけ**で、残り18ページ・537行は本番に載ったままだった
+# (`en/base64.html` 33件・`en/railroad.html` 62件…)。
+# 「一掃」と書いた側が全体を数えていなかった = 9月に入って6件目の「範囲を手で決めた穴」。
+#
+# 何を見るか(2つ):
+#   (1) **英語ページのコメントに日本語が残っていないか**(本題)
+#   (2) **コメントの個数が日英で同じか** — こちらは (1) とは別の穴を塞ぐ。
+#       `blank()` はコメントを消して改行だけ残すので、**英語版でコメントを丸ごと消しても**
+#       `flat()`(空白を畳む)を通ると「一致」と出る。個数を見ないと落ちる。
+COMMENT_JA_OK = {
+    # 英語ファイル名 -> (件数, 理由)。いまは空。
+    # ⚠ 文字列リテラルの中の日本語(char-counter の `/[　-ヿ一-鿿＀-￯]/` など)は
+    #    コメントではないのでここには来ない。あちらは生成器の `KEEP` が見ている。
+}
+
+
+def comment_parity(docs, show):
+    """英語ページのコメントを見る。(行, ★の数)。
+
+    ★対象は `PAIRS` ではなく **`docs/en/` にある html を実在から数える**。
+    表を回すと、表に無いページが永久に検査の外に残る(9月に入って何度も踏んだ形)。
+    """
+    from en_common import comments as js_comments, JA_CHARS  # noqa: E402
+
+    lines, bad, waived = [], 0, []
+    en_files = sorted(p for p in (docs / "en").glob("*.html"))
+    rows, seen_ja = [], 0
+    for en_p in en_files:
+        name = en_p.name
+        en_s = script_span(en_p.read_text(encoding="utf-8"))
+        if en_s is None:
+            continue                      # 本体スクリプトを持たないページ(一覧など)
+        ce = js_comments(en_s)
+        ja_in_en = [c for c in ce if JA_CHARS.search(c)]
+        seen_ja += 1
+
+        n_ja_side = None
+        ja_rel = PAIRS.get(name)
+        if ja_rel and (docs / ja_rel).exists():
+            ja_s = script_span((docs / ja_rel).read_text(encoding="utf-8"))
+            if ja_s is not None:
+                n_ja_side = len(js_comments(ja_s))
+
+        rows.append((name, n_ja_side, len(ce), len(ja_in_en)))
+
+        want, why = COMMENT_JA_OK.get(name, (0, None))
+        if ja_in_en and why and len(ja_in_en) == want:
+            waived.append("  わざと日本語のまま: %s(%d 件)— %s" % (name, want, why))
+        elif ja_in_en:
+            extra = "" if why is None else \
+                "(わざと残すのは %d 件のはず。数が変わった)" % want
+            lines.append("★ %s: 英語ページのコメントに日本語が %d 件%s"
+                         % (name, len(ja_in_en), extra))
+            lines += ["    " + c.replace("\n", " ⏎ ")[:120] for c in ja_in_en[:show]]
+            bad += 1
+        if n_ja_side is not None and n_ja_side != len(ce):
+            lines.append("★ %s: コメントの個数が日英で違う(日 %d / 英 %d)。"
+                         "生成器が消した/足した可能性(`blank()` は個数を見ない)"
+                         % (name, n_ja_side, len(ce)))
+            bad += 1
+
+    lines += waived
+    total = sum(r[3] for r in rows)
+    clean = [r[0] for r in rows if r[3] == 0]
+    lines.append("日本語が残っている英語ページ: %d 本 / 合計 %d 件(きれいなのは %d 本)"
+                 % (len([r for r in rows if r[3]]), total, len(clean)))
+    lines.append("見た範囲: `docs/en/*.html` のうち本体スクリプトを持つ %d 本の"
+                 "**コメントの中身**(日本語が残っていないか)と、対を持つページの**個数の一致**"
+                 % seen_ja)
+    lines.append("見ていない範囲: 訳の質(英語として通じるか)/ HTML と CSS のコメント"
+                 "(CSS のコメントは上の節で「文言」として落としている)/ "
+                 "文字列リテラルの中の日本語(生成器の `KEEP` が見ている)")
+    return lines, bad
+
+
 def coverage(docs):
     """`docs/` を数えて、**対応表の外**を名指しする(2026-09-02 夜 新設)。
 
@@ -358,13 +441,19 @@ def main():
     for ln in h_lines:
         print(ln)
 
+    # ★2026-09-03 夜 追加: コメント(生成器の側でしか見ていなかった)
+    c_lines, c_bad = comment_parity(docs, args.show)
+    print("\n--- コメントの日英パリティ ---")
+    for ln in c_lines:
+        print(ln)
+
     # ★ページ単位で見たあと、**対応表そのもの**を docs/ と突き合わせる。
     #   --page で1ページだけ見たときも必ず回す(範囲の話はページと独立なので)。
     cov_lines, cov_bad = coverage(docs)
     print("\n--- 対応表の網羅 ---")
     for ln in cov_lines:
         print(ln)
-    return 1 if (bad or cov_bad or h_bad) else 0
+    return 1 if (bad or cov_bad or h_bad or c_bad) else 0
 
 
 if __name__ == "__main__":

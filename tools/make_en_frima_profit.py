@@ -32,7 +32,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank, literals  # noqa: E402
 from en_common import (JA_CHARS, code_japanese, script_span,  # noqa: E402
-                       translate_literals)
+                       translate_comments, translate_literals)
 
 BASE = "https://hirulab-dev.github.io/hirulab-tools/"
 
@@ -184,6 +184,25 @@ TR = {
 # ⚠ 「¥」は訳さない。金額は日本円のままで、通貨記号は日本語ではない
 KEEP = set()
 
+# ★2026-09-03 夜 追加。コメントも訳す(それまで英語ページに日本語の注釈が載っていた)。
+# ⚠ 訳は**行数を変えないこと**。日英の突き合わせが行単位なので、行数が違うと
+#   「コードが違う」として出る(`translate_comments` が止める)。
+# ⚠ **訳の中にも日本語を書かないこと**(「9月」のような引用も不可)。
+COMMENTS = {
+    '// 販売手数料は円未満を切り捨てる。小数のまま持つと、内訳の行を足しても合計に':
+    '// The selling fee is floored to whole yen. Kept as a fraction, the rows of the',
+    '// ならない(表示だけ四捨五入するので端数が合計にだけ乗る)。売値2,005円・10%なら':
+    '// breakdown do not add up: only the display rounds, so the remainder lands on the total.',
+    '// 「¥2,005 − ¥201 − … = ¥895」と出るのに、左辺を足すと894 になっていた。':
+    '// At 2,005 yen and 10%: ¥2,005 - ¥201 - ... = ¥895, yet the left side summed to 894.',
+    '// 損益分岐: price*(1-fee%) = 固定費 …だが、手数料を円未満で切り捨てるので':
+    '// Break-even: price*(1-fee%) = fixed costs -- but the fee is floored to whole yen, so',
+    '// 連続の式が出す売値は 1円ほど高く出ることがある(切り捨てのぶん実際は少し安く済む)。':
+    '// the closed-form price can come out about 1 yen too high (flooring makes it cheaper).',
+    '// 式で当たりを付けてから、赤字にならない範囲で1円ずつ下げて詰める。':
+    '// So start from the formula, then step down 1 yen at a time while it stays profitable.',
+}
+
 
 def en_nav(docs):
     """英語ナビを**実ページから**組み直す(`en_nav.build`)。生成元がずれようがない。"""
@@ -210,7 +229,11 @@ def main():
     en = en[:nav.start()] + en_nav(docs) + en[nav.end():]
 
     s, e = script_span(en)
-    core_en, missing = translate_literals(en[s:e], TR, KEEP)
+    core_en, missing = translate_comments(en[s:e], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(m[:100] for m in missing[:8])))
+    core_en, missing = translate_literals(core_en, TR, KEEP)
     if missing:
         sys.exit("訳されていない文字列が %d 件あります:\n  %s"
                  % (len(missing), "\n  ".join(sorted(set(missing))[:12])))

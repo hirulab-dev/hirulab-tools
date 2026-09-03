@@ -17,6 +17,119 @@ import pathlib, re, sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank
+from en_common import translate_comments
+
+# ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
+COMMENTS = {
+    '/* ------------------------------------------------------------------\n'
+    '   文字種の定義\n'
+    '------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Character classes\n'
+    '------------------------------------------------------------------ */',
+
+    '/* ------------------------------------------------------------------\n'
+    '   拒否サンプリング(rejection sampling)と素朴な剰余法。\n'
+    '   256 が n で割り切れないとき、剰余法は先頭 (256 % n) 文字を\n'
+    '   floor(256/n)+1 / 256 の確率で、残りを floor(256/n) / 256 の確率で選ぶ\n'
+    '   ことになり、一様分布からずれる。拒否サンプリングは\n'
+    '   floor(256/n)*n 以上のバイトを引き直すことでこれを避ける。\n'
+    '------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Rejection sampling versus the naive modulo method.\n'
+    '   When 256 is not divisible by n, modulo picks the first (256 % n)\n'
+    '   characters with probability floor(256/n)+1 / 256 and the rest with\n'
+    '   floor(256/n) / 256, which is not a uniform distribution. Rejection\n'
+    '   sampling avoids that by redrawing any byte at or above floor(256/n)*n.\n'
+    '------------------------------------------------------------------ */',
+
+    '// 教育・実験専用。実際のパスワード生成には使わない。':
+    '// For teaching and experiments only. Not for generating real passwords.',
+    '// 各位置がどの文字種に属するかと、文字種ごとの出現数を数える':
+    '// Record the class of each position, and how many times each class occurs',
+    '// 上書きしていい位置は「そのクラスがいま2つ以上ある」位置だけに限る。':
+    '// Only a position whose class currently occurs twice or more may be overwritten.',
+    '// そうしないと、抜けを埋めるつもりで別のクラスの唯一の出現を消してしまう':
+    '// Otherwise, filling one gap would delete the only occurrence of another class',
+    '// (実際にこのバグを一度踏んだ: 大文字が1つだけの並びの、その1文字を':
+    '// (we hit this bug once: in a string holding a single uppercase letter, that letter',
+    '//  数字で上書きして「大文字ゼロ」を新たに作っていた)。':
+    '//  was overwritten with a digit, creating a brand-new "no uppercase" case).',
+    '// 鳩の巣原理でここには来ないはず': '// The pigeonhole principle says this is unreachable',
+
+    '/* ------------------------------------------------------------------\n'
+    '   強さの目安\n'
+    '------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   How strong is it\n'
+    '------------------------------------------------------------------ */',
+
+    '// 平均であたるまでの試行回数 = 2^bits / 2':
+    '// Average number of guesses before a hit = 2^bits / 2',
+
+    '/* ------------------------------------------------------------------\n'
+    '   落とし穴の検出。data-code は英語版・検証スクリプトから機械参照するための鍵。\n'
+    '------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Pitfall detection. data-code is the key this page and the tests read by machine.\n'
+    '------------------------------------------------------------------ */',
+
+    '// 連続中': '// Inside a run',
+
+    '/* ------------------------------------------------------------------\n'
+    '   χ² 検定と p 値の近似(Wilson–Hilferty)\n'
+    '------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Chi-squared test and an approximation of the p-value (Wilson-Hilferty)\n'
+    '------------------------------------------------------------------ */',
+
+    '// Abramowitz & Stegun 7.1.26 近似(誤差 <= 1.5e-7)':
+    '// Abramowitz & Stegun 7.1.26 approximation (error <= 1.5e-7)',
+    '// Wilson-Hilferty: X~chi2(k) のとき ((X/k)^(1/3) - (1-2/(9k))) / sqrt(2/(9k)) はほぼ標準正規':
+    '// Wilson-Hilferty: for X~chi2(k), ((X/k)^(1/3) - (1-2/(9k))) / sqrt(2/(9k)) is near normal',
+    '// 右側確率(この値以上に極端になる確率)':
+    '// Upper-tail probability (the chance of coming out at least this extreme)',
+
+    '/* ------------------------------------------------------------------\n'
+    '   自己検査(この道具自身が仕様どおりに動いているかの内部一貫性チェック)\n'
+    '------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Self-checks (internal consistency: does this tool itself behave as specified)\n'
+    '------------------------------------------------------------------ */',
+
+    '// 1. 拒否サンプリングの閾値は常に256以下で、かつ n の倍数になっているか(構造的な健全性)':
+    '// 1. Is the rejection threshold always <= 256 and a multiple of n (structural sanity)',
+    '// 2. 生成したパスワードの文字が指定した文字種の外に出ていないか':
+    '// 2. Does every generated character stay inside the chosen classes',
+    '// 3. 紛らわしい文字を除くと、実際にプールから消えているか':
+    '// 3. When lookalike characters are excluded, do they really leave the pool',
+    '// 4. エントロピー計算が既知の値と一致するか(96文字 × 20文字などの手計算との突き合わせ)':
+    '// 4. Does the entropy match known values (against hand figures such as 96 chars x 20)',
+    '// 5. crypto.getRandomValues が使えるか': '// 5. Is crypto.getRandomValues available',
+    '// 6. 各種類を必ず含める、を有効にすると実際に含まれるか(50回試して全部で確認)':
+    '// 6. With "always include every class" on, is every class present (checked over 50 runs)',
+
+    '/* ------------------------------------------------------------------\n'
+    '   画面の組み立て\n'
+    '------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Building the screen\n'
+    '------------------------------------------------------------------ */',
+
+    '/* ------------------------------------------------------------------\n'
+    '   相互リンク\n'
+    '------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Cross links\n'
+    '------------------------------------------------------------------ */',
+
+    '/* ------------------------------------------------------------------\n'
+    '   イベント配線\n'
+    '------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Event wiring\n'
+    '------------------------------------------------------------------ */',
+}
 
 SITE = "https://hirulab-dev.github.io/hirulab-tools"
 
@@ -507,11 +620,25 @@ def main():
     for a, b in sorted(TR.items(), key=lambda kv: -len(kv[0])):
         en = en.replace('"' + a + '"', '"' + b + '"')
 
+    # ★2026-09-03 夜 追加: コメントも訳す。
+    #   下の検査は**コメントを落としてから**日本語を探すので、
+    #   この道具は最初から「英語ページに日本語の注釈が載っている」を見ていなかった。
+    m = re.search(r"<script>(.*)</script>", en, re.S)
+    core_en, missing = translate_comments(en[m.start(1):m.end(1)], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(x[:100] for x in missing[:8])))
+    en = en[:m.start(1)] + core_en + en[m.end(1):]
+
     body = re.sub(r"/\*.*?\*/", "", en, flags=re.S)
     body = re.sub(r"(?m)(?<!:)//.*$", "", body)
     left = re.findall("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？]+", body)
     if left:
         sys.exit("日本語が %d 箇所残っています: %s" % (len(left), left[:12]))
+    # ★コメントを落とす前の姿でもう一度見る(上の検査の穴だったところ)
+    left_c = re.findall("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？]+", core_en)
+    if left_c:
+        sys.exit("コメントに日本語が %d 箇所残っています: %s" % (len(left_c), left_c[:12]))
 
     a, b = blank(core_of(ja)), blank(core_of(en))
     if a != b:
