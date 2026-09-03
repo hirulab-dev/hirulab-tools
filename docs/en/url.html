@@ -316,7 +316,7 @@ var SPECIAL = {ftp:"21", file:null, http:"80", https:"443", ws:"80", wss:"443"};
 function isSpecial(scheme){ return Object.prototype.hasOwnProperty.call(SPECIAL, scheme); }
 
 var TE = new TextEncoder(), TD = new TextDecoder("utf-8", {ignoreBOM: true});  /* By default a leading BOM is silently dropped */
-var APOS = String.fromCharCode(39);      /* The quote is written as a character code, for the English-page comparison */
+var APOS = String.fromCharCode(39);      /* The quote is written as a character code, for the cross-language comparison */
 
 function pctByte(b){ var h = b.toString(16).toUpperCase(); return "%" + (h.length < 2 ? "0" + h : h); }
 
@@ -606,7 +606,7 @@ function parseHost(input, notSpecial, rec){
       var c = input.charCodeAt(i);
       if (c <= 0x1f || c === 0x7f || (FORBIDDEN_HOST.indexOf(input[i]) >= 0 && input[i] !== "%"))
         return {err: "the host contains a character that is not allowed there"};
-      /* When this browser is measured to test forbidden characters by the low byte alone,
+      /* When we measure that this browser tests forbidden characters by the low byte alone,
          we do the same. They pass per the standard, so this follows the browser. */
       if (HOST_LOWBYTE_QUIRK && c > 0x7f && FORBIDDEN_LOW.indexOf(c & 0xff) >= 0)
         return {err: "this browser treats that character as forbidden in a host (its low byte is "

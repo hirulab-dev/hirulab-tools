@@ -40,7 +40,7 @@ COMMENTS = {
     '/* 既定だと先頭の BOM が黙って消える */':
     '/* By default a leading BOM is silently dropped */',
     '/* 引用符は文字コードで書く（英語版の照合のため） */':
-    '/* The quote is written as a character code, for the English-page comparison */',
+    '/* The quote is written as a character code, for the cross-language comparison */',
 
     '/* 符号化する文字の範囲は WHATWG の一覧どおり。ただし実装によって割れるところがあり\n'
     '   （| をパスで符号化するかは whatwg/url#852、Chromium は符号化し Firefox はしない）、\n'
@@ -80,7 +80,7 @@ COMMENTS = {
 
     '/* 見ているブラウザが「下位バイトだけで禁止文字を判定している」と実測できたときは、\n'
     '         同じ判定をする。仕様どおりなら通る文字なので、こちらの都合ではなく相手に合わせている。 */':
-    '/* When this browser is measured to test forbidden characters by the low byte alone,\n'
+    '/* When we measure that this browser tests forbidden characters by the low byte alone,\n'
     '         we do the same. They pass per the standard, so this follows the browser. */',
 
     '/* 見えない文字だけのホスト名は、直したあと空になる。特別スキームで空のホストは許されない。 */':

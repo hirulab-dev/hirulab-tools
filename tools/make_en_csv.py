@@ -507,7 +507,7 @@ COMMENTS = {
     '   kana made us **read EUC-JP text as Shift_JIS** (5 of 800 cases while testing).\n'
     '   EUC-JP bytes sit almost entirely in 0xA1-0xFE, and reading those as Shift_JIS\n'
     '   turns the whole file into a run of half-width kana, so the kana bonus overtook\n'
-    '   the real answer. Their bonus is now near zero, and an all-kana file is penalised. */',
+    '   the real answer. Their bonus is now near zero, and an all-half-width-kana file is penalised. */',
 
     '// 半角カナ': '// Half-width kana',
     '// 私用領域': '// Private use area',

@@ -366,7 +366,7 @@ function decodeStrict(bytes, id) {
    kana made us **read EUC-JP text as Shift_JIS** (5 of 800 cases while testing).
    EUC-JP bytes sit almost entirely in 0xA1-0xFE, and reading those as Shift_JIS
    turns the whole file into a run of half-width kana, so the kana bonus overtook
-   the real answer. Their bonus is now near zero, and an all-kana file is penalised. */
+   the real answer. Their bonus is now near zero, and an all-half-width-kana file is penalised. */
 function japaneseScore(text) {
   var kana = 0, kanji = 0, ascii = 0, weird = 0, other = 0, half = 0;
   for (var i = 0; i < text.length; i++) {

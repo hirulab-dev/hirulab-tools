@@ -86,7 +86,7 @@ COMMENTS = {
     '// Abramowitz & Stegun 7.1.26 近似(誤差 <= 1.5e-7)':
     '// Abramowitz & Stegun 7.1.26 approximation (error <= 1.5e-7)',
     '// Wilson-Hilferty: X~chi2(k) のとき ((X/k)^(1/3) - (1-2/(9k))) / sqrt(2/(9k)) はほぼ標準正規':
-    '// Wilson-Hilferty: for X~chi2(k), ((X/k)^(1/3) - (1-2/(9k))) / sqrt(2/(9k)) is near normal',
+    '// Wilson-Hilferty: for X~chi2(k), ((X/k)^(1/3) - (1-2/(9k))) / sqrt(2/(9k)) is ~ standard normal',
     '// 右側確率(この値以上に極端になる確率)':
     '// Upper-tail probability (the chance of coming out at least this extreme)',
 
