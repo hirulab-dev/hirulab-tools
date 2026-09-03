@@ -323,9 +323,9 @@
 
 <script>
 /* ==================================================================
-   Base64・データURLの分解
-   復号・符号化・データURLの解析はすべて自前。atob / btoa は
-   「自己検査でつき合わせる相手」としてのみ使う。
+   Taking base64 and data URLs apart
+   Decoding, encoding and data-URL parsing are all written here. atob and
+   btoa are used only as the reference the self-check compares against.
 ================================================================== */
 
 var STD = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -342,8 +342,8 @@ function isSpaceChar(c) {
 }
 
 /* ------------------------------------------------------------------
-   base64 の復号（自前）
-   拒まずに読み、おかしなところを code つきで返す
+   Decoding base64 (our own)
+   It reads rather than rejects, and reports anything odd with a code
 ------------------------------------------------------------------ */
 function b64Decode(str) {
   var r = {
@@ -378,7 +378,7 @@ function b64Decode(str) {
   var rem = n % 4;
   var usable = n;
   if (rem === 1) {
-    // 6ビットしか余らない = どの1バイトにもならない。最後の1文字は使えない
+    // Only 6 bits left over, which is no whole byte. The last character is unusable
     usable = n - 1;
     r.dropped = 1;
     rem = 0;
@@ -411,11 +411,11 @@ function alphabetOf(r) {
   if (r.sawStd && r.sawUrl) return "mixed";
   if (r.sawUrl) return "url";
   if (r.sawStd) return "std";
-  return "same";  // + / - _ がどれも出てこないので区別がつかない
+  return "same";  // None of + / - _ appear, so the two alphabets cannot be told apart
 }
 
 /* ------------------------------------------------------------------
-   base64 の符号化（自前）
+   Encoding base64 (our own)
 ------------------------------------------------------------------ */
 function b64Encode(bytes, alpha, pad) {
   var tbl = (alpha === "url") ? URLSAFE : STD;
@@ -443,9 +443,9 @@ function b64Encode(bytes, alpha, pad) {
 }
 
 /* ------------------------------------------------------------------
-   UTF-8 の読み取り（自前）
-   TextDecoder は不正な並びを U+FFFD に置き換えて黙るので、
-   何がどう不正だったかを言うために自分で読む
+   Reading UTF-8 (our own)
+   TextDecoder quietly replaces an invalid sequence with U+FFFD, so we read
+   it ourselves in order to say what was invalid and how
 ------------------------------------------------------------------ */
 function utf8Decode(bytes) {
   var s = "", i = 0, n = bytes.length;
@@ -498,7 +498,7 @@ function utf8Encode(str) {
 }
 
 /* ------------------------------------------------------------------
-   データURL の解析（RFC 2397・自前）
+   Parsing a data URL (RFC 2397, our own)
 ------------------------------------------------------------------ */
 function parseDataUrl(s) {
   var r = {
@@ -525,7 +525,7 @@ function parseDataUrl(s) {
     r.payload = rest.slice(ci + 1);
   }
 
-  // mediatype を ; で分ける。最後の要素が base64 ならフラグ
+  // Split the mediatype on ; -- a final element of base64 is the flag
   var parts = r.mediatype.split(";");
   var head = parts.shift();
   r.type = head.trim();
@@ -545,7 +545,7 @@ function parseDataUrl(s) {
   return r;
 }
 
-/* 非base64 のデータURL本体をバイト列に戻す（%XX を復号。+ は復号しない） */
+/* Turn a non-base64 data URL body back into bytes (decode %XX; + is not decoded) */
 function percentDecodeToBytes(s) {
   var out = [], i = 0, bad = 0;
   while (i < s.length) {
@@ -566,7 +566,7 @@ function percentDecodeToBytes(s) {
 }
 
 /* ------------------------------------------------------------------
-   中身の判定（マジックナンバー）
+   Identifying the content (magic numbers)
 ------------------------------------------------------------------ */
 function startsWith(b, arr, off) {
   off = off || 0;
@@ -603,7 +603,7 @@ var MAGIC = [
 
 var RASTER = { "image/png": 1, "image/jpeg": 1, "image/gif": 1, "image/webp": 1, "image/bmp": 1, "image/x-icon": 1 };
 
-/* MIME の別名。宣言と中身を比べるときに同じものとみなす */
+/* MIME aliases, treated as the same when the declaration is compared with the content */
 var MIME_ALIAS = {
   "image/jpg": "image/jpeg", "image/pjpeg": "image/jpeg",
   "image/x-png": "image/png",
@@ -634,7 +634,7 @@ function sniff(bytes) {
     if (/^<\?xml/.test(low)) return { name: "XML", mime: "application/xml", binary: false, magic: false, text: u.text };
     if (t.length && (t.charAt(0) === "{" || t.charAt(0) === "[")) {
       try { JSON.parse(t); return { name: "JSON", mime: "application/json", binary: false, magic: false, text: u.text }; }
-      catch (e) { /* JSON ではなかった。テキストとして続ける */ }
+      catch (e) { /* Not JSON after all. Carry on treating it as text */ }
     }
     if (bytes.length === 0) return { name: "Empty", mime: "", binary: false, magic: false, text: "" };
     return { name: "Text (readable as UTF-8)", mime: "text/plain", binary: false, magic: false, text: u.text };
@@ -643,7 +643,7 @@ function sniff(bytes) {
 }
 
 /* ------------------------------------------------------------------
-   16進ダンプ
+   Hex dump
 ------------------------------------------------------------------ */
 function hexDump(bytes, maxRows) {
   var rows = [], i, j;
@@ -678,7 +678,7 @@ function bitsOf(v, n) {
 }
 
 /* ------------------------------------------------------------------
-   落とし穴の検出
+   Pitfall detection
    note(code, severity, title, body)
 ------------------------------------------------------------------ */
 function analyze(src) {
@@ -691,7 +691,7 @@ function analyze(src) {
   var struct = [];
 
   if (du.isData) {
-    /* ---------- データURL ---------- */
+    /* ---------- Data URL ---------- */
     struct.push(["Form", "Data URL (RFC 2397)"]);
     struct.push(["Scheme", esc(du.scheme) + (du.schemeUpper ? ' <em>(treated the same as lowercase data)</em>' : "")]);
     struct.push(["Media type", esc(du.type) + (du.defaultType ? ' <em>(omitted, so this is the default)</em>' : "")]);
@@ -722,7 +722,7 @@ function analyze(src) {
           pd.badPercent + " place(s) like this. In percent-encoding, a literal <code>%</code> has to be written as " +
           "<code>%25</code>. A bare <code>%</code> is treated as a broken escape.");
       }
-      /* base64 らしいのに ;base64 が無い */
+      /* It looks like base64 but there is no ;base64 */
       var body = du.payload.replace(/\s/g, "");
       if (body.length >= 16 && body.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(body)) {
         note("du-base64-flag-missing", "high", "<code>;base64</code> may be missing",
@@ -775,7 +775,7 @@ function analyze(src) {
         "Anything large is faster served as an ordinary file.");
     }
   } else {
-    /* ---------- 素の base64 ---------- */
+    /* ---------- Bare base64 ---------- */
     struct.push(["Form", "Not a data URL (read as a plain base64 string)"]);
     dec = b64Decode(trimmed);
     bytes = dec.bytes;
@@ -783,7 +783,7 @@ function analyze(src) {
     struct.push(["Bytes", bytes.length + " bytes"]);
   }
 
-  /* ---------- base64 まわりの共通の指摘 ---------- */
+  /* ---------- Findings that apply to base64 in general ---------- */
   if (dec) {
     var alpha = alphabetOf(dec);
     struct.push(["Alphabet", alpha === "url" ? "base64url (<code>-</code> <code>_</code>)"
@@ -844,7 +844,7 @@ function analyze(src) {
         "The browser&#39;s <code>atob</code> skips whitespace, but some implementations reject it. " +
         "This tool skipped it.");
     }
-    /* ★ 余ったビットが0でない */
+    /* The leftover bits are not zero */
     if (dec.slackBits && dec.slackValue !== 0 && dec.canonicalLast !== null) {
       var tbl = (alpha === "url") ? URLSAFE : STD;
       var actualCh = tbl.charAt(dec.actualLast);
@@ -865,7 +865,7 @@ function analyze(src) {
     }
   }
 
-  /* ---------- 中身の判定と宣言との突き合わせ ---------- */
+  /* ---------- Compare what the content is with what it claims to be ---------- */
   kind = sniff(bytes || new Uint8Array(0));
 
   if (du.isData && bytes && bytes.length) {
@@ -949,7 +949,7 @@ function analyze(src) {
 }
 
 /* ------------------------------------------------------------------
-   描画
+   Rendering
 ------------------------------------------------------------------ */
 function render(src) {
   var show = src.replace(/^\s+|\s+$/g, "").length > 0;
@@ -965,7 +965,7 @@ function render(src) {
     return '<tr><td class="k">' + row[0] + '</td><td class="v">' + row[1] + '</td></tr>';
   }).join("");
 
-  /* 余ったビットの図 */
+  /* The diagram of the leftover bits */
   var sw = el("slackWrap");
   if (a.dec && a.dec.slackBits && a.dec.actualLast !== null) {
     var alpha = alphabetOf(a.dec);
@@ -983,7 +983,7 @@ function render(src) {
       '</div>';
   } else { sw.innerHTML = ""; }
 
-  /* 中身 */
+  /* Content */
   var declared = a.du.isData ? normMime(a.du.type) : "";
   var actual = normMime(a.kind.mime);
   var badge = "";
@@ -1026,7 +1026,7 @@ function render(src) {
 
   el("hexOut").innerHTML = hexDump(a.bytes, 8);
 
-  /* 指摘 */
+  /* Findings */
   var ul = el("noteList");
   ul.innerHTML = a.notes.map(function (n) {
     return '<li class="sev-' + n.sev + '" data-code="' + n.code + '"><b>' + n.title + '</b>' + n.body + '</li>';
@@ -1035,7 +1035,7 @@ function render(src) {
 }
 
 /* ------------------------------------------------------------------
-   作る側
+   The building side
 ------------------------------------------------------------------ */
 var encBytes = null, encName = null;
 
@@ -1061,7 +1061,7 @@ function renderEnc() {
 }
 
 /* ------------------------------------------------------------------
-   自己検査：自前の実装をブラウザのものと突き合わせる
+   Self-check: compare our implementation with the browser one
 ------------------------------------------------------------------ */
 function selfCheck() {
   var rows = [], okAll = 0, ngAll = 0;
@@ -1076,7 +1076,7 @@ function selfCheck() {
     return s;
   }
 
-  /* 1. 符号化: 自前 vs btoa */
+  /* 1. Encoding: ours vs btoa */
   var n1 = 0, bad1 = 0;
   for (var t = 0; t < 200; t++) {
     var len = t % 17;
@@ -1089,7 +1089,7 @@ function selfCheck() {
   }
   add("Encoding matches btoa (" + n1 + " cases)", bad1 === 0, bad1 ? bad1 + " differ" : "");
 
-  /* 2. 復号: 自前 vs atob */
+  /* 2. Decoding: ours vs atob */
   var n2 = 0, bad2 = 0;
   for (var t2 = 0; t2 < 200; t2++) {
     var len2 = t2 % 17;
@@ -1106,7 +1106,7 @@ function selfCheck() {
   }
   add("Decoding matches atob (" + n2 + " cases)", bad2 === 0, bad2 ? bad2 + " differ" : "");
 
-  /* 3. 往復 */
+  /* 3. Round trip */
   var n3 = 0, bad3 = 0;
   for (var t3 = 0; t3 < 100; t3++) {
     var len3 = (t3 * 7) % 40;
@@ -1119,7 +1119,7 @@ function selfCheck() {
   }
   add("Encode then decode gives the original back (" + n3 + " cases, varying the alphabet and the padding)", bad3 === 0, bad3 ? bad3 + " differ" : "");
 
-  /* 4. UTF-8: 自前 vs TextDecoder / TextEncoder */
+  /* 4. UTF-8: ours vs TextDecoder / TextEncoder */
   var n4 = 0, bad4 = 0;
   var samples = ["", "a", "あ", "𩸽", "Hello, 世界", "éè", "𝒜𝒷", "改\n行", "　全角"];
   if (typeof TextEncoder !== "undefined" && typeof TextDecoder !== "undefined") {
@@ -1137,7 +1137,7 @@ function selfCheck() {
     add("UTF-8 read and write match TextEncoder / TextDecoder (" + n4 + " cases)", bad4 === 0, bad4 ? bad4 + " differ" : "");
   }
 
-  /* 5. 正規形でない base64 を、実際に atob が受け取ることの確認 */
+  /* 5. Confirm that atob really does accept base64 that is not in canonical form */
   var slackOk = false;
   try {
     var A = atob("QQ=="), B = atob("QR==");
@@ -1157,7 +1157,7 @@ function selfCheck() {
 }
 
 /* ------------------------------------------------------------------
-   見本
+   Examples
 ------------------------------------------------------------------ */
 var PNG_1PX = "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAWklEQVR42u3OMQEAAAgDoC251a3g" +
   "LwlpuHkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4M0AVeMAAeFDLh8AAAAASUVORK5CYII=";
@@ -1183,7 +1183,7 @@ var SAMPLES = {
 };
 
 /* ------------------------------------------------------------------
-   起動
+   Start-up
 ------------------------------------------------------------------ */
 (function () {
   var src = el("srcIn");

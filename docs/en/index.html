@@ -8,7 +8,7 @@
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --text:#1a1a1a; --sub:#666;
-    /* 白地で 4.5:1 を超える濃さ。明るい #c47f16 は 3.28:1 しか出ない */
+    /* Dark enough to clear 4.5:1 on white; the lighter #c47f16 gives only 3.28:1 */
     --accent:#8f5c0e; --border:#e2e2df; --shadow:0 1px 3px rgba(0,0,0,.06);
   }
   @media (prefers-color-scheme: dark) {
@@ -34,7 +34,7 @@
          font-size:.85rem;color:var(--sub)}
   footer a{color:var(--accent)}
   ul{padding-left:1.2em}
-  /* 色を指定しないとブラウザ既定の青になり、ダークモードで 1.89:1 まで落ちる */
+  /* Without an explicit color this falls back to the browser blue, which is 1.89:1 in dark mode */
   li a{color:var(--accent)}
 </style>
 <link rel="canonical" href="https://hirulab-dev.github.io/hirulab-tools/en/">

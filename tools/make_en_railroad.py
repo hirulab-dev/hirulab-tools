@@ -15,6 +15,10 @@
 """
 import re, sys, pathlib
 
+import pathlib as _pl, sys as _sys
+_sys.path.insert(0, str(_pl.Path(__file__).resolve().parent))
+from en_common import translate_css_comments
+
 # ── スクリプト内の文字列リテラル（引用符ごと突き合わせるので、
 #    '回' が '回ちょうど' の中を書き換えてしまう事故は起きない）──────────────
 TR = {
@@ -335,6 +339,12 @@ def main():
         sys.exit('コードの行数が違います（ja %d / en %d）' % (a.count('\n'), b.count('\n')))
 
     en_path.parent.mkdir(parents=True, exist_ok=True)
+    # ★（2026-09-03 夜）CSS のコメントも訳す（<script> の外なので誰も見ていなかった）
+    en, css_missing = translate_css_comments(en)
+    if css_missing:
+        sys.exit("CSS のコメントの訳し漏れ %d 件:\n  %s"
+                 % (len(css_missing), "\n  ".join(x[:100] for x in css_missing[:8])))
+
     en_path.write_text(en, encoding='utf-8')
     print('書き出した: %s' % en_path)
     print('日本語の残り: 0箇所')

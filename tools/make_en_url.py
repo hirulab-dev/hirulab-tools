@@ -24,7 +24,7 @@ import pathlib, re, sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank
-from en_common import comments, translate_comments
+from en_common import translate_css_comments, comments, translate_comments
 
 # ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
 COMMENTS = {
@@ -458,6 +458,12 @@ def main():
         sys.exit("コードの行数が違います（ja %d / en %d）" % (a.count("\n"), b.count("\n")))
 
     en_path.parent.mkdir(parents=True, exist_ok=True)
+    # ★2026-09-03 夜: CSS のコメントも訳す(<script> の外なので、それまで誰も見ていなかった)
+    en, css_missing = translate_css_comments(en)
+    if css_missing:
+        sys.exit("訳されていない CSS のコメントが %d 件あります:\n  %s"
+                 % (len(css_missing), "\n  ".join(x[:100] for x in css_missing[:8])))
+
     en_path.write_text(en, encoding="utf-8", newline="\n")
     print("書き出した: %s" % en_path)
     print("日本語の残り: 0箇所")

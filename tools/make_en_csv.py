@@ -39,7 +39,9 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank, literals  # noqa: E402
-from en_common import (JA_CHARS, code_japanese, script_span,  # noqa: E402
+from en_common import (translate_css_comments,
+                       translate_comments,  # noqa: E402
+                       JA_CHARS, code_japanese, script_span,  # noqa: E402
                        translate_literals)
 
 HTML_PARTS = [
@@ -461,6 +463,138 @@ TR = {
 # 見本のCSV。**画面の文言ではなくデータ**なので日本語のまま残す。
 # この道具の看板機能(Shift_JIS / EUC-JP の判定)は、見本が日本語でないと1度も動かない。
 # 全角スペース U+3000 の検出も、探す文字そのものなので訳しようがない。
+# ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
+COMMENTS = {
+    '/* 判定の理由として画面に出す文言。\n'
+    '   ★2026-09-01: 英語版 en/csv.html は、このファイルから\n'
+    '   `tools/make_en_csv.py` で**生成する**ようになった。日本語版が唯一の原本で、\n'
+    '   「文字列の中身を全部空にすると日英のコードがバイト単位で一致する」ことを\n'
+    '   生成のたびに機械で確かめている(=違うのは引用符の中身だけ)。\n'
+    '   それまでは英語版が手書きで、**文字コード判定という看板機能を1度も動かさない見本**を\n'
+    '   持っていた(壊れた見本が Shift_JIS でなく UTF-8 だった)。 */':
+    '/* The wording shown on screen as the reason for each decision.\n'
+    '   2026-09-01: the English page en/csv.html is now **generated** from this file\n'
+    '   by `tools/make_en_csv.py`. The Japanese page is the one original, and on every\n'
+    '   generation a machine confirms that blanking every string literal leaves the two\n'
+    '   byte-identical (so the only difference is what is inside the quotes).\n'
+    '   Before that the English page was written by hand and carried a sample that never\n'
+    '   exercised its headline feature (the broken sample was UTF-8, not Shift_JIS). */',
+
+    '/* ===== ここから「解析の中身」。英語版とは文字列の中身以外がバイト単位で同じ ===== */':
+    '/* ===== The analysis proper starts here. Byte-identical to the other language ===== */',
+
+    '/* ========== 文字コードの判定 ==========\n'
+    '   方針: BOM → 厳密復号で候補をふるい落とす → 残りを日本語らしさで選ぶ。\n'
+    '   TextDecoder に fatal:true を渡すと、規則に反したバイトがあった時点で例外になる。\n'
+    '   これを「その文字コードとして妥当か」の判定に使う。 */':
+    '/* ========== Detecting the character encoding ==========\n'
+    '   Plan: BOM, then drop candidates that fail a strict decode, then pick from the\n'
+    '   rest by how Japanese the text looks. Passing fatal:true to TextDecoder throws\n'
+    '   on the first byte that breaks the rules; that is our validity test. */',
+
+    '/* 日本語らしさの点数。ひらがな・カタカナが出れば強い証拠、\n'
+    '   使われないはずの領域（私用領域・制御文字）が出れば減点。\n'
+    '\n'
+    '   半角カナ（U+FF61〜FF9F）だけは特別扱いする。ここを普通のカナと同じに数えていたら、\n'
+    '   **EUC-JP の文書を Shift_JIS と誤判定した**（検証で800件中5件）。\n'
+    '   EUC-JP のバイトはほぼ 0xA1〜0xFE に収まり、これを Shift_JIS として読むと\n'
+    '   まるごと半角カナの列に化けるため、カナ加点で本物を追い越してしまう。\n'
+    '   半角カナは加点をほぼ無くし、「全体が半角カナばかり」なら減点する。 */':
+    '/* A score for how Japanese the text looks. Hiragana and katakana are strong\n'
+    '   evidence; ranges that should never appear (private use, control) subtract.\n'
+    '\n'
+    '   Half-width kana (U+FF61-FF9F) get special treatment. Scoring them like ordinary\n'
+    '   kana made us **read EUC-JP text as Shift_JIS** (5 of 800 cases while testing).\n'
+    '   EUC-JP bytes sit almost entirely in 0xA1-0xFE, and reading those as Shift_JIS\n'
+    '   turns the whole file into a run of half-width kana, so the kana bonus overtook\n'
+    '   the real answer. Their bonus is now near zero, and an all-kana file is penalised. */',
+
+    '// 半角カナ': '// Half-width kana',
+    '// 私用領域': '// Private use area',
+    '// 制御領域': '// Control range',
+    '// 半角カナだらけ＝化けの疑い': '// Nothing but half-width kana: probably mojibake',
+    '// BOM無しの UTF-16 は、ゼロバイトが片側に偏ることで見分ける':
+    '// UTF-16 without a BOM is spotted by zero bytes falling on one side',
+    '// UTF-8 として妥当なら、まず UTF-8。日本語のShift_JISが偶然UTF-8として妥当になることはほぼ無い。':
+    '// If it decodes as UTF-8, call it UTF-8. Japanese Shift_JIS almost never does so by accident.',
+    '// 僅差なら断定しない。上の選択欄で切り替えられることを伝える':
+    '// Do not assert on a close call; point at the selector above instead',
+
+    '/* ========== CSV の解析（RFC 4180）==========\n'
+    '   位置を持って歩く。行番号は「ファイルの行」。引用の中の改行でも行番号は増える。 */':
+    '/* ========== Parsing the CSV (RFC 4180) ==========\n'
+    '   We walk with a position. A line number is a line of the file, so a newline inside a quote counts. */',
+
+    '// 引用を閉じた直後は、区切りか行末しか来てはいけない':
+    '// Right after a closing quote, only a delimiter or end of line may follow',
+    '/* 区切り文字の推定。各候補で実際に解析し、列数のそろい方で選ぶ。 */':
+    '/* Guessing the delimiter: parse with each candidate and pick by how even the column counts are. */',
+    '// 列が2つ以上できて、そろい方が良いものを優先。同点なら列が多いほう。':
+    '// Prefer two or more columns and the evenest fit; on a tie, the one with more columns.',
+    '/* ========== 列ごとの型と、Excelが壊す形 ========== */':
+    '/* ========== Per-column types, and the shapes Excel breaks ========== */',
+
+    '/* 型は ASCII の合図(int/dec/…)で持ち、画面に出す直前に言葉にする(TYPE_LABEL は下の「画面」の側)。\n'
+    '   ここに日本語の名前を書くと、英語版を日本語版から生成するときに\n'
+    '   「文字列の中身以外は日英で同じ」が保てない(識別子は訳しようがないため)。 */':
+    '/* Types are carried as ASCII tags (int/dec/...) and put into words at the last moment\n'
+    '   (TYPE_LABEL lives in the screen section below). Naming them in one language here\n'
+    '   would break the rule that only string contents differ between the two pages. */',
+
+    '/* ===== ここまでが「解析の中身」。英語版とバイト単位で同じ ===== */':
+    '/* ===== End of the analysis proper. Byte-identical to the other language ===== */',
+    '/* ========== 画面 ========== */': '/* ========== Screen ========== */',
+    '/* 列の型の言葉。解析は上で ASCII の合図だけを返し、言語に触れるのはここだけ。 */':
+    '/* Words for the column types. The analysis returns ASCII tags only; language lives here. */',
+    '// BOM を本文から外す': '// Strip the BOM from the body',
+    '// 末尾の空行（ファイル末尾の改行で1行できる）は落とす':
+    '// Drop the trailing empty line that a final newline creates',
+    '// ---- 概要 ----': '// ---- Summary ----',
+
+    '/* 以下、数の後ろに必ず文字列を1つ置き、単位は前に出す形に寄せてある。英語には単複があり、\n'
+    '     日本語には無いので、"1 rows" のような形を避けるにはこの置き方しかない。 */':
+    '/* From here on, every number is followed by one string and the unit goes in front.\n'
+    '     Only one of the two languages has plurals, so this is the way to avoid "1 rows". */',
+
+    '// ---- 問題の洗い出し ----': '// ---- Finding the problems ----',
+
+    '/* 「3列目」でなく「第3列」と書いているのは英語版のため。日本語は数が先だが\n'
+    '         英語は "column 3" で語が先に来る。前に置く語を文字列として持っておけば、\n'
+    '         そこを訳すだけで語順が入れ替わる(コードの形は日英で1バイトも変わらない)。 */':
+    '/* The word is placed before the number here for the sake of the other language,\n'
+    '         where the number comes first. Keeping the leading word as a string means a\n'
+    '         translation alone flips the order, and the code stays byte-identical. */',
+
+    '// ---- 列ごとの診断 ----': '// ---- Per-column diagnosis ----',
+    '// ---- 表示 ----': '// ---- Display ----',
+
+    '/* 末尾に " 件" を置いてあるのは英語版のため。英語は "3 serious / 3 warnings / 1 notes"\n'
+    '       と数の後ろに語が来るので、最後の数の後ろにも文字列が1つ要る。 */':
+    '/* A trailing string sits after the last number because a phrase like\n'
+    '       "3 serious / 3 warnings / 1 notes" needs a word after every number. */',
+
+    '/* ========== 書き出し ========== */': '/* ========== Writing out ========== */',
+    '/* ========== 入出力のつなぎ ========== */': '/* ========== Wiring input to output ========== */',
+
+    '/* わざと壊してあるサンプル。閉じ忘れた引用符より後ろは全部そこに飲み込まれるので、\n'
+    '   ほかの傷（列数違い・数式・日付に化ける形）はその手前に置いてある。 */':
+    '/* A deliberately broken sample. Everything after an unclosed quote is swallowed by it,\n'
+    '   so the other flaws (wrong column count, a formula, a date-shaped value) come before it. */',
+
+    '// Shift_JIS のサンプルを作るために、この場で符号化する（外部と通信しない）':
+    '// Encoded here on the spot so we can offer a Shift_JIS sample (nothing is fetched)',
+
+    '/* サンプル用の最小限の Shift_JIS 符号化。表に無い文字は ? にする。\n'
+    '   ブラウザには Shift_JIS の「復号」しか無いので、逆引き表をその場で作る。 */':
+    '/* A minimal Shift_JIS encoder for the sample; anything not in the table becomes ?.\n'
+    '   Browsers only decode Shift_JIS, so the reverse table is built here at run time. */',
+
+    '/* 検証スクリプトから呼ぶための入口（画面には出さない）。\n'
+    '   ブラウザの中だけで完結するので、外に何かを送ることはない。 */':
+    '/* An entry point for the test script (not shown on screen).\n'
+    '   Everything stays inside the browser, so nothing is ever sent out. */',
+}
+
 KEEP = {
     "　",
     "商品コード,商品名,価格,在庫,登録日\\r\\n",
@@ -506,7 +640,11 @@ def main():
     en = en[:nav.start()] + en_nav(docs) + en[nav.end():]
 
     s, e = script_span(en)
-    core_en, missing = translate_literals(en[s:e], TR, KEEP)
+    core_en, missing = translate_comments(en[s:e], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(m[:100] for m in missing[:8])))
+    core_en, missing = translate_literals(core_en, TR, KEEP)
     if missing:
         sys.exit("訳されていない文字列が %d 件あります:\n  %s"
                  % (len(missing), "\n  ".join(sorted(set(missing))[:12])))
@@ -543,6 +681,12 @@ def main():
         sys.exit("コードの行数が違います(ja %d / en %d)" % (a.count("\n"), b.count("\n")))
 
     en_path.parent.mkdir(parents=True, exist_ok=True)
+    # ★2026-09-03 夜: CSS のコメントも訳す(<script> の外なので、それまで誰も見ていなかった)
+    en, css_missing = translate_css_comments(en)
+    if css_missing:
+        sys.exit("訳されていない CSS のコメントが %d 件あります:\n  %s"
+                 % (len(css_missing), "\n  ".join(x[:100] for x in css_missing[:8])))
+
     en_path.write_text(en, encoding="utf-8", newline="\n")
     print("書き出した: %s" % en_path)
     print("訳した文字列: %d 件" % len(TR))

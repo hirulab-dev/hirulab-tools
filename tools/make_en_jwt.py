@@ -21,6 +21,150 @@ import pathlib, re, sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank
+from en_common import comments, translate_comments, translate_css_comments
+
+# ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
+COMMENTS = {
+    '/* ------------------------------------------------------------------\n'
+    '   base64url の復号（RFC 4648 §5 / RFC 7515）。ブラウザの atob は使わない\n'
+    '   （使ったら「ブラウザと一致するか」を確かめる意味が無くなる）。\n'
+    '   ------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Decoding base64url (RFC 4648 5 / RFC 7515). The browser atob is not used\n'
+    '   (using it would defeat the point of comparing against a browser).\n'
+    '   ------------------------------------------------------------------ */',
+
+    '/* 返すもの: { bytes, err, pad, std, slack }\n'
+    '   pad   = 詰めの = が付いていた（RFC 7515 は付けてはいけないと決めている）\n'
+    '   std   = url-safe でない + / を使っていた\n'
+    '   slack = 末尾の余ったビットが 0 でなかった（正規化されていない） */':
+    '/* Returns: { bytes, err, pad, std, slack }\n'
+    '   pad   = padding = was present (RFC 7515 forbids it)\n'
+    '   std   = the non-url-safe + and / were used\n'
+    '   slack = the leftover bits at the end were not 0 (not canonical) */',
+
+    '/* ------------------------------------------------------------------\n'
+    '   UTF-8 の復号（自前・厳しめ）。overlong・サロゲート・上限超えは誤りにする。\n'
+    '   ------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Decoding UTF-8 (our own, strict). Overlong, surrogate and out-of-range are errors.\n'
+    '   ------------------------------------------------------------------ */',
+
+    '/* ------------------------------------------------------------------\n'
+    '   JSON の読み取り（自前）。JSON.parse は「同じ名前が2回出た」ことを\n'
+    '   教えてくれない（後ろ勝ちで黙って潰す）ので、そこを拾うために書いた。\n'
+    '   ------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Reading JSON (our own). JSON.parse never tells you that a name appeared\n'
+    '   twice (the later one silently wins), so this exists to catch that.\n'
+    '   ------------------------------------------------------------------ */',
+
+    '/* 整数として書いてあるのに倍精度で表せる範囲を超えているものは記録する。\n'
+    '       受け手の言語によって値が変わるため。 */':
+    '/* An integer beyond what double precision can hold is recorded, because its\n'
+    '       value then depends on the language of whoever reads it. */',
+
+    '/* ------------------------------------------------------------------\n'
+    '   JWT の分解\n'
+    '   ------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Splitting the JWT\n'
+    '   ------------------------------------------------------------------ */',
+
+    '/* ------------------------------------------------------------------\n'
+    '   アルゴリズムの表\n'
+    '   ------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   The algorithm table\n'
+    '   ------------------------------------------------------------------ */',
+
+    '/* よく使われる秘密。総当たりではなく「うっかり例のまま出した」を拾うための一覧。 */':
+    '/* Common secrets. Not a brute force: a list to catch an example left in by accident. */',
+
+    '/* ------------------------------------------------------------------\n'
+    '   時刻の読み下し\n'
+    '   ------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Reading the times back in words\n'
+    '   ------------------------------------------------------------------ */',
+
+    '/* 秒として読めない大きさか（ミリ秒で入れた疑い）。\n'
+    '   10^12 秒 = 西暦 33658 年。ここを超えたら秒ではありえない。 */':
+    '/* Too large to be seconds (probably milliseconds).\n'
+    '   10^12 seconds is the year 33658, so beyond that it cannot be seconds. */',
+
+    '/* ------------------------------------------------------------------\n'
+    '   ヘッダ・クレームの読み下し\n'
+    '   ------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Reading the header and the claims back in words\n'
+    '   ------------------------------------------------------------------ */',
+
+    '/* 個人情報・秘密らしい名前。名指しに使う（値は画面に出すが、外へは出ない）。 */':
+    '/* Names that look personal or secret, used to call them out (the value is shown, never sent). */',
+
+    '/* ------------------------------------------------------------------\n'
+    '   落とし穴の検出（data-code で機械照合できるようにしてある）\n'
+    '   ------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Pitfall detection (data-code makes it machine-checkable)\n'
+    '   ------------------------------------------------------------------ */',
+
+    '/* --- ヘッダ --- */': '/* --- The header --- */',
+    '/* --- 中身（クレーム） --- */': '/* --- The payload (claims) --- */',
+    '/* --- 符号化まわり --- */': '/* --- Around the encoding --- */',
+    '/* --- 署名の長さ --- */': '/* --- The length of the signature --- */',
+
+    '/* ------------------------------------------------------------------\n'
+    '   署名の検証（crypto.subtle）\n'
+    '   ------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Verifying the signature (crypto.subtle)\n'
+    '   ------------------------------------------------------------------ */',
+
+    '/* ------------------------------------------------------------------\n'
+    '   画面に出す\n'
+    '   ------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Putting it on screen\n'
+    '   ------------------------------------------------------------------ */',
+
+    '/* 3つの部分 */': '/* The three segments */',
+    '/* ヘッダ */': '/* The header */',
+    '/* 中身 */': '/* The payload */',
+    '/* 指摘 */': '/* Findings */',
+
+    '/* ------------------------------------------------------------------\n'
+    '   自己検査（自前の復号・JSON読み取りを、ブラウザのものと突き合わせる）\n'
+    '   ------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Self-check (our decoding and JSON reading against the browser ones)\n'
+    '   ------------------------------------------------------------------ */',
+
+    '/* 1. base64url の復号を atob と比べる */': '/* 1. Our base64url decoding vs atob */',
+    '/* 2. 書き戻して同じ文字列になるか（往復） */': '/* 2. Does encoding it back give the same string (round trip) */',
+    '/* 3. UTF-8 の復号を TextDecoder と比べる */': '/* 3. Our UTF-8 decoding vs TextDecoder */',
+    '/* 正しい形だけ並べると、厳しさを外しても気づけない。壊れた形も入れる。 */':
+    '/* Valid forms alone would not notice the strictness being removed, so broken ones are here too. */',
+    '/* 必要以上に長い書き方 */': '/* An encoding longer than it needs to be */',
+    '/* 同じく */': '/* The same again */',
+    '/* サロゲートの符号位置 */': '/* A surrogate code point */',
+    '/* U+10FFFF より上 */': '/* Above U+10FFFF */',
+    '/* 途中で切れている */': '/* Cut off part way */',
+    '/* いきなり続きバイト */': '/* A continuation byte out of nowhere */',
+    '/* 4. JSON の読み取りを JSON.parse と比べる */': '/* 4. Our JSON reading vs JSON.parse */',
+    '/* 5. JSON.parse が教えてくれない重複を、こちらは拾えているか */':
+    '/* 5. Do we catch the duplicate that JSON.parse never mentions */',
+    '/* 6. 通信していないこと（このページが出したリクエストの数） */':
+    '/* 6. That there was no networking (the number of requests this page made) */',
+
+    '/* ------------------------------------------------------------------\n'
+    '   例（署名つきのものは、いまこの場でブラウザに署名させて作る）\n'
+    '   ------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Examples (the signed ones are signed by your browser right here, right now)\n'
+    '   ------------------------------------------------------------------ */',
+}
 
 SITE = "https://hirulab-dev.github.io/hirulab-tools"
 
@@ -718,7 +862,26 @@ def main():
                 sys.exit("コードが一致しません（%d行目）:\n  ja: %s\n  en: %s" % (k + 1, x, y))
         sys.exit("コードの行数が違います（ja %d / en %d）" % (a.count("\n"), b.count("\n")))
 
+    # ★2026-09-03 夜: JS のコメントも訳す
+    s0 = en.index("<script>") + len("<script>")
+    e0 = en.index("</script>", s0)
+    core_en, missing = translate_comments(en[s0:e0], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(x[:100] for x in missing[:8])))
+    left_c = re.findall("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？]+",
+                        "\n".join(comments(core_en)))
+    if left_c:
+        sys.exit("コメントに日本語が %d 箇所残っています: %s" % (len(left_c), left_c[:12]))
+    en = en[:s0] + core_en + en[e0:]
+
     en_path.parent.mkdir(parents=True, exist_ok=True)
+    # ★2026-09-03 夜: CSS のコメントも訳す(<script> の外なので、それまで誰も見ていなかった)
+    en, css_missing = translate_css_comments(en)
+    if css_missing:
+        sys.exit("訳されていない CSS のコメントが %d 件あります:\n  %s"
+                 % (len(css_missing), "\n  ".join(x[:100] for x in css_missing[:8])))
+
     en_path.write_text(en, encoding="utf-8", newline="\n")
     print("書き出した: %s" % en_path)
     print("日本語の残り: 0箇所")

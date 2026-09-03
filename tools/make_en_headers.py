@@ -20,6 +20,87 @@ import pathlib, re, sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank
+from en_common import comments, translate_comments, translate_css_comments
+
+# ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
+COMMENTS = {
+    '/* ------------------------------------------------------------------\n'
+    '   RFC 9110 / 9112 をなぞったヘッダの分解。ブラウザの Headers は使わない\n'
+    '   （使ったら「ブラウザと一致するか」を確かめる意味が無くなる）。\n'
+    '   ------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Header parsing that follows RFC 9110 / 9112. The browser Headers class is\n'
+    '   not used (using it would defeat the point of comparing against a browser).\n'
+    '   ------------------------------------------------------------------ */',
+
+    '/* 引用符は文字コードで書く（英語版の照合のため） */':
+    '/* The quote is written as a character code, for the cross-language comparison */',
+    '/* 値に置けるのは VCHAR / SP / HTAB / obs-text(0x80-0xFF)。制御文字は置けない。 */':
+    '/* A value may hold VCHAR / SP / HTAB / obs-text (0x80-0xFF). Control characters may not. */',
+    '/* 一度しか置けないヘッダ（複数来たら受け手によって扱いが割れる） */':
+    '/* Headers that may appear only once (recipients disagree when they repeat) */',
+
+    '/* 空白は「名前に置けない文字」より先に見る。トリムしてから token かどうかを見ると、\n'
+    '       Content-Type : のような形を黙って通してしまう（実際そう書いていて、プリセットで見つけた）。 */':
+    '/* Whitespace is checked before the invalid-name characters: trimming first and then\n'
+    '       testing for a token silently accepts forms like Content-Type : (a preset found it). */',
+
+    '/* 同じ名前が複数来たときの結合。Set-Cookie だけは結合してはいけない。 */':
+    '/* Joining repeated names. Set-Cookie is the one that must never be joined. */',
+    '/* ---------- 細かい値の読み ---------- */': '/* ---------- Reading the finer values ---------- */',
+    '/* 「a=b; c」のような ;区切りのパラメータ。引用符つきの値も戻す。 */':
+    '/* Semicolon-separated parameters such as a=b; c. Quoted values are unquoted too. */',
+    '/* 「a, b, c」の ,区切り。引用符の中のカンマは割らない。 */':
+    '/* Comma-separated lists such as a, b, c. A comma inside quotes does not split. */',
+    '/* HTTP-date（RFC 9110 5.6.7）。3つの形を読む。戻り値はミリ秒か null。 */':
+    '/* HTTP-date (RFC 9110 5.6.7). Three forms are read. Returns milliseconds, or null. */',
+
+    '/* 桁数が合っていても、存在しない日付は拒む。Date.UTC は 8月32日を黙って9月1日にするので、\n'
+    '   組み立て直して同じ年月日に戻るかを見る（Python と突き合わせて見つけた穴）。 */':
+    '/* A date that does not exist is rejected even when the digits fit: Date.UTC quietly turns\n'
+    '   32 August into 1 September, so we rebuild it and check it returns (found against Python). */',
+
+    '/* 2桁の年は「50年以上先に見えるなら前世紀」と読む決まり（RFC 9110 5.6.7） */':
+    '/* A two-digit year more than 50 years ahead belongs to the previous century (RFC 9110 5.6.7) */',
+    '/* ---------- ヘッダごとの読み下し ---------- */':
+    '/* ---------- Reading each header back in words ---------- */',
+    '/* 読み下しを持っているヘッダの一覧。ここに無いものは値をそのまま出す。 */':
+    '/* The headers we can read back in words. Anything else has its value shown as is. */',
+    '/* ---------- 落とし穴の検出（data-code で機械照合できるようにしてある） ---------- */':
+    '/* ---------- Pitfall detection (data-code makes it machine-checkable) ---------- */',
+    '/* --- 分解のところ --- */': '/* --- In the parsing --- */',
+    '/* --- 要求のとき --- */': '/* --- On a request --- */',
+    '/* --- キャッシュ --- */': '/* --- Caching --- */',
+    '/* 同じ指摘を Cookie の数だけ並べない。最初の1件だけ出す。 */':
+    '/* Do not repeat one finding once per cookie. Report the first only. */',
+    '/* --- 中身の種類 --- */': '/* --- The kind of content --- */',
+    '/* --- セキュリティの指定 --- */': '/* --- Security directives --- */',
+    '/* script-src が無ければ default-src が代わりに効く。style-src だけの unsafe-inline は別の話。 */':
+    '/* Without script-src, default-src applies instead. unsafe-inline on style-src alone is another matter. */',
+    '/* 新しい書き方は必ず = を持つ。= が1つも無くて空白で区切られていたら古い形。 */':
+    '/* The modern syntax always has an =. No = at all and space-separated means the old form. */',
+    '/* ---------- キャッシュの寿命（RFC 9111 の式） ---------- */':
+    '/* ---------- Cache lifetime (the RFC 9111 formula) ---------- */',
+    '/* 10% の端数は切り捨て。規格は丸め方を決めていないので、決めて書いておく。 */':
+    '/* The 10% heuristic is floored. The standard does not say how to round, so we say it here. */',
+    '/* ---------- 自己検査: ブラウザの Headers と突き合わせる ---------- */':
+    '/* ---------- Self-check: compare with the browser Headers class ---------- */',
+
+    '/* 受け付けない文字は、行に組み立て直さず名前と値のまま判定する。\n'
+    '     1行にしてから読ませると X:Test が「名前 X、値 Test: v」に割れてしまい、\n'
+    '     こちらが拒否できているかを測れない（最初そう書いていた）。 */':
+    '/* Rejected characters are judged as a name and a value, not rebuilt into a line.\n'
+    '     Rebuilt into one line, X:Test splits into name X and value Test: v, and we can no\n'
+    '     longer measure whether we rejected it (this code did that at first). */',
+
+    '/* ---------- 画面 ---------- */': '/* ---------- Screen ---------- */',
+    '/* 1行目 */': '/* The first line */',
+    '/* 分解した結果 */': '/* What the parse produced */',
+    '/* エラー */': '/* Errors */',
+    '/* 読み下し */': '/* Read back in words */',
+    '/* キャッシュ */': '/* Caching */',
+    '/* 指摘 */': '/* Findings */',
+}
 
 SITE = "https://hirulab-dev.github.io/hirulab-tools"
 
@@ -747,7 +828,26 @@ def main():
                 sys.exit("コードが一致しません（%d行目）:\n  ja: %s\n  en: %s" % (k + 1, x, y))
         sys.exit("コードの行数が違います（ja %d / en %d）" % (a.count("\n"), b.count("\n")))
 
+    # ★2026-09-03 夜: JS のコメントも訳す
+    s0 = en.index("<script>") + len("<script>")
+    e0 = en.index("</script>", s0)
+    core_en, missing = translate_comments(en[s0:e0], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(x[:100] for x in missing[:8])))
+    left_c = re.findall("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？]+",
+                        "\n".join(comments(core_en)))
+    if left_c:
+        sys.exit("コメントに日本語が %d 箇所残っています: %s" % (len(left_c), left_c[:12]))
+    en = en[:s0] + core_en + en[e0:]
+
     en_path.parent.mkdir(parents=True, exist_ok=True)
+    # ★2026-09-03 夜: CSS のコメントも訳す(<script> の外なので、それまで誰も見ていなかった)
+    en, css_missing = translate_css_comments(en)
+    if css_missing:
+        sys.exit("訳されていない CSS のコメントが %d 件あります:\n  %s"
+                 % (len(css_missing), "\n  ".join(x[:100] for x in css_missing[:8])))
+
     en_path.write_text(en, encoding="utf-8", newline="\n")
     print("書き出した: %s" % en_path)
     print("日本語の残り: 0箇所")

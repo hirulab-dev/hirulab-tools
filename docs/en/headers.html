@@ -8,8 +8,8 @@
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
-    /* リンク色は白地で 4.5:1 を超える濃さにしている（明るい #c47f16 だと 3.28:1 しか出ない）。
-       --on-accent はアクセント色を背景に敷いたときの文字色。 */
+    /* The link color is dark enough to clear 4.5:1 on white (the lighter #c47f16 gives 3.28:1).
+       --on-accent is the text color used on top of the accent color. */
     --accent:#8f5c0e; --on-accent:#ffffff;
     --border:#e2e2df; --ok:#15703f; --err:#b3261e; --warn:#9a5208;
     --okbg:#e8f5ee; --errbg:#fdecea; --warnbg:#fdf4e3; --hi:#fdf4e3;
@@ -299,11 +299,11 @@
 
 <script>
 /* ------------------------------------------------------------------
-   RFC 9110 / 9112 をなぞったヘッダの分解。ブラウザの Headers は使わない
-   （使ったら「ブラウザと一致するか」を確かめる意味が無くなる）。
+   Header parsing that follows RFC 9110 / 9112. The browser Headers class is
+   not used (using it would defeat the point of comparing against a browser).
    ------------------------------------------------------------------ */
 
-var APOS = String.fromCharCode(39);      /* 引用符は文字コードで書く（英語版の照合のため） */
+var APOS = String.fromCharCode(39);      /* The quote is written as a character code, for the cross-language comparison */
 var TOKEN_EXTRA = "!#$%&*+-.^_`|~" + APOS;
 
 function isTokenChar(ch){
@@ -315,7 +315,7 @@ function isToken(s){
   for (var i = 0; i < s.length; i++) if (!isTokenChar(s.charAt(i))) return false;
   return true;
 }
-/* 値に置けるのは VCHAR / SP / HTAB / obs-text(0x80-0xFF)。制御文字は置けない。 */
+/* A value may hold VCHAR / SP / HTAB / obs-text (0x80-0xFF). Control characters may not. */
 function badValueCharAt(s){
   for (var i = 0; i < s.length; i++){
     var c = s.charCodeAt(i);
@@ -335,7 +335,7 @@ function hasNonASCII(s){
   return false;
 }
 
-/* 一度しか置けないヘッダ（複数来たら受け手によって扱いが割れる） */
+/* Headers that may appear only once (recipients disagree when they repeat) */
 var SINGLETON = ["content-type", "content-length", "location", "date", "expires", "age",
                  "last-modified", "etag", "retry-after", "content-encoding",
                  "content-disposition", "content-range", "server", "x-frame-options"];
@@ -381,8 +381,8 @@ function parseBlock(text){
     }
     var rawName = ln.slice(0, idx), value = trimOWS(ln.slice(idx + 1));
     var name = trimOWS(rawName);
-    /* 空白は「名前に置けない文字」より先に見る。トリムしてから token かどうかを見ると、
-       Content-Type : のような形を黙って通してしまう（実際そう書いていて、プリセットで見つけた）。 */
+    /* Whitespace is checked before the invalid-name characters: trimming first and then
+       testing for a token silently accepts forms like Content-Type : (a preset found it). */
     if (rawName !== name){
       res.errors.push({ line:lineNo, msg:"There is whitespace between the name and the colon. The recipient is required to reject this.", code:"space-before-colon" });
       continue;
@@ -410,7 +410,7 @@ function parseBlock(text){
   return res;
 }
 
-/* 同じ名前が複数来たときの結合。Set-Cookie だけは結合してはいけない。 */
+/* Joining repeated names. Set-Cookie is the one that must never be joined. */
 function combined(P, name){
   var a = P.map[name];
   if (!a) return null;
@@ -420,9 +420,9 @@ function combined(P, name){
 function firstOf(P, name){ var a = P.map[name]; return a ? a[0] : null; }
 function has(P, name){ return Object.prototype.hasOwnProperty.call(P.map, name); }
 
-/* ---------- 細かい値の読み ---------- */
+/* ---------- Reading the finer values ---------- */
 
-/* 「a=b; c」のような ;区切りのパラメータ。引用符つきの値も戻す。 */
+/* Semicolon-separated parameters such as a=b; c. Quoted values are unquoted too. */
 function splitParams(s){
   var out = [], cur = "", q = false;
   for (var i = 0; i < s.length; i++){
@@ -452,7 +452,7 @@ function unquote(v){
   if (v.charAt(0) !== "\"" || v.charAt(v.length - 1) !== "\"") return v;
   return v.slice(1, -1).replace(/\\(.)/g, "$1");
 }
-/* 「a, b, c」の ,区切り。引用符の中のカンマは割らない。 */
+/* Comma-separated lists such as a, b, c. A comma inside quotes does not split. */
 function splitList(s){
   var out = [], cur = "", q = false;
   for (var i = 0; i < s.length; i++){
@@ -472,11 +472,11 @@ function splitList(s){
   return res;
 }
 
-/* HTTP-date（RFC 9110 5.6.7）。3つの形を読む。戻り値はミリ秒か null。 */
+/* HTTP-date (RFC 9110 5.6.7). Three forms are read. Returns milliseconds, or null. */
 var MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function monthNum(s){ for (var i = 0; i < MON.length; i++) if (MON[i] === s) return i; return -1; }
-/* 桁数が合っていても、存在しない日付は拒む。Date.UTC は 8月32日を黙って9月1日にするので、
-   組み立て直して同じ年月日に戻るかを見る（Python と突き合わせて見つけた穴）。 */
+/* A date that does not exist is rejected even when the digits fit: Date.UTC quietly turns
+   32 August into 1 September, so we rebuild it and check it returns (found against Python). */
 function mkUTC(y, mo, d, hh, mm, ss){
   if (mo < 0 || d < 1 || d > 31 || hh > 23 || mm > 59 || ss > 59) return null;
   var ms = Date.UTC(y, mo, d, hh, mm, ss);
@@ -491,7 +491,7 @@ function parseHttpDate(s){
   m = s.match(/^[A-Za-z]+, (\d{2})-([A-Za-z]{3})-(\d{2}) (\d{2}):(\d{2}):(\d{2}) GMT$/);
   if (m){
     var yy = +m[3];
-    /* 2桁の年は「50年以上先に見えるなら前世紀」と読む決まり（RFC 9110 5.6.7） */
+    /* A two-digit year more than 50 years ahead belongs to the previous century (RFC 9110 5.6.7) */
     var full = 2000 + yy;
     if (full - new Date().getUTCFullYear() > 50) full -= 100;
     return mkUTC(full, monthNum(m[2]), +m[1], +m[4], +m[5], +m[6]);
@@ -513,7 +513,7 @@ function fmtBytes(n){
   return (n / 1024 / 1024).toFixed(2) + " MiB";
 }
 
-/* ---------- ヘッダごとの読み下し ---------- */
+/* ---------- Reading each header back in words ---------- */
 
 var CC_TEXT = {
   "max-age":            "treat as fresh for this many seconds; after that, check with the origin server",
@@ -674,7 +674,7 @@ function rowsDate(v){
   ];
 }
 
-/* 読み下しを持っているヘッダの一覧。ここに無いものは値をそのまま出す。 */
+/* The headers we can read back in words. Anything else has its value shown as is. */
 function explain(name, value, P){
   if (name === "cache-control") return { rows:rowsCacheControl(value), sum:"Caching directives. On the left what was written, on the right what it means." };
   if (name === "set-cookie") return { rows:rowsSetCookie(value), sum:"One cookie. The browser sends it back only under these conditions." };
@@ -744,7 +744,7 @@ function explain(name, value, P){
   return null;
 }
 
-/* ---------- 落とし穴の検出（data-code で機械照合できるようにしてある） ---------- */
+/* ---------- Pitfall detection (data-code makes it machine-checkable) ---------- */
 
 function pitfalls(P, shared){
   var out = [];
@@ -768,7 +768,7 @@ function pitfalls(P, shared){
     return null;
   }
 
-  /* --- 分解のところ --- */
+  /* --- In the parsing --- */
   for (var i = 0; i < P.errors.length; i++){
     if (P.errors[i].code === "space-before-colon"){
       add("space-before-colon", "high", "There is whitespace between the name and the colon",
@@ -803,7 +803,7 @@ function pitfalls(P, shared){
     }
   }
 
-  /* --- 要求のとき --- */
+  /* --- On a request --- */
   if (P.start && P.start.kind === "request"){
     if (!has(P, "host") && P.start.version !== "1.0"){
       add("req-host-missing", "high", "This is an HTTP/1.1 request with no Host",
@@ -815,7 +815,7 @@ function pitfalls(P, shared){
     }
   }
 
-  /* --- キャッシュ --- */
+  /* --- Caching --- */
   if (ccHas("no-cache")){
     add("cc-no-cache", "info", "no-cache does not mean do not store",
         "It is stored. It means the cache asks the origin whether it has changed before each use. When you want nothing stored, the directive is no-store.");
@@ -873,7 +873,7 @@ function pitfalls(P, shared){
   /* --- Cookie --- */
   var cookies = P.map["set-cookie"] || [];
   var flagged = {};
-  /* 同じ指摘を Cookie の数だけ並べない。最初の1件だけ出す。 */
+  /* Do not repeat one finding once per cookie. Report the first only. */
   function once(code, sev, title, body){ if (!flagged[code]){ flagged[code] = 1; add(code, sev, title, body); } }
   for (var c = 0; c < cookies.length; c++){
     var parts = splitParams(cookies[c]), attrs = {}, head = parts[0];
@@ -921,7 +921,7 @@ function pitfalls(P, shared){
     }
   }
 
-  /* --- 中身の種類 --- */
+  /* --- The kind of content --- */
   if (!has(P, "content-type") && P.start && P.start.kind === "status" && P.start.code !== "204" && P.start.code !== "304"){
     add("ct-missing", "high", "There is no Content-Type",
         "The browser guesses the type from the first bytes of the body. Something meant as text can end up running as HTML.");
@@ -953,7 +953,7 @@ function pitfalls(P, shared){
         "With both present, recipients differ on where the body ends. When the front and the back read it differently, a request can be smuggled in between. If Transfer-Encoding is there, drop Content-Length.");
   }
 
-  /* --- セキュリティの指定 --- */
+  /* --- Security directives --- */
   if (has(P, "x-frame-options")){
     var xfo = firstOf(P, "x-frame-options").toUpperCase();
     if (xfo.indexOf("ALLOW-FROM") === 0){
@@ -999,7 +999,7 @@ function pitfalls(P, shared){
       var sp2 = ct2.indexOf(" ");
       csp[sp2 < 0 ? ct2 : ct2.slice(0, sp2)] = sp2 < 0 ? "" : trimOWS(ct2.slice(sp2 + 1));
     }
-    /* script-src が無ければ default-src が代わりに効く。style-src だけの unsafe-inline は別の話。 */
+    /* Without script-src, default-src applies instead. unsafe-inline on style-src alone is another matter. */
     var scriptSrc = Object.prototype.hasOwnProperty.call(csp, "script-src") ? csp["script-src"]
                   : (Object.prototype.hasOwnProperty.call(csp, "default-src") ? csp["default-src"] : null);
     if (scriptSrc !== null && scriptSrc.indexOf("unsafe-inline") >= 0){
@@ -1037,7 +1037,7 @@ function pitfalls(P, shared){
   }
   if (has(P, "permissions-policy")){
     var pp = firstOf(P, "permissions-policy");
-    /* 新しい書き方は必ず = を持つ。= が1つも無くて空白で区切られていたら古い形。 */
+    /* The modern syntax always has an =. No = at all and space-separated means the old form. */
     if (pp.indexOf("=") < 0 && /\S\s+\S/.test(pp)){
       add("permissions-old-syntax", "high", "This is written in the Feature-Policy syntax",
           "Permissions-Policy is a structured field (RFC 8941), so it is written as geolocation=(). The older geolocation none form is discarded silently as an unreadable value.");
@@ -1055,7 +1055,7 @@ function pitfalls(P, shared){
   return out;
 }
 
-/* ---------- キャッシュの寿命（RFC 9111 の式） ---------- */
+/* ---------- Cache lifetime (the RFC 9111 formula) ---------- */
 
 function cacheModel(P, shared){
   var r = { store:true, why:[], lifetime:null, source:"", age:null, heuristic:false };
@@ -1089,7 +1089,7 @@ function cacheModel(P, shared){
   } else if (has(P, "last-modified") && has(P, "date")){
     var lm = parseHttpDate(firstOf(P, "last-modified")), dt2 = parseHttpDate(firstOf(P, "date"));
     if (lm !== null && dt2 !== null){
-      /* 10% の端数は切り捨て。規格は丸め方を決めていないので、決めて書いておく。 */
+      /* The 10% heuristic is floored. The standard does not say how to round, so we say it here. */
       r.lifetime = Math.max(0, Math.floor(Math.round((dt2 - lm) / 1000) / 10)); r.source = "guessed from Last-Modified (10% of the elapsed time)"; r.heuristic = true;
     }
   }
@@ -1118,7 +1118,7 @@ function cacheModel(P, shared){
   return r;
 }
 
-/* ---------- 自己検査: ブラウザの Headers と突き合わせる ---------- */
+/* ---------- Self-check: compare with the browser Headers class ---------- */
 
 var SELF_CASES = [
   { t:"header names are case-insensitive", pairs:[["Content-Type","text/html"],["CONTENT-TYPE","text/plain"]] },
@@ -1165,9 +1165,9 @@ function selfCheck(){
     }
     res.push({ t:c.t, ok:ok, detail:detail });
   }
-  /* 受け付けない文字は、行に組み立て直さず名前と値のまま判定する。
-     1行にしてから読ませると X:Test が「名前 X、値 Test: v」に割れてしまい、
-     こちらが拒否できているかを測れない（最初そう書いていた）。 */
+  /* Rejected characters are judged as a name and a value, not rebuilt into a line.
+     Rebuilt into one line, X:Test splits into name X and value Test: v, and we can no
+     longer measure whether we rejected it (this code did that at first). */
   for (var b = 0; b < SELF_BAD.length; b++){
     var bc = SELF_BAD[b], theyReject = false;
     try { var hb = new Headers(); hb.append(bc.name, bc.value); } catch (e2){ theyReject = true; }
@@ -1177,7 +1177,7 @@ function selfCheck(){
   return res;
 }
 
-/* ---------- 画面 ---------- */
+/* ---------- Screen ---------- */
 
 var PRESETS = [
   { n:"an ordinary response", v:"HTTP/1.1 200 OK\nDate: Mon, 24 Aug 2026 03:00:00 GMT\nContent-Type: text/html\nContent-Length: 5120\nCache-Control: max-age=3600\nSet-Cookie: session=abc123; Path=/; SameSite=None\nServer: nginx/1.24.0\nX-Powered-By: PHP/8.2.11" },
@@ -1206,7 +1206,7 @@ function render(){
   var P = parseBlock(text);
   var shared = sharedEl.checked;
 
-  /* 1行目 */
+  /* The first line */
   show("startPanel", !!P.start);
   if (P.start){
     var tb = el("startTable").getElementsByTagName("tbody")[0];
@@ -1226,7 +1226,7 @@ function render(){
     }
   }
 
-  /* 分解した結果 */
+  /* What the parse produced */
   show("fieldsPanel", P.fields.length > 0);
   var ftb = el("fieldsTable").getElementsByTagName("tbody")[0];
   ftb.innerHTML = "";
@@ -1253,7 +1253,7 @@ function render(){
     ? "A blank line appeared, so everything after it is treated as the body and is not read."
     : "";
 
-  /* エラー */
+  /* Errors */
   show("errPanel", P.errors.length > 0);
   if (P.errors.length){
     var box = el("errMsg");
@@ -1270,7 +1270,7 @@ function render(){
     box.appendChild(ul);
   }
 
-  /* 読み下し */
+  /* Read back in words */
   var readBox = el("readBox");
   readBox.innerHTML = "";
   var explained = 0;
@@ -1299,7 +1299,7 @@ function render(){
   el("readNote").textContent = explained < P.fields.length
     ? "Headers this page has no reading for appear in the table above with their value only." : "";
 
-  /* キャッシュ */
+  /* Caching */
   var isResponse = !P.start || P.start.kind === "status";
   show("cachePanel", isResponse && P.fields.length > 0);
   if (isResponse && P.fields.length > 0){
@@ -1333,7 +1333,7 @@ function render(){
     cbox.appendChild(cul);
   }
 
-  /* 指摘 */
+  /* Findings */
   var notes = pitfalls(P, shared);
   var nl = el("notesList");
   nl.innerHTML = "";

@@ -16,6 +16,10 @@
 """
 import pathlib, re, sys
 
+import pathlib as _pl, sys as _sys
+_sys.path.insert(0, str(_pl.Path(__file__).resolve().parent))
+from en_common import translate_css_comments
+
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from make_en_railroad import TR as PARSER_TR   # 解析器の訳語は鉄道図と共有する
@@ -280,6 +284,12 @@ def main():
         sys.exit('コードの行数が違います（ja %d / en %d）' % (a.count('\n'), b.count('\n')))
 
     en_path.parent.mkdir(parents=True, exist_ok=True)
+    # ★（2026-09-03 夜）CSS のコメントも訳す（<script> の外なので誰も見ていなかった）
+    en, css_missing = translate_css_comments(en)
+    if css_missing:
+        sys.exit("CSS のコメントの訳し漏れ %d 件:\n  %s"
+                 % (len(css_missing), "\n  ".join(x[:100] for x in css_missing[:8])))
+
     en_path.write_text(en, encoding='utf-8', newline='\n')
     print('書き出した: %s' % en_path)
     print('日本語の残り: 0箇所')

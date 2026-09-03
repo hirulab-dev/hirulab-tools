@@ -30,7 +30,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import en_nav
 from jsblank import blank, literals
 from make_en_contrast import translate_literals, script_span, code_japanese
-from en_common import translate_comments
+from en_common import translate_css_comments, translate_comments
 
 JA_CHARS = re.compile("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？　]")
 
@@ -638,6 +638,12 @@ def main():
         sys.exit("コードの行数が違います(ja %d / en %d)" % (a.count("\n"), b.count("\n")))
 
     en_path.parent.mkdir(parents=True, exist_ok=True)
+    # ★2026-09-03 夜: CSS のコメントも訳す(<script> の外なので、それまで誰も見ていなかった)
+    en, css_missing = translate_css_comments(en)
+    if css_missing:
+        sys.exit("訳されていない CSS のコメントが %d 件あります:\n  %s"
+                 % (len(css_missing), "\n  ".join(x[:100] for x in css_missing[:8])))
+
     en_path.write_text(en, encoding="utf-8", newline="\n")
     print("書き出した: %s" % en_path)
     print("訳した文字列: %d 件" % len(TR))

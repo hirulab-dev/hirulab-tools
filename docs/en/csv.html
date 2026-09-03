@@ -314,13 +314,13 @@
 
 <script>
 "use strict";
-/* 判定の理由として画面に出す文言。
-   ★2026-09-01: 英語版 en/csv.html は、このファイルから
-   `tools/make_en_csv.py` で**生成する**ようになった。日本語版が唯一の原本で、
-   「文字列の中身を全部空にすると日英のコードがバイト単位で一致する」ことを
-   生成のたびに機械で確かめている(=違うのは引用符の中身だけ)。
-   それまでは英語版が手書きで、**文字コード判定という看板機能を1度も動かさない見本**を
-   持っていた(壊れた見本が Shift_JIS でなく UTF-8 だった)。 */
+/* The wording shown on screen as the reason for each decision.
+   2026-09-01: the English page en/csv.html is now **generated** from this file
+   by `tools/make_en_csv.py`. The Japanese page is the one original, and on every
+   generation a machine confirms that blanking every string literal leaves the two
+   byte-identical (so the only difference is what is inside the quotes).
+   Before that the English page was written by hand and carried a sample that never
+   exercised its headline feature (the broken sample was UTF-8, not Shift_JIS). */
 var MSG = {
   bomUtf8: "Starts with a UTF-8 BOM (EF BB BF)",
   bomLe: "Starts with a UTF-16 LE BOM (FF FE)",
@@ -341,11 +341,11 @@ var MSG = {
   quoteUnclosed: "The file ended with a quote still open"
 };
 
-/* ===== ここから「解析の中身」。英語版とは文字列の中身以外がバイト単位で同じ ===== */
-/* ========== 文字コードの判定 ==========
-   方針: BOM → 厳密復号で候補をふるい落とす → 残りを日本語らしさで選ぶ。
-   TextDecoder に fatal:true を渡すと、規則に反したバイトがあった時点で例外になる。
-   これを「その文字コードとして妥当か」の判定に使う。 */
+/* ===== The analysis proper starts here. Byte-identical to the other language ===== */
+/* ========== Detecting the character encoding ==========
+   Plan: BOM, then drop candidates that fail a strict decode, then pick from the
+   rest by how Japanese the text looks. Passing fatal:true to TextDecoder throws
+   on the first byte that breaks the rules; that is our validity test. */
 var ENCODINGS = [
   { id: "utf-8",     label: "UTF-8" },
   { id: "shift_jis", label: "Shift_JIS (Windows-31J)" },
@@ -359,14 +359,14 @@ function decodeStrict(bytes, id) {
   catch (e) { return null; }
 }
 
-/* 日本語らしさの点数。ひらがな・カタカナが出れば強い証拠、
-   使われないはずの領域（私用領域・制御文字）が出れば減点。
+/* A score for how Japanese the text looks. Hiragana and katakana are strong
+   evidence; ranges that should never appear (private use, control) subtract.
 
-   半角カナ（U+FF61〜FF9F）だけは特別扱いする。ここを普通のカナと同じに数えていたら、
-   **EUC-JP の文書を Shift_JIS と誤判定した**（検証で800件中5件）。
-   EUC-JP のバイトはほぼ 0xA1〜0xFE に収まり、これを Shift_JIS として読むと
-   まるごと半角カナの列に化けるため、カナ加点で本物を追い越してしまう。
-   半角カナは加点をほぼ無くし、「全体が半角カナばかり」なら減点する。 */
+   Half-width kana (U+FF61-FF9F) get special treatment. Scoring them like ordinary
+   kana made us **read EUC-JP text as Shift_JIS** (5 of 800 cases while testing).
+   EUC-JP bytes sit almost entirely in 0xA1-0xFE, and reading those as Shift_JIS
+   turns the whole file into a run of half-width kana, so the kana bonus overtook
+   the real answer. Their bonus is now near zero, and an all-kana file is penalised. */
 function japaneseScore(text) {
   var kana = 0, kanji = 0, ascii = 0, weird = 0, other = 0, half = 0;
   for (var i = 0; i < text.length; i++) {
@@ -375,14 +375,14 @@ function japaneseScore(text) {
     if (c < 0x80) { if (c >= 0x20 || c === 9 || c === 10 || c === 13) ascii++; else weird++; }
     else if (c >= 0x3040 && c <= 0x30FF) kana++;
     else if (c >= 0x4E00 && c <= 0x9FFF) kanji++;
-    else if (c >= 0xFF61 && c <= 0xFF9F) half++;            // 半角カナ
-    else if (c >= 0xE000 && c <= 0xF8FF) weird += 4;        // 私用領域
-    else if (c >= 0x0080 && c <= 0x00A0) weird += 2;        // 制御領域
+    else if (c >= 0xFF61 && c <= 0xFF9F) half++;            // Half-width kana
+    else if (c >= 0xE000 && c <= 0xF8FF) weird += 4;        // Private use area
+    else if (c >= 0x0080 && c <= 0x00A0) weird += 2;        // Control range
     else other++;
   }
   var score = kana * 3 + kanji * 2 + ascii * 0.2 + half * 0.2 - weird * 6 - other * 0.5;
   var nonAscii = kana + kanji + half + other;
-  if (half > 0 && half >= nonAscii * 0.8) score -= half * 2.5;   // 半角カナだらけ＝化けの疑い
+  if (half > 0 && half >= nonAscii * 0.8) score -= half * 2.5;   // Nothing but half-width kana: probably mojibake
   return score;
 }
 
@@ -400,7 +400,7 @@ function sniffEncoding(bytes) {
   if (!nonAscii)
     return { id: "utf-8", bom: null, reasons: [MSG.asciiOnly], candidates: [] };
 
-  // BOM無しの UTF-16 は、ゼロバイトが片側に偏ることで見分ける
+  // UTF-16 without a BOM is spotted by zero bytes falling on one side
   var zeroEven = 0, zeroOdd = 0, n = Math.min(bytes.length, 4096);
   for (var j = 0; j < n; j++) if (bytes[j] === 0) (j % 2 === 0 ? zeroEven++ : zeroOdd++);
   if (zeroEven + zeroOdd > n * 0.2 && Math.abs(zeroEven - zeroOdd) > (zeroEven + zeroOdd) * 0.7) {
@@ -421,7 +421,7 @@ function sniffEncoding(bytes) {
   if (ok.length === 0)
     return { id: "utf-8", bom: null, reasons: [MSG.allInvalid], candidates: cands };
 
-  // UTF-8 として妥当なら、まず UTF-8。日本語のShift_JISが偶然UTF-8として妥当になることはほぼ無い。
+  // If it decodes as UTF-8, call it UTF-8. Japanese Shift_JIS almost never does so by accident.
   var utf8ok = ok.filter(function (c) { return c.id === "utf-8"; })[0];
   if (utf8ok) {
     reasons.push(MSG.utf8Valid);
@@ -436,7 +436,7 @@ function sniffEncoding(bytes) {
     reasons.push(MSG.comparedByScore(ok.map(function (c) {
       return labelOf(c.id) + " " + Math.round(c.score);
     }).join(" / ")));
-    // 僅差なら断定しない。上の選択欄で切り替えられることを伝える
+    // Do not assert on a close call; point at the selector above instead
     if (ok[0].score - ok[1].score < Math.abs(ok[0].score) * 0.25)
       reasons.push(MSG.alsoReadable(labelOf(ok[1].id)));
   }
@@ -448,8 +448,8 @@ function labelOf(id) {
   return id;
 }
 
-/* ========== CSV の解析（RFC 4180）==========
-   位置を持って歩く。行番号は「ファイルの行」。引用の中の改行でも行番号は増える。 */
+/* ========== Parsing the CSV (RFC 4180) ==========
+   We walk with a position. A line number is a line of the file, so a newline inside a quote counts. */
 function parseCSV(text, delim) {
   var rows = [], errors = [];
   var i = 0, len = text.length, line = 1, col = 1;
@@ -470,7 +470,7 @@ function parseCSV(text, delim) {
       if (ch === '"') {
         if (text[i + 1] === '"') { field += '"'; i += 2; col += 2; continue; }
         inQuotes = false; i++; col++;
-        // 引用を閉じた直後は、区切りか行末しか来てはいけない
+        // Right after a closing quote, only a delimiter or end of line may follow
         var nx = text[i];
         if (nx !== undefined && nx !== delim && nx !== "\n" && nx !== "\r") {
           errors.push({ type: "quote-garbage", line: line, col: col, field: row.length + 1,
@@ -510,7 +510,7 @@ function parseCSV(text, delim) {
   return { rows: rows, errors: errors, meta: rowMeta };
 }
 
-/* 区切り文字の推定。各候補で実際に解析し、列数のそろい方で選ぶ。 */
+/* Guessing the delimiter: parse with each candidate and pick by how even the column counts are. */
 function sniffDelimiter(text) {
   var cands = [",", "\t", ";", "|"];
   var scored = cands.map(function (d) {
@@ -525,7 +525,7 @@ function sniffDelimiter(text) {
     });
     return { d: d, cols: best, agree: bestN / rows.length, rows: rows.length, err: r.errors.length };
   });
-  // 列が2つ以上できて、そろい方が良いものを優先。同点なら列が多いほう。
+  // Prefer two or more columns and the evenest fit; on a tie, the one with more columns.
   scored.sort(function (a, b) {
     var av = (a.cols >= 2 ? 1 : 0), bv = (b.cols >= 2 ? 1 : 0);
     if (av !== bv) return bv - av;
@@ -535,7 +535,7 @@ function sniffDelimiter(text) {
   return { best: scored[0], all: scored };
 }
 
-/* ========== 列ごとの型と、Excelが壊す形 ========== */
+/* ========== Per-column types, and the shapes Excel breaks ========== */
 var RE_INT = /^-?\d+$/;
 var RE_NUM = /^-?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
 var RE_DATE = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
@@ -544,9 +544,9 @@ var RE_BOOL = /^(true|false|TRUE|FALSE|yes|no|はい|いいえ)$/;
 var RE_LEADING_ZERO = /^0\d+$/;
 var RE_EXCEL_DATEISH = /^\d{1,2}[-/]\d{1,2}$/;
 
-/* 型は ASCII の合図(int/dec/…)で持ち、画面に出す直前に言葉にする(TYPE_LABEL は下の「画面」の側)。
-   ここに日本語の名前を書くと、英語版を日本語版から生成するときに
-   「文字列の中身以外は日英で同じ」が保てない(識別子は訳しようがないため)。 */
+/* Types are carried as ASCII tags (int/dec/...) and put into words at the last moment
+   (TYPE_LABEL lives in the screen section below). Naming them in one language here
+   would break the rule that only string contents differ between the two pages. */
 function analyzeColumn(values) {
   var counts = { int: 0, dec: 0, date: 0, time: 0, bool: 0, text: 0 };
   var empty = 0, uniq = Object.create(null), uniqN = 0, maxLen = 0;
@@ -587,10 +587,10 @@ function analyzeColumn(values) {
            fullWidthSpace: fullWidthSpace, samples: samples };
 }
 
-/* ===== ここまでが「解析の中身」。英語版とバイト単位で同じ ===== */
+/* ===== End of the analysis proper. Byte-identical to the other language ===== */
 
-/* ========== 画面 ========== */
-/* 列の型の言葉。解析は上で ASCII の合図だけを返し、言語に触れるのはここだけ。 */
+/* ========== Screen ========== */
+/* Words for the column types. The analysis returns ASCII tags only; language lives here. */
 var TYPE_LABEL = { empty: "blank", number: "number", int: "integer", dec: "decimal",
                    date: "date", time: "time", bool: "boolean", text: "text" };
 
@@ -627,7 +627,7 @@ function decodeAndRender() {
   var t;
   try { t = new TextDecoder(S.encId, { fatal: false }).decode(S.bytes); }
   catch (e) { t = new TextDecoder("utf-8").decode(S.bytes); }
-  if (t.charCodeAt(0) === 0xFEFF) t = t.slice(1);   // BOM を本文から外す
+  if (t.charCodeAt(0) === 0xFEFF) t = t.slice(1);   // Strip the BOM from the body
   S.text = t;
   render();
 }
@@ -643,7 +643,7 @@ function render() {
   S.parsed = parsed;
 
   var rows = parsed.rows;
-  // 末尾の空行（ファイル末尾の改行で1行できる）は落とす
+  // Drop the trailing empty line that a final newline creates
   while (rows.length && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0] === "") {
     rows.pop(); parsed.meta.pop();
   }
@@ -653,10 +653,10 @@ function render() {
   var body = hasHeader ? rows.slice(1) : rows;
   var nCols = header ? header.length : (rows[0] ? rows[0].length : 0);
 
-  // ---- 概要 ----
+  // ---- Summary ----
   $("summary").hidden = false;
-  /* 以下、数の後ろに必ず文字列を1つ置き、単位は前に出す形に寄せてある。英語には単複があり、
-     日本語には無いので、"1 rows" のような形を避けるにはこの置き方しかない。 */
+  /* From here on, every number is followed by one string and the unit goes in front.
+     Only one of the two languages has plurals, so this is the way to avoid "1 rows". */
   $("shape").textContent = rows.length.toLocaleString() + " × " + nCols + "";
   $("shapeWhy").textContent = hasHeader
     ? "1 header row, data rows: " + body.length.toLocaleString() + ""
@@ -678,7 +678,7 @@ function render() {
     ? "Auto: " + nameOfDelim(db.d) + " (" + Math.round(db.agree * 100) + "% of rows agree on " + db.cols + " columns)"
     : "Set by hand to " + nameOfDelim(S.delim) + "";
 
-  // ---- 問題の洗い出し ----
+  // ---- Finding the problems ----
   var issues = [];
   parsed.errors.forEach(function (e) {
     issues.push({ sev: "e", where: "line " + e.line + ", field " + e.field + "", msg: e.msg,
@@ -717,9 +717,9 @@ function render() {
     var seen = {}, dup = [];
     header.forEach(function (h, i) {
       var k = h.trim();
-      /* 「3列目」でなく「第3列」と書いているのは英語版のため。日本語は数が先だが
-         英語は "column 3" で語が先に来る。前に置く語を文字列として持っておけば、
-         そこを訳すだけで語順が入れ替わる(コードの形は日英で1バイトも変わらない)。 */
+      /* The word is placed before the number here for the sake of the other language,
+         where the number comes first. Keeping the leading word as a string means a
+         translation alone flips the order, and the code stays byte-identical. */
       if (k === "") dup.push("column " + (i + 1) + " (empty)");
       else if (seen[k] !== undefined) dup.push("column “" + k + "” (columns " + (seen[k] + 1) + " and " + (i + 1) + ")");
       else seen[k] = i;
@@ -737,7 +737,7 @@ function render() {
   if (dupRows) issues.push({ sev: "w", where: dupRows + "", msg: "Rows that are exactly identical",
                              fix: "The first repeated row is data row " + (dupFirst + 1) + "" });
 
-  // ---- 列ごとの診断 ----
+  // ---- Per-column diagnosis ----
   S.cols = [];
   for (var c = 0; c < nCols; c++) {
     var vals = body.map(function (r) { return r[c] !== undefined ? r[c] : ""; });
@@ -765,13 +765,13 @@ function render() {
       a.fullWidthSpace + " found: values containing a full-width space (U+3000)", fix: "It is invisible next to a normal space." });
   }
 
-  // ---- 表示 ----
+  // ---- Display ----
   var counts = { e: 0, w: 0, i: 0 };
   issues.forEach(function (x) { counts[x.sev]++; });
   $("issuesPanel").hidden = false;
   $("issueCount").textContent = issues.length === 0 ? "nothing found"
-    /* 末尾に " 件" を置いてあるのは英語版のため。英語は "3 serious / 3 warnings / 1 notes"
-       と数の後ろに語が来るので、最後の数の後ろにも文字列が1つ要る。 */
+    /* A trailing string sits after the last number because a phrase like
+       "3 serious / 3 warnings / 1 notes" needs a word after every number. */
     : "errors " + counts.e + " / warnings " + counts.w + " / notes " + counts.i + "";
   $("issues").innerHTML = issues.length === 0
     ? '<li class="i"><b class="ok">Nothing broken was found.</b>' +
@@ -853,7 +853,7 @@ function hideAll() {
   });
 }
 
-/* ========== 書き出し ========== */
+/* ========== Writing out ========== */
 function needsQuote(v, delim) {
   return v.indexOf(delim) >= 0 || v.indexOf('"') >= 0 || v.indexOf("\n") >= 0 || v.indexOf("\r") >= 0;
 }
@@ -874,7 +874,7 @@ function download(name, parts, type) {
   setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
 }
 
-/* ========== 入出力のつなぎ ========== */
+/* ========== Wiring input to output ========== */
 $("file").addEventListener("change", function (e) {
   var f = e.target.files[0];
   if (f) f.arrayBuffer().then(function (b) { readBytes(new Uint8Array(b)); });
@@ -917,8 +917,8 @@ var SAMPLE_UTF8 =
   "0014,\"ぶどう\r\n（種なし）\",980,3,2026-03-05\r\n" +
   "0015,バナナ,150,25,2026-03-07\r\n";
 
-/* わざと壊してあるサンプル。閉じ忘れた引用符より後ろは全部そこに飲み込まれるので、
-   ほかの傷（列数違い・数式・日付に化ける形）はその手前に置いてある。 */
+/* A deliberately broken sample. Everything after an unclosed quote is swallowed by it,
+   so the other flaws (wrong column count, a formula, a date-shaped value) come before it. */
 var SAMPLE_BROKEN =
   "社員番号,氏名,部署,内線,入社日,備考\r\n" +
   "0007,山田 太郎,営業,1234,2024-04-01, 出向中 \r\n" +
@@ -934,12 +934,12 @@ $("sample2").addEventListener("click", function () {
 });
 $("sample1").addEventListener("click", function () {
   $("paste").value = "";
-  // Shift_JIS のサンプルを作るために、この場で符号化する（外部と通信しない）
+  // Encoded here on the spot so we can offer a Shift_JIS sample (nothing is fetched)
   readBytes(encodeShiftJIS(SAMPLE_BROKEN));
 });
 
-/* サンプル用の最小限の Shift_JIS 符号化。表に無い文字は ? にする。
-   ブラウザには Shift_JIS の「復号」しか無いので、逆引き表をその場で作る。 */
+/* A minimal Shift_JIS encoder for the sample; anything not in the table becomes ?.
+   Browsers only decode Shift_JIS, so the reverse table is built here at run time. */
 var sjisTable = null;
 function buildSjisTable() {
   var bytes = [], map = {};
@@ -992,8 +992,8 @@ $("dlJson").addEventListener("click", function () {
   download("data.json", [JSON.stringify(out, null, 2)], "application/json");
 });
 
-/* 検証スクリプトから呼ぶための入口（画面には出さない）。
-   ブラウザの中だけで完結するので、外に何かを送ることはない。 */
+/* An entry point for the test script (not shown on screen).
+   Everything stays inside the browser, so nothing is ever sent out. */
 window.__csvTool = {
   sniffEncoding: sniffEncoding,
   parseCSV: parseCSV,

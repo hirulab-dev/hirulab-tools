@@ -170,6 +170,50 @@ def translate_comments(src, tr):
     return "".join(out), []
 
 
+# ★2026-09-03 夜 追加。**CSS のコメント**は誰も見ていなかった(`<script>` の外なので
+#   コメントの検査に入らず、日英パリティは CSS のコメントを「文言」として落としている)。
+#   中身は3種類しかなく、どれもページの外枠に貼ってある定型文なので**共通の表**にする。
+#   ここを各生成器に写すと、また「写した時点の版が凍る」形になる(9/2・9/3 に2度直した)。
+CSS_COMMENTS = {
+    '/* リンク色は白地で 4.5:1 を超える濃さにしている（明るい #c47f16 だと 3.28:1 しか出ない）。\n'
+    '       --on-accent はアクセント色を背景に敷いたときの文字色。 */':
+    '/* The link color is dark enough to clear 4.5:1 on white (the lighter #c47f16 gives 3.28:1).\n'
+    '       --on-accent is the text color used on top of the accent color. */',
+
+    '/* 白地で 4.5:1 を超える濃さ。明るい #c47f16 は 3.28:1 しか出ない */':
+    '/* Dark enough to clear 4.5:1 on white; the lighter #c47f16 gives only 3.28:1 */',
+
+    '/* 色を指定しないとブラウザ既定の青になり、ダークモードで 1.89:1 まで落ちる */':
+    '/* Without an explicit color this falls back to the browser blue, which is 1.89:1 in dark mode */',
+}
+
+
+def translate_css_comments(html, tr=None):
+    """`<style>` の中のコメントを訳す。訳し漏れがあれば一覧で返す(呼び出し側で止める)。
+
+    ⚠ 訳は**行数を変えないこと**(JS のコメントと同じ理由。日英の突き合わせが行単位)。
+    """
+    tr = CSS_COMMENTS if tr is None else tr
+    out, missing = [], []
+    pos = 0
+    for m in re.finditer(r"<style>(.*?)</style>", html, re.S):
+        css = m.group(1)
+        new = css
+        for c in re.findall(r"/\*.*?\*/", css, re.S):
+            if not JA_CHARS.search(c):
+                continue
+            if c not in tr:
+                missing.append(c)
+                continue
+            if tr[c].count("\n") != c.count("\n"):
+                sys.exit("CSS のコメントの訳で行数が変わっています:\n  " + c[:120])
+            new = new.replace(c, tr[c])
+        out.append(html[pos:m.start(1)] + new)
+        pos = m.end(1)
+    out.append(html[pos:])
+    return "".join(out), missing
+
+
 def translate_literals(src, tr, keep):
     """JS を1文字ずつ読み、**文字列リテラルの中身だけ**を辞書と完全一致で差し替える。
 

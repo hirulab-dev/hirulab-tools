@@ -320,17 +320,38 @@ def comment_parity(docs, show):
                          % (name, n_ja_side, len(ce)))
             bad += 1
 
+    # ★同じ枠の続きで見つかった一段外側: **CSS と HTML のコメント**。
+    #   `html_parity` は CSS のコメントを「文言」として落としているので比べていない。
+    #   ここは `<script>` の外なので上の走査にも入らない = **誰も見ていなかった**。
+    #   一覧ページ(`en/index.html`)は本体スクリプトを持たないので上では飛ばされるが、
+    #   ここでは見る(飛ばしたページを検査の外に置かないため)。
+    outer = []
+    for en_p in en_files:
+        h = en_p.read_text(encoding="utf-8")
+        css = "\n".join(STYLE_BLOCK.findall(h))
+        cs = [c for c in CSS_COMMENT.findall(css) if JA_CHARS.search(c)]
+        hc = [c for c in re.findall(r"<!--.*?-->", h, re.S) if JA_CHARS.search(c)]
+        if cs or hc:
+            outer.append((en_p.name, len(cs), len(hc)))
+    for name, n_css, n_html in outer:
+        lines.append("★ %s: <script> の外のコメントに日本語(CSS %d 件 / HTML %d 件)"
+                     % (name, n_css, n_html))
+        bad += 1
+
     lines += waived
     total = sum(r[3] for r in rows)
     clean = [r[0] for r in rows if r[3] == 0]
     lines.append("日本語が残っている英語ページ: %d 本 / 合計 %d 件(きれいなのは %d 本)"
                  % (len([r for r in rows if r[3]]), total, len(clean)))
-    lines.append("見た範囲: `docs/en/*.html` のうち本体スクリプトを持つ %d 本の"
-                 "**コメントの中身**(日本語が残っていないか)と、対を持つページの**個数の一致**"
-                 % seen_ja)
-    lines.append("見ていない範囲: 訳の質(英語として通じるか)/ HTML と CSS のコメント"
-                 "(CSS のコメントは上の節で「文言」として落としている)/ "
-                 "文字列リテラルの中の日本語(生成器の `KEEP` が見ている)")
+    lines.append("<script> の外(CSS・HTML のコメント)に日本語: %d 本 / %d 件"
+                 % (len(outer), sum(a + b for _, a, b in outer)))
+    lines.append("見た範囲: `docs/en/*.html` %d 本。うち本体スクリプトを持つ %d 本については"
+                 "**JS のコメントの中身**と、対を持つページの**コメントの個数の一致**。"
+                 "**CSS と HTML のコメント**は %d 本すべてについて見る(一覧ページを含む)"
+                 % (len(en_files), seen_ja, len(en_files)))
+    lines.append("見ていない範囲: 訳の質(英語として通じるか)/ "
+                 "文字列リテラルの中の日本語(生成器の `KEEP` が見ている)/ "
+                 "日本語ページ側のコメント(あれが原本なので日本語でよい)")
     return lines, bad
 
 

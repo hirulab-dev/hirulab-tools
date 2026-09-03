@@ -8,8 +8,8 @@
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
-    /* リンク色は白地で 4.5:1 を超える濃さにしている（明るい #c47f16 だと 3.28:1 しか出ない）。
-       --on-accent はアクセント色を背景に敷いたときの文字色。 */
+    /* The link color is dark enough to clear 4.5:1 on white (the lighter #c47f16 gives 3.28:1).
+       --on-accent is the text color used on top of the accent color. */
     --accent:#8f5c0e; --on-accent:#ffffff;
     --border:#e2e2df; --ok:#15703f; --err:#b3261e; --warn:#9a5208;
     --okbg:#e8f5ee; --errbg:#fdecea; --warnbg:#fdf4e3; --hi:#fdf4e3;
@@ -329,8 +329,8 @@
 
 <script>
 /* ------------------------------------------------------------------
-   base64url の復号（RFC 4648 §5 / RFC 7515）。ブラウザの atob は使わない
-   （使ったら「ブラウザと一致するか」を確かめる意味が無くなる）。
+   Decoding base64url (RFC 4648 5 / RFC 7515). The browser atob is not used
+   (using it would defeat the point of comparing against a browser).
    ------------------------------------------------------------------ */
 
 var STD  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -341,10 +341,10 @@ function b64Index(ch, urlsafe){
   return tbl.indexOf(ch);
 }
 
-/* 返すもの: { bytes, err, pad, std, slack }
-   pad   = 詰めの = が付いていた（RFC 7515 は付けてはいけないと決めている）
-   std   = url-safe でない + / を使っていた
-   slack = 末尾の余ったビットが 0 でなかった（正規化されていない） */
+/* Returns: { bytes, err, pad, std, slack }
+   pad   = padding = was present (RFC 7515 forbids it)
+   std   = the non-url-safe + and / were used
+   slack = the leftover bits at the end were not 0 (not canonical) */
 function b64uToBytes(s){
   var r = { bytes:null, err:null, pad:false, std:false, slack:false };
   var body = s, i;
@@ -396,7 +396,7 @@ function bytesToB64u(bytes){
 }
 
 /* ------------------------------------------------------------------
-   UTF-8 の復号（自前・厳しめ）。overlong・サロゲート・上限超えは誤りにする。
+   Decoding UTF-8 (our own, strict). Overlong, surrogate and out-of-range are errors.
    ------------------------------------------------------------------ */
 function utf8Decode(bytes){
   var out = "", i = 0;
@@ -424,8 +424,8 @@ function utf8Decode(bytes){
 }
 
 /* ------------------------------------------------------------------
-   JSON の読み取り（自前）。JSON.parse は「同じ名前が2回出た」ことを
-   教えてくれない（後ろ勝ちで黙って潰す）ので、そこを拾うために書いた。
+   Reading JSON (our own). JSON.parse never tells you that a name appeared
+   twice (the later one silently wins), so this exists to catch that.
    ------------------------------------------------------------------ */
 function jsonParse(text){
   var i = 0, dups = [], bigInts = [];
@@ -518,8 +518,8 @@ function jsonParse(text){
       while (text.charAt(i) >= "0" && text.charAt(i) <= "9") i++;
     }
     var raw = text.slice(st, i), v = Number(raw);
-    /* 整数として書いてあるのに倍精度で表せる範囲を超えているものは記録する。
-       受け手の言語によって値が変わるため。 */
+    /* An integer beyond what double precision can hold is recorded, because its
+       value then depends on the language of whoever reads it. */
     if (raw.indexOf(".") < 0 && raw.indexOf("e") < 0 && raw.indexOf("E") < 0){
       if (Math.abs(v) > 9007199254740991) bigInts.push(raw);
     }
@@ -532,7 +532,7 @@ function jsonParse(text){
 }
 
 /* ------------------------------------------------------------------
-   JWT の分解
+   Splitting the JWT
    ------------------------------------------------------------------ */
 function el(id){ return document.getElementById(id); }
 
@@ -596,7 +596,7 @@ function parseJwt(raw){
 }
 
 /* ------------------------------------------------------------------
-   アルゴリズムの表
+   The algorithm table
    ------------------------------------------------------------------ */
 var ALGS = {
   "HS256": { fam:"HMAC",  hash:"SHA-256", len:32, jp:"HMAC with a shared secret (SHA-256)" },
@@ -614,7 +614,7 @@ var ALGS = {
   "none":  { fam:"none",  hash:null, len:0, jp:"not signed at all" }
 };
 
-/* よく使われる秘密。総当たりではなく「うっかり例のまま出した」を拾うための一覧。 */
+/* Common secrets. Not a brute force: a list to catch an example left in by accident. */
 var WEAK_SECRETS = [
   "secret","Secret","SECRET","password","Password","passw0rd","123456","1234567890",
   "changeme","change-me","changeit","test","testing","dev","development","local","demo",
@@ -627,7 +627,7 @@ var WEAK_SECRETS = [
 ];
 
 /* ------------------------------------------------------------------
-   時刻の読み下し
+   Reading the times back in words
    ------------------------------------------------------------------ */
 function two(n){ return (n < 10 ? "0" : "") + n; }
 function fmtUTC(ms){
@@ -653,12 +653,12 @@ function relative(ms, nowMs){
   if (d >= 0) return "in " + humanSpan(d);
   return humanSpan(d) + " ago";
 }
-/* 秒として読めない大きさか（ミリ秒で入れた疑い）。
-   10^12 秒 = 西暦 33658 年。ここを超えたら秒ではありえない。 */
+/* Too large to be seconds (probably milliseconds).
+   10^12 seconds is the year 33658, so beyond that it cannot be seconds. */
 function looksMillis(v){ return typeof v === "number" && v > 1e12; }
 
 /* ------------------------------------------------------------------
-   ヘッダ・クレームの読み下し
+   Reading the header and the claims back in words
    ------------------------------------------------------------------ */
 var HEADER_JP = {
   "alg": "how this was signed",
@@ -696,7 +696,7 @@ function short(v, n){
   return s;
 }
 
-/* 個人情報・秘密らしい名前。名指しに使う（値は画面に出すが、外へは出ない）。 */
+/* Names that look personal or secret, used to call them out (the value is shown, never sent). */
 var SECRET_KEYS = ["password","passwd","pwd","secret","client_secret","api_key","apikey","access_key",
   "private_key","privatekey","token","refresh_token","credit_card","card_number","cvv","pin","otp"];
 var PII_KEYS = ["email","mail","e_mail","phone","tel","telephone","mobile","address","addr","zip","postal",
@@ -715,7 +715,7 @@ function keyHits(obj, list){
 }
 
 /* ------------------------------------------------------------------
-   落とし穴の検出（data-code で機械照合できるようにしてある）
+   Pitfall detection (data-code makes it machine-checkable)
    ------------------------------------------------------------------ */
 function pitfalls(P, nowMs){
   var out = [];
@@ -744,7 +744,7 @@ function pitfalls(P, nowMs){
   var H = P.header, C = P.payload;
   var alg = H.alg, spec = (typeof alg === "string") ? ALGS[alg] : null;
 
-  /* --- ヘッダ --- */
+  /* --- The header --- */
   if (!Object.prototype.hasOwnProperty.call(H, "alg"))
     add("alg-missing", "high", "The header has no alg. ",
       "RFC 7515 requires it. If the recipient fills in a default, how strong the check is depends entirely on what that default happens to be.");
@@ -820,7 +820,7 @@ function pitfalls(P, nowMs){
     add("hdr-dup", "high", "A name appears more than once in the header: " + P.headerDups.join(", "),
       "Whether the first or the last one wins depends on the JSON reader. That leaves room for the code that verifies and the code that reads the claims to see different values.");
 
-  /* --- 中身（クレーム） --- */
+  /* --- The payload (claims) --- */
   var now = Math.floor(nowMs / 1000);
   function tnum(name){
     if (!Object.prototype.hasOwnProperty.call(C, name)) return null;
@@ -899,7 +899,7 @@ function pitfalls(P, nowMs){
     add("bigint", "warn", "There is an integer too large to be represented exactly in double precision. ",
       "Reading it in JavaScript changes the value. Different languages end up with different numbers, so comparisons stop meaning anything.");
 
-  /* --- 符号化まわり --- */
+  /* --- Around the encoding --- */
   var enc = [];
   if (P.hb && P.hb.pad) enc.push("the header segment");
   if (P.pb && P.pb.pad) enc.push("the payload segment");
@@ -922,7 +922,7 @@ function pitfalls(P, nowMs){
     add("b64-slack", "warn", "The leftover bits at the end are not zero (" + slk.join(", ") + "). ",
       "This is non-canonical base64. A different string decodes to the same bytes, which leaves room for the text that was signed and the content that was read to drift apart.");
 
-  /* --- 署名の長さ --- */
+  /* --- The length of the signature --- */
   if (P.sigBytes && spec){
     if (spec.fam === "none" && P.sigBytes.length)
       add("sig-none-nonempty", "high", "alg is none, yet a signature is present. ",
@@ -946,7 +946,7 @@ function pitfalls(P, nowMs){
 }
 
 /* ------------------------------------------------------------------
-   署名の検証（crypto.subtle）
+   Verifying the signature (crypto.subtle)
    ------------------------------------------------------------------ */
 function bytesToBuf(b){ var u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b[i]; return u.buffer; }
 function strToBytes(s){
@@ -1082,7 +1082,7 @@ function tryWeak(spec, sig, signingInput, my, say){
 }
 
 /* ------------------------------------------------------------------
-   画面に出す
+   Putting it on screen
    ------------------------------------------------------------------ */
 function pretty(v){
   try { return JSON.stringify(v, null, 2); } catch (e){ return String(v); }
@@ -1107,7 +1107,7 @@ function render(){
     eM.appendChild(ul);
   }
 
-  /* 3つの部分 */
+  /* The three segments */
   var pp = el("partsPanel"), pb = el("partsBox"), pl = el("partsLegend");
   if (P.kind === "empty" || P.kind === "bad"){ pp.className = "panel off"; }
   else {
@@ -1132,7 +1132,7 @@ function render(){
     }
   }
 
-  /* ヘッダ */
+  /* The header */
   var hp = el("headerPanel");
   if (!P.header || P.errors.length){ hp.className = "panel off"; }
   else {
@@ -1145,7 +1145,7 @@ function render(){
     }
   }
 
-  /* 中身 */
+  /* The payload */
   var yp = el("payloadPanel");
   if (!P.payload || P.errors.length){ yp.className = "panel off"; }
   else {
@@ -1160,7 +1160,7 @@ function render(){
 
   runSignature(P);
 
-  /* 指摘 */
+  /* Findings */
   var notes = pitfalls(P, nowMs);
   var nl = el("notesList");
   nl.innerHTML = "";
@@ -1226,7 +1226,7 @@ function claimSummary(k, v, nowMs){
 }
 
 /* ------------------------------------------------------------------
-   自己検査（自前の復号・JSON読み取りを、ブラウザのものと突き合わせる）
+   Self-check (our decoding and JSON reading against the browser ones)
    ------------------------------------------------------------------ */
 var SELF_B64 = [
   "", "QQ", "QUE", "QUJD", "e30", "eyJhIjoxfQ",
@@ -1242,7 +1242,7 @@ var SELF_JSON = [
 function selfCheck(){
   var out = [], i;
 
-  /* 1. base64url の復号を atob と比べる */
+  /* 1. Our base64url decoding vs atob */
   var b64ok = 0, b64n = 0, b64bad = null;
   for (i = 0; i < SELF_B64.length; i++){
     var s = SELF_B64[i], mine = b64uToBytes(s);
@@ -1262,7 +1262,7 @@ function selfCheck(){
   out.push({ ok: b64ok === b64n, t: "base64url decoding agrees with atob",
              detail: b64ok + " / " + b64n + (b64bad === null ? "" : ", a case that missed: " + JSON.stringify(b64bad)) });
 
-  /* 2. 書き戻して同じ文字列になるか（往復） */
+  /* 2. Does encoding it back give the same string (round trip) */
   var rtok = 0, rtn = 0;
   for (i = 0; i < SELF_B64.length; i++){
     var t = SELF_B64[i], d = b64uToBytes(t);
@@ -1272,18 +1272,18 @@ function selfCheck(){
   }
   out.push({ ok: rtok === rtn, t: "decoding and re-encoding gives back the original string", detail: rtok + " / " + rtn });
 
-  /* 3. UTF-8 の復号を TextDecoder と比べる */
+  /* 3. Our UTF-8 decoding vs TextDecoder */
   var uok = 0, un = 0;
   var samples = [];
   for (i = 0; i < SELF_B64.length; i++){ var b = b64uToBytes(SELF_B64[i]); if (b.bytes) samples.push(b.bytes); }
-  /* 正しい形だけ並べると、厳しさを外しても気づけない。壊れた形も入れる。 */
+  /* Valid forms alone would not notice the strictness being removed, so broken ones are here too. */
   samples.push([0xE3,0x81,0x82], [0xF0,0x9F,0x98,0x82], [0x41,0x42], [0xC3,0xA9],
-               [0xC0,0x80],                /* 必要以上に長い書き方 */
-               [0xE0,0x80,0x80],           /* 同じく */
-               [0xED,0xA0,0x80],           /* サロゲートの符号位置 */
-               [0xF5,0x80,0x80,0x80],      /* U+10FFFF より上 */
-               [0xE3,0x81],                /* 途中で切れている */
-               [0x80]);                    /* いきなり続きバイト */
+               [0xC0,0x80],                /* An encoding longer than it needs to be */
+               [0xE0,0x80,0x80],           /* The same again */
+               [0xED,0xA0,0x80],           /* A surrogate code point */
+               [0xF5,0x80,0x80,0x80],      /* Above U+10FFFF */
+               [0xE3,0x81],                /* Cut off part way */
+               [0x80]);                    /* A continuation byte out of nowhere */
   var TD = (typeof TextDecoder !== "undefined") ? new TextDecoder("utf-8", { fatal:true }) : null;
   for (i = 0; i < samples.length; i++){
     if (!TD) break;
@@ -1295,7 +1295,7 @@ function selfCheck(){
   }
   out.push({ ok: un > 0 && uok === un, t: "UTF-8 decoding agrees with TextDecoder", detail: uok + " / " + un });
 
-  /* 4. JSON の読み取りを JSON.parse と比べる */
+  /* 4. Our JSON reading vs JSON.parse */
   var jok = 0, jn = 0, jbad = null;
   for (i = 0; i < SELF_JSON.length; i++){
     jn++;
@@ -1309,7 +1309,7 @@ function selfCheck(){
   out.push({ ok: jok === jn, t: "JSON reading agrees with JSON.parse",
              detail: jok + " / " + jn + (jbad === null ? "" : ", a case that missed: " + jbad) });
 
-  /* 5. JSON.parse が教えてくれない重複を、こちらは拾えているか */
+  /* 5. Do we catch the duplicate that JSON.parse never mentions */
   var dupSrc = "{\"a\":1,\"b\":2,\"a\":3}";
   var dupFound = false;
   try { dupFound = jsonParse(dupSrc).dups.join(",") === "a"; } catch (e5){}
@@ -1318,7 +1318,7 @@ function selfCheck(){
   out.push({ ok: dupFound && parseHides, t: "duplicate names are noticed (JSON.parse drops them silently)",
              detail: dupFound ? "noticed" : "not noticed" });
 
-  /* 6. 通信していないこと（このページが出したリクエストの数） */
+  /* 6. That there was no networking (the number of requests this page made) */
   var reqs = null;
   try {
     if (window.performance && performance.getEntriesByType){
@@ -1334,7 +1334,7 @@ function selfCheck(){
 }
 
 /* ------------------------------------------------------------------
-   例（署名つきのものは、いまこの場でブラウザに署名させて作る）
+   Examples (the signed ones are signed by your browser right here, right now)
    ------------------------------------------------------------------ */
 var PRESET_SECRET = "hirulab-example-secret-2026-08-24";
 
