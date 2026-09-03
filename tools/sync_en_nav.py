@@ -205,7 +205,13 @@ def main():
     # ⚠ 見た本数と内訳を必ず出す(9/1〜9/2 に「見ていないことを黙る」検査が4件出たため)
     print("見た生成器: %d 本 — %s"
           % (sum(tally.values()), " / ".join("%s %d" % kv for kv in sorted(tally.items()))))
-    print("見ていない範囲: 生成器を持たない手書きページ(char-counter・timezone)の英語ナビ")
+    # ★手で書いたページ名をここに直書きしていて、生成に移したあとも古い名前が残っていた
+    #   (2026-09-03 昼に char-counter と timezone が両方とも生成になった時点で嘘になった)。
+    #   「見ていない範囲」を手で書くと、見ている範囲が広がったときに黙って嘘になる。
+    import en_pages as _ep
+    handwritten = sorted(set(_ep.PAGES.values()) - _ep.generated())
+    print("見ていない範囲: 生成器を持たない手書きページの英語ナビ(%s)"
+          % ("・".join(handwritten) if handwritten else "いまは0本"))
     # ★2026-09-03: 飛ばしたぶんを合計行にも出す。**見ていないものがあるのに
     #   「ずれ 0」とだけ出るのが、この形の穴のいつもの顔**。
     print("ずれ: %d 箇所 / ページが無くて飛ばした: %d 件%s"

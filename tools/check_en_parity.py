@@ -146,6 +146,16 @@ HTML_DIFF_OK = {
                       "値は画面にも出る名前で、JS 側の対応表も同じ文字列で引くので日英で揃っている"),
 }
 
+# `<style>` の中身の差。★**2026-09-03 昼 新設**。
+#   それまで CSS の差は「(1 個 / 1 個)」= `<style>` の**個数**しか出さず、
+#   **どの規則が違うのかを一度も言わなかった**。免除の仕組みも無かった。
+#   timezone が初めてここに当たったので、HTML_DIFF_OK と同じ「数を固定する」形に揃えた。
+CSS_DIFF_OK = {
+    "timezone.html": (2, "本文のフォント指定。日本語版は Hiragino/Noto Sans JP/Meiryo を先に置くが、"
+                         "英語の読み手にはこの3つが当たらない(当たっても日本語用の字形)ので、"
+                         "英語版は OS 標準の欧文フォントから並べている"),
+}
+
 
 class Skeleton(HTMLParser):
     """タグ名と構造にかかわる属性だけを並べる。文言・URL・文中の強調は落とす。"""
@@ -207,9 +217,24 @@ def html_parity(docs, names, show):
         sa, sb = [css_rules(x) for x in STYLE_BLOCK.findall(ja)], \
                  [css_rules(x) for x in STYLE_BLOCK.findall(en)]
         if sa != sb:
-            lines.append("★ %s: <style> の中身が日英で違う(%d 個 / %d 個)"
-                         % (name, len(sa), len(sb)))
-            bad += 1
+            # ★どの規則が違うのかを必ず出す(2026-09-03 昼)。個数だけ出していた頃は、
+            #   本物の差と意図した差が同じ1行に見えていた。
+            # `css_rules` は畳んだ**1本の文字列**を返すので、規則の単位(`}`)で割ってから比べる
+            split = lambda blocks: [r.strip() + "}" for blk in blocks
+                                    for r in blk.split("}") if r.strip()]
+            fa, fb = split(sa), split(sb)
+            d = [ln for ln in difflib.unified_diff(fa, fb, lineterm="", n=0)
+                 if ln[:1] in "+-" and ln[:3] not in ("+++", "---")]
+            want, why = CSS_DIFF_OK.get(name, (0, None))
+            if why and len(d) == want and len(sa) == len(sb):
+                waived.append("  わざと違う(CSS): %s(%d か所)— %s" % (name, want, why))
+            else:
+                extra = "" if why is None else \
+                    "(わざと違うのは %d か所のはず。数が変わった)" % want
+                lines.append("★ %s: <style> の中身が %d か所ちがう(ブロック %d 個 / %d 個)%s"
+                             % (name, len(d), len(sa), len(sb), extra))
+                lines += ["    " + ln[:140] for ln in d[:show]]
+                bad += 1
 
     lines += waived
     lines.append("わざと違う扱い: %d ページ(数を固定してあるので、増えれば ★ になる)"
@@ -219,7 +244,8 @@ def html_parity(docs, names, show):
                  % (seen, "/".join(STRUCT_ATTRS[:4])))
     lines.append("見ていない範囲: 文言 / href・content(URL は日英で違ってよい)/ "
                  "`<nav class=\"hl-nav\">`(言語ごとに中身が違うのが仕様。"
-                 "check_site.py と sync_en_nav.py が見ている)/ 手書きの2ページ / "
+                 "check_site.py と sync_en_nav.py が見ている)/ 手書きの%dページ / "
+                 % (len(names) - seen) +
                  "**JS が組み立てる HTML**(take-home の `data-k` はテンプレート文字列の中なので"
                  "ここには映らない。あちらは <script> のバイト一致が見ている)")
     return lines, bad

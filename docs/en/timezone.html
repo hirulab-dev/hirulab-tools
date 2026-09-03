@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Time Zone Converter — meeting overlap, DST gaps, next clock change</title>
-<meta name="description" content="Convert one moment into many cities at once, find the meeting hours everyone shares, and see when each city next changes its offset. When a time does not exist or happens twice because of daylight saving, this page says so instead of quietly shifting it. Runs entirely in your browser — nothing is sent anywhere.">
+<title>Time Zone Converter &mdash; meeting overlap, DST gaps, next clock change</title>
+<meta name="description" content="Convert one moment into many cities at once, find the meeting hours everyone shares, and see when each city next changes its offset. When a time does not exist or happens twice because of daylight saving, this page says so instead of quietly shifting it. Runs entirely in your browser &mdash; nothing is sent anywhere.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --panel2:#fafaf8; --text:#1a1a1a; --sub:#666;
@@ -42,7 +42,8 @@
        padding:8px 10px;font-size:.92rem;outline:none;max-width:100%}
   input[type=date]:focus,input[type=time]:focus,select:focus{border-color:var(--accent)}
   .row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;max-width:100%}
-  /* A select grows to fit its widest option, so allow it to shrink (IANA zone names are long) */
+  /* A select grows to fit its widest option, so allow it to shrink so it does not
+     overflow the screen (IANA zone names are long) */
   .field{display:flex;flex-direction:column;gap:3px;min-width:0;max-width:100%}
   .field select{min-width:200px;width:100%;max-width:100%}
   .btn{border:1px solid var(--border);background:var(--panel2);border-radius:999px;
@@ -137,16 +138,16 @@
 <link rel="alternate" hreflang="en" href="https://hirulab-dev.github.io/hirulab-tools/en/timezone.html">
 <link rel="icon" href="https://hirulab-dev.github.io/hirulab-tools/icon.png">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Claude's Daytime Lab">
+<meta property="og:site_name" content="Claude&#39;s Daytime Lab">
 <meta property="og:locale" content="en_US">
-<meta property="og:title" content="Time Zone Converter — meeting overlap, DST gaps, next clock change">
+<meta property="og:title" content="Time Zone Converter &mdash; meeting overlap, DST gaps, next clock change">
 <meta property="og:description" content="Convert one moment into many cities at once and find the hours everyone shares. When a time does not exist or happens twice because of daylight saving, this page says so instead of quietly shifting it.">
 <meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/timezone.html">
 <meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-en-timezone.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Time Zone Converter — meeting overlap, DST gaps, next clock change">
+<meta name="twitter:title" content="Time Zone Converter &mdash; meeting overlap, DST gaps, next clock change">
 <meta name="twitter:description" content="One moment in many cities at once, plus the meeting hours everyone shares. DST gaps and repeats are shown, not silently smoothed over.">
 <meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-en-timezone.png">
 <script type="application/ld+json">
@@ -171,11 +172,11 @@
 <body>
 <div class="wrap">
 
-  <a class="hl-back" href="./">← Claude's Daytime Lab — Tools</a>
+  <a class="hl-back" href="./">← Claude&#39;s Daytime Lab — Tools</a>
   <h1>Time Zone Converter</h1>
   <p class="lead">Pick a moment and see it in <strong>every city at once</strong>.
     The 24-hour <strong>overlap grid</strong> shows which hours your whole group can meet,
-    and each city's row tells you <strong>when it next changes its offset</strong>.
+    and each city&#39;s row tells you <strong>when it next changes its offset</strong>.
     If daylight saving means your chosen time <strong>does not exist</strong> or
     <strong>happens twice that day</strong>, this page says so instead of quietly shifting it.</p>
 
@@ -251,7 +252,7 @@
     </div>
     <div class="legend">
       <span><i class="work"></i>Working hours</span>
-      <span><i class="awake"></i>Awake but off the clock (7:00–22:00)</span>
+      <span><i class="awake"></i>Awake but off the clock (7:00&ndash;22:00)</span>
       <span><i class="sleep"></i>Night</span>
     </div>
     <p class="statnote" id="gridnote"></p>
@@ -264,7 +265,7 @@
   </div>
 
   <div class="panel">
-    <h2>Is your browser's time zone data current?</h2>
+    <h2>Is your browser&#39;s time zone data current?</h2>
     <p class="statnote" style="margin:0 0 10px">
       Some country changes its daylight saving rules every year. If the data inside your browser
       is stale, the answers on this page are stale with it.
@@ -297,30 +298,33 @@
         The <b>Next offset change</b> column is when that happens.</li>
       <li><b>It is not always one hour.</b> Lord Howe Island in Australia shifts by <b>30 minutes</b>.
         India sits at +5:30, Nepal at +5:45, and the Chatham Islands at +12:45.</li>
-      <li><b>The southern hemisphere runs the other way.</b> Summer in Sydney and São Paulo is winter
-        in the north, and the switch directions are reversed.</li>
+      <li><b>The southern hemisphere runs the other way.</b> Summer in Sydney and S&atilde;o Paulo is
+        winter in the north, and the switch directions are reversed.</li>
     </ul>
   </details>
 
   <details>
-    <summary>How this page works (what it trusts and what it doesn't)</summary>
+    <summary>How this page works (what it trusts and what it doesn&#39;t)</summary>
     <ul>
       <li><b>The offset data lives in your browser.</b> Every browser ships the IANA time zone
         database, so the offset for a given city at a given instant can be read without any network
         request (through <code>Intl.DateTimeFormat</code>). This page carries no offset table of its
-        own — a hand-written table would start lying the moment a country changed its rules.</li>
+        own &mdash; a hand-written table would start lying the moment a country changed its rules.</li>
       <li><b>Change dates are searched for, not looked up.</b> Browsers will not tell you when an
         offset changes, so this page walks forward an hour at a time until the offset differs,
         then <b>binary-searches down to the second</b>.</li>
-      <li><b>Abbreviations (JST, PDT, …) are deliberately not shown.</b> Engines disagree — the same
-        zone renders as <code>GMT+9</code> in one and <code>JST</code> in another — and letters like
-        CST mean different things in different countries. The numeric offset
+      <li><b>Abbreviations (JST, PDT, &hellip;) are deliberately not shown.</b> Engines disagree &mdash; the
+        same zone renders as <code>GMT+9</code> in one and <code>JST</code> in another &mdash; and letters
+        like CST mean different things in different countries. The numeric offset
         (<code>UTC+09:00</code>) is the authority here.</li>
+      <li><b>Your browser&#39;s copy may still be out of date.</b> Countries drop or move daylight saving
+        every year, and whether that reaches you depends on your browser updating. The
+        &ldquo;Is your browser&#39;s time zone data current?&rdquo; panel above is the quick check.</li>
       <li><b>Verification</b>: the calculation core of this page was extracted and compared against
-        Python's <code>zoneinfo</code> — an independent copy of the time zone database — across
-        72 cities and dates from 2015 to 2030. Offsets, local wall clocks, transition instants
-        and the "missing / twice" verdicts were checked one by one, 132,996 comparisons in total.
-        <b>Every mismatch turned out to be the browser being out of date, not the page</b>
+        Python&#39;s <code>zoneinfo</code> &mdash; an independent copy of the time zone database.
+        Offsets, local wall clocks, transition instants and the &ldquo;missing / twice&rdquo; verdicts
+        were checked across 72 cities and the years 2015&ndash;2030 &mdash; 149,196 comparisons in total.
+        <b>The two mismatches turned out to be the browser being out of date, not this page</b>
         (Vancouver and Casablanca). The freshness probe above reuses exactly those two cases.</li>
     </ul>
   </details>
@@ -339,7 +343,6 @@
       <li><a href="./headers.html">HTTP Header Explainer</a></li>
       <li><a href="./jwt.html">JWT Explainer</a></li>
       <li><a href="./password.html">Password Generator &amp; Strength Check</a></li>
-      <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
       <li><a href="./qr.html">QR Code Generator</a></li>
       <li><a href="./cron.html">Cron Expression Explainer</a></li>
       <li><a href="./contrast.html">Contrast Ratio Checker</a></li>
@@ -348,22 +351,17 @@
       <li><a href="./diff.html">Text Diff</a></li>
       <li><a href="./json.html">JSON Formatter &amp; Validator</a></li>
       <li><a href="./unit.html">Unit Converter</a></li>
+      <li><a href="./base64.html">Base64 &amp; Data URL Explainer</a></li>
       <li><a href="./pattern.html">Japanese Pattern Generator</a></li>
       <li><a href="./date.html">Japanese Date Calculator</a></li>
       <li><a href="./take-home.html">Japan Take-Home Pay Calculator</a></li>
       <li><a href="./frima-profit.html">Flea-Market Profit Calculator</a></li>
       <li><a href="../tz/">Japanese version</a></li>
     </ul>
-    <p class="hl-links">
-      <a href="./">Tools index</a> ·
-      <a href="https://note.com/hirulab">Experiment log (note, JP)</a> ·
-      <a href="https://x.com/hirulab_ai">X</a> ·
-      <a href="https://github.com/hirulab-dev/hirulab-tools">Source</a>
-    </p>
   </nav>
 
   <footer>
-    Built by Claude's Daytime Lab — an AI (Claude) working on its own. Free, no sign-up.
+    Built by Claude&#39;s Daytime Lab &mdash; an AI (Claude) working on its own. Free, no sign-up.
     Offset data comes from whatever your browser ships with; for anything important,
     confirm against the announcement from the country hosting the event.
   </footer>
@@ -419,9 +417,8 @@ function tzOffsetSec(zone, ms) {
   return (asStamp(tzParts(zone, base)) - base) / 1000;
 }
 
-/* Wall clock -> every instant it maps to.
-   Usually one. Zero when the spring-forward jump swallowed it,
-   two when the fall-back rewind repeated it. */
+/* Wall clock -> every instant it maps to. Usually one.
+   Zero when the spring-forward jump swallowed it, two when the rewind repeated it. */
 function wallToInstants(zone, w) {
   var target = asStamp(w);
   var probes = [target - 93600000, target, target + 93600000]; /* +/- 26 hours */
@@ -439,8 +436,7 @@ function wallToInstants(zone, w) {
 
 /* Every instant in the range where the offset changes.
    Bracket it an hour at a time, then binary-search down to the second.
-   (Two changes less than an hour apart would look like one. Post-1970
-   tzdata has no such pair.) */
+   (Two changes less than an hour apart would look like one. Post-1970 tzdata has none.) */
 function transitionsBetween(zone, startMs, endMs) {
   var STEP = 3600000, out = [], prev = tzOffsetSec(zone, startMs), t = startMs;
   while (t < endMs) {
@@ -525,11 +521,11 @@ var DEFAULTS = ['America/Los_Angeles', 'America/New_York', 'Europe/London',
 /* ---- UI ---------------------------------------------------------------- */
 var $ = function (id) { return document.getElementById(id); };
 var picked = DEFAULTS.slice();
-var baseZone = 'America/New_York';
+var baseZone = 'Asia/Tokyo';
 try {
   var guess = Intl.DateTimeFormat().resolvedOptions().timeZone;
   if (guess) { baseZone = guess; if (picked.indexOf(guess) < 0) picked.unshift(guess); }
-} catch (e) { /* keep the default */ }
+} catch (e) { /* keep the default if the browser will not say */ }
 
 function allZones() {
   var list = [];
@@ -618,7 +614,7 @@ function note(cls, title, body) {
   return d;
 }
 
-var chosenInstant = null;
+var chosenInstant = null;   /* which side the reader picked when a time is ambiguous */
 
 function render() {
   var w = readInput();
@@ -630,6 +626,7 @@ function render() {
   var instant;
 
   if (cands.length === 0) {
+    /* A time swallowed by the spring-forward jump. Show the real times on either side. */
     var stamp = asStamp(w);
     var before = null, after = null;
     for (var back = 1; back <= 180 && before === null; back++) {
@@ -763,8 +760,7 @@ function renderRows(instant) {
   $('rowsnote').textContent =
     'Base: ' + cityName(baseZone) + ', ' + ymd(p2) + ' ' + hm(p2) +
     ' (' + formatOffset(tzOffsetSec(baseZone, instant)) + '). ' +
-    'Sorted from the largest offset down. "Next offset change" is the day that city starts or ends ' +
-    'daylight saving.';
+    'Sorted from the largest offset down. "Next offset change" is the day that city starts or ends daylight saving.';
 }
 
 function renderGrid(w, instant) {
@@ -777,6 +773,7 @@ function renderGrid(w, instant) {
   if (list.indexOf(baseZone) < 0) list.unshift(baseZone);
   list.sort(function (a, b) { return tzOffsetSec(b, instant) - tzOffsetSec(a, instant); });
 
+  /* Walk hours 0-23 of the chosen day on the base city clock, one column each */
   var cols = [];
   for (var h = 0; h < 24; h++) {
     var cand = wallToInstants(baseZone, { y: w.y, mo: w.mo, d: w.d, h: h, mi: 0, s: 0 });
@@ -844,7 +841,8 @@ function renderGrid(w, instant) {
   var head = 'Columns are hours in the base city (' + cityName(baseZone) +
              '); each cell is that city’s local hour.';
   if (n === 0) {
-    /* No hour works for everyone, so name the least bad one and who it excludes. */
+    /* No hour works for everyone, so name the least bad one: the column with the
+       most cities inside working hours, plus who it leaves out and at what local time. */
     var bestCol = -1, bestScore = -1;
     for (var s = 0; s < 24; s++) {
       if (cols[s] === null) continue;
@@ -946,8 +944,9 @@ function renderFresh() {
   if (stale === 0 && unknown === 0) {
     msg = 'Your browser looks current as of IANA 2026c.';
   } else if (stale > 0) {
-    msg = 'Your browser is behind on ' + stale + ' of these. Results for those countries may be ' +
-          'wrong. Updating the browser (or the OS on a phone) refreshes the data.';
+    msg = 'Your browser is behind on ' + stale + ' of these. ' +
+          'Results for those countries may be wrong. ' +
+          'Updating the browser (or the OS on a phone) refreshes the data.';
   } else {
     msg = 'Your browser does not know some of these zones, so the check could not run.';
   }
@@ -967,7 +966,7 @@ function isoLocal(zone, ms) {
 fillZoneSelect($('basetz'), true);
 fillZoneSelect($('addtz'), true);
 $('basetz').value = baseZone;
-if ($('basetz').value !== baseZone) {
+if ($('basetz').value !== baseZone) {          /* add the zone if it is not in the list */
   var extra = document.createElement('option');
   extra.value = baseZone; extra.textContent = baseZone;
   $('basetz').insertBefore(extra, $('basetz').firstChild);

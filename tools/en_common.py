@@ -72,6 +72,97 @@ def code_japanese(src):
             for m in JA_CHARS.finditer(skeleton)]
 
 
+def comments(src):
+    """JS の中のコメントを、**書いてある順に**そのまま返す(`//` も `/* */` も)。
+
+    2026-09-03 昼 追加。それまで**誰もコメントを見ていなかった**。
+    生成器は日本語版を写して文字列だけ訳すので、**コメントは日本語のまま英語ページに載る**。
+    実際に本番でそうなっている(この日に数えた): en/date.html 37行 / en/regex-tester.html 18行 /
+    en/take-home.html 12行 / en/char-counter.html 3行。
+    ソースは公開してあるので、英語の読み手が開くと日本語の注釈が出てくる。
+    """
+    out, i, n = [], 0, len(src)
+    while i < n:
+        c = src[i]
+        if c in ("'", '"', "`"):
+            q, j = c, i + 1
+            while j < n:
+                if src[j] == "\\":
+                    j += 2
+                    continue
+                if src[j] == q:
+                    break
+                if src[j] == "\n" and q != "`":
+                    break
+                j += 1
+            i = j + 1 if j < n and src[j] == q else i + 1
+            continue
+        if c == "/" and i + 1 < n and src[i + 1] == "/":
+            j = src.find("\n", i)
+            j = n if j < 0 else j
+            out.append(src[i:j])
+            i = j
+            continue
+        if c == "/" and i + 1 < n and src[i + 1] == "*":
+            j = src.find("*/", i + 2)
+            j = n if j < 0 else j + 2
+            out.append(src[i:j])
+            i = j
+            continue
+        i += 1
+    return out
+
+
+def translate_comments(src, tr):
+    """コメントの中身を辞書と**完全一致**で差し替える(文字列リテラルには触らない)。
+
+    ⚠ 訳は**行数を変えないこと**。日英でコードの骨組みを突き合わせる検査
+    (`blank()` はコメントを消すが改行は残す)が、行数の違いをコードの違いとして出すため。
+    日本語を含むのに辞書に無いコメントは一覧で返す(呼び出し側で止める)。
+    """
+    missing = [c for c in comments(src) if JA_CHARS.search(c) and c not in tr]
+    if missing:
+        return src, missing
+    out, i, n = [], 0, len(src)
+    while i < n:
+        c = src[i]
+        if c in ("'", '"', "`"):
+            q, j = c, i + 1
+            while j < n:
+                if src[j] == "\\":
+                    j += 2
+                    continue
+                if src[j] == q:
+                    break
+                if src[j] == "\n" and q != "`":
+                    break
+                j += 1
+            if j < n and src[j] == q:
+                out.append(src[i:j + 1])
+                i = j + 1
+                continue
+            out.append(c)
+            i += 1
+            continue
+        if c == "/" and i + 1 < n and src[i + 1] in "/*":
+            if src[i + 1] == "/":
+                j = src.find("\n", i)
+                j = n if j < 0 else j
+            else:
+                j = src.find("*/", i + 2)
+                j = n if j < 0 else j + 2
+            body = src[i:j]
+            new = tr.get(body, body)
+            if new.count("\n") != body.count("\n"):
+                sys.exit("コメントの訳で行数が変わっています(検査が壊れます):\n  " + body[:120])
+            out.append(new)
+            i = j
+            continue
+        out.append(c)
+        i += 1
+    return "".join(out), []
+
+
 def translate_literals(src, tr, keep):
     """JS を1文字ずつ読み、**文字列リテラルの中身だけ**を辞書と完全一致で差し替える。
 
