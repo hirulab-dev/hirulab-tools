@@ -36,6 +36,9 @@
   python lab/scripts/test_regex_why.py --sabotage
 """
 import argparse, html, json, pathlib, random, re, sys
+import os as _os
+_os.sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from skipwatch import SkipWatch
 
 sys.stdout.reconfigure(encoding="utf-8")
 from playwright.sync_api import sync_playwright
@@ -59,6 +62,22 @@ Q_BOUNDED = ["", "", "", "?", "{2}", "{1,3}", "??", "{1,3}?"]
 # 仕込んでも検査が捕まえられなかった（--sabotage で発覚。2026-08-23）。
 ALPHABET = ("abz09_-. @%AB\t\n"
             "\uff11\uff21\uff41\u3000\u00a0\ufeff\u2011\u200b")
+
+
+
+# ★2026-09-03 夜: 鉄道図の解析器は**コメントの見出しで挟んで**取り出している。
+#   この日にコメントも訳したので、**英語ページでは日本語の見出しが存在しない**。
+#   日英どちらの見出しでも当たる形にする(訳を変えたら、ここも直すことになる)。
+RAIL_HEAD = ("/* ---- 正規表現の解析", "/* ---- Parsing the pattern")
+RAIL_TAIL = ("/* ---- 鉄道図のレイアウト", "/* ---- Laying out the railroad diagram")
+
+
+def _find_any(text, cands, what):
+    for c in cands:
+        i = text.find(c)
+        if i >= 0:
+            return i
+    raise ValueError("%s の見出しが見つかりません(日英どちらも): %s" % (what, cands))
 
 
 def gen_regex(rnd, depth=0, exotic=False):
@@ -297,8 +316,8 @@ def check_parser_identity(page_path, railroad_path):
         return None, "鉄道図のページが見つからない: %s" % railroad_path
     rail = railroad_path.read_text(encoding="utf-8")
     mine = page_path.read_text(encoding="utf-8")
-    a = rail.index("/* ---- 正規表現の解析")
-    b = rail.index("/* ---- 鉄道図のレイアウト")
+    a = _find_any(rail, RAIL_HEAD, "解析器の先頭")
+    b = _find_any(rail, RAIL_TAIL, "解析器の末尾")
     ref = rail[a:b].rstrip()
     try:
         c = mine.index("/*==PARSER-START==*/")
@@ -338,8 +357,12 @@ def main():
     args = ap.parse_args()
 
     page = pathlib.Path(args.page).resolve() if args.page else DEFAULT_PAGE.resolve()
+    # ★2026-09-03 夜: 既定の相手を**同じ言語の**鉄道図にする。
+    #   英語ページを見ているのに既定が日本語版を指していたので、`--railroad` を
+    #   毎回手で渡さないと必ず食い違った(渡し忘れると「解析器が違う」と出る)。
     railroad = (pathlib.Path(args.railroad).resolve() if args.railroad
-                else page.parent.parent / "railroad" / "index.html")
+                else (page.parent / "railroad.html" if page.parent.name == "en"
+                      else page.parent.parent / "railroad" / "index.html"))
     if not page.exists():
         sys.exit("ページが見つかりません: %s（--page で指定してください）" % page)
 
@@ -379,6 +402,9 @@ def main():
             if errs:
                 print("  JSエラー:", errs[:3])
 
+            # 基準の鍵に変種の名前を入れない。わざと壊した回を正常時の基準と比べるため
+            sw = SkipWatch("test_regex_why")
+
             cmp_ = chunked(pg, JS_COMPARE, cases, 60, merge_bad)
             n_cmp = len(cases) - cmp_["skip"]
             print("[1] 自前の照合器 vs ブラウザ: %d 件中 %d 件が一致（対象外 %d）"
@@ -409,6 +435,11 @@ def main():
                 print("    ✗ /%s/ × %s : 「%s」を挙げられなかった → %s"
                       % (m["src"], json.dumps(m["subj"], ensure_ascii=False),
                          " / ".join(m["want"]), m["labels"][:3]))
+
+            sw.check("[1] 照合器の突き合わせ", cmp_["skip"], len(cases))
+            sw.check("[2] 止まった位置の検算", st["skip"], len(cases))
+            sw.check("[3] 直し方の名指し", skipped, len(res))
+            sw.report()
             pg.close()
         br.close()
 

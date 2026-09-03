@@ -18,6 +18,7 @@ Python の zoneinfo（別のタイムゾーンデータ）と突き合わせる�
 America/Vancouver と Africa/Casablanca が割れ、どちらも「ブラウザ側が古い」だった（下の KNOWN）。
 """
 import argparse
+import pathlib
 import random
 import re
 import sys
@@ -250,6 +251,40 @@ def main():
     print(f"\n合計 {total:,} 件の照合")
     print(f"  不一致            {len(fails)} 件")
     print(f"  既知のデータ版差  {len(known_diffs)} 件")
+
+    # ★ページが自分で名乗っている照合件数が、いま数えた件数と合っているか(2026-09-03 昼 追加)
+    #   きっかけ: 英語版だけが「132,996 comparisons」と書いていて、実測は 149,196 だった。
+    #   初回公開(8/31)のまま更新されておらず、日本語版には数字が無いので**比べる相手がいなかった**。
+    #   数を書くなら、その数を出した当人(この検証)が見張るのが唯一ずれない置き場所。
+    #
+    # ★2026-09-04 追記: **見張る先がページだけでは足りなかった**。
+    #   公開リポジトリの `tools/tests/README.md` にも同じ主張が書いてあり、
+    #   9/3 に直したのはページだけなので **README は 132,996 のまま残っていた**
+    #   (=3か所目。「置いた場所を増やすほど転記が古くなる」の実例がまた1件)。
+    #   → 名乗りうる場所を**全部この検証が読む**。読めない場所があれば黙らずに言う。
+    PAT = re.compile(r"([0-9][0-9,]{4,})\s*(?:件を比較|件|comparisons)")
+    places = [("ページ", src)]
+    for cand in (pathlib.Path(__file__).resolve().parent / "README.md",
+                 pathlib.Path.home() / "hirulab-tools" / "tools" / "tests" / "README.md"):
+        if cand.exists():
+            block = [ln for ln in cand.read_text(encoding="utf-8").splitlines()
+                     if "test_timezone.py" in ln]
+            places.append(("検証のREADME", "\n".join(block)))
+            break
+    else:
+        print("  ⚠ 検証のREADMEが見つからないので、そこの記載は見ていません")
+
+    for where, text in places:
+        claimed = PAT.findall(text)
+        if not claimed:
+            print(f"  ⚠ {where}が照合件数を名乗っていません(名乗るなら下の数字を使うこと)")
+            continue
+        for c in set(claimed):
+            if int(c.replace(",", "")) != total:
+                print(f"  ★{where}の記載 {c} 件 ≠ 実測 {total:,} 件 — {where}を直すこと")
+                fails.append(("claim", f"照合件数の記載({where})", c, c, f"{total:,}"))
+            else:
+                print(f"  {where}の記載 {c} 件 = 実測 と一致")
 
     if known_diffs:
         by_zone = {}

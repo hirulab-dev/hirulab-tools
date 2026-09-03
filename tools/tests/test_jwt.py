@@ -74,6 +74,90 @@ from cryptography.hazmat.primitives.asymmetric import rsa, ec, padding as apad
 DEFAULT_PAGE = pathlib.Path("docs/jwt/index.html")
 
 
+# ------------------------------------------------ [7] 「57種類」を名乗った当人が見張る
+#
+# 2026-09-04。OGP画像の副題だけが「エラーにならない落とし穴を**57種類**、名指しします」と
+# 数を名乗っていて、**ページにも英語版にも 57 が無かった**。つまり誰も比べていなかった
+# (9/3 昼の「英語版だけに書いてあった 132,996 が古いままだった」とまったく同じ形)。
+#
+# ★置き場所の決め方は 9/3 と同じ: **数を出した当人に見張らせる**。
+#   57 を出しているのはこの検証(仕込んだ落とし穴の種類の数)なので、ここが持つ。
+#   別の道具に持たせると、その道具がまた転記する側になる。
+#
+# ここで見るのは3つ:
+#   (a) ページの `pitfalls()` が名乗りうる code を、この検証が**全部**試しているか
+#       (試していない code があると、57 は「試した数」であって「ある数」ではなくなる)
+#   (b) 逆に、この検証が試している code がページに実在するか
+#   (c) OGP画像の副題(日英)が名乗っている数が、その種類の数と一致するか
+#       ⚠ 副題が数を名乗っていない場合も**黙らずに言う**(9/3 の「黙る検査は同じだけ情報を運ばない」)
+
+def _load_regen_ogp():
+    """OGPの文言の表。原本は `lab/assets/regen_ogp.py`(9/3 夜に決めた)。"""
+    here = _os.path.dirname(_os.path.abspath(__file__))
+    cands = [_os.path.join(_os.path.dirname(here), "assets", "regen_ogp.py"),
+             _os.path.join(_os.path.expanduser("~"), "hirulab-tools", "tools", "regen_ogp.py")]
+    import importlib.util
+    for c in cands:
+        if _os.path.exists(c):
+            spec = importlib.util.spec_from_file_location("regen_ogp_for_test", c)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
+    return None
+
+
+def page_pitfall_codes(text):
+    """ページの `pitfalls()` が名乗りうる code の literal。
+
+    末尾が `-` のものは後ろに名前が付く形(`add("time-millis-" + nm, ...)` で
+    nm は exp / nbf / iat)。**ここでは展開しない**。展開の仕方まで写すと、
+    ページの書き方が変わったときに検査側だけが古くなるため。
+    """
+    i = text.find("function pitfalls(P, nowMs)")
+    if i < 0:
+        return None
+    j = text.find("\nfunction ", i + 10)
+    blk = text[i:j] if j > 0 else text[i:]
+    import re as _re
+    return sorted(set(_re.findall(r'add\(\s*"([A-Za-z0-9_-]+)"', blk)))
+
+
+def code_origin(code, literals):
+    """試した code が、ページのどの `add(...)` から出るか。無ければ None。"""
+    if code in literals:
+        return code
+    for lit in literals:
+        if lit.endswith("-") and code.startswith(lit) and len(code) > len(lit):
+            return lit
+    return None
+
+
+def claim_problems(n_kinds, text, ogp):
+    """名乗っている数が実際と合っているか。指摘のリストを返す(空なら問題なし)。"""
+    import re as _re
+    out = []
+    if str(n_kinds) not in text:
+        out.append("ページの文言に %d が1つも出てこない(画像だけが数を名乗る形に戻っている)"
+                   % n_kinds)
+    if ogp is None:
+        out.append("OGPの表(regen_ogp.py)が見つからないので、画像の名乗りを確かめられなかった")
+        return out
+    subs = {s: sub for s, _t, sub in ogp.ITEMS if s in ("jwt", "jwt-en")}
+    for slug in ("jwt", "jwt-en"):
+        sub = subs.get(slug)
+        if sub is None:
+            out.append("OGPの表に %s が無い" % slug)
+            continue
+        nums = [int(x) for x in _re.findall(r"\d+", sub)]
+        if not nums:
+            out.append("ogp-%s.png の副題が数を名乗っていない(片方の言語にだけ数を置かない)"
+                       % slug)
+        elif nums != [n_kinds]:
+            out.append("ogp-%s.png の副題が名乗る数 %s ≠ 実際の種類 %d"
+                       % (slug, nums, n_kinds))
+    return out
+
+
 # ---------------------------------------------------------------- 小道具
 
 def b64u(b):
@@ -596,7 +680,13 @@ def pyjwt_verdict(case):
 
 # ---------------------------------------------------------------- 壊す
 
+OGP = None      # main で読む（OGP画像の文言の表。[7] が使う）
+
 SABOTAGE = [
+    # ★2026-09-04 追加: [7] を試すための1件。落とし穴を1種類こっそり別名にすると、
+    #   「試しているのにページのどの add() からも出ない」で出るはず。
+    ("落とし穴を1種類こっそり別名にする",
+     'add("typ-missing"', 'add("typ-missing-x"'),
     ("base64の余りビットの検査を外す",
      "if ((vals[i+1] & 15) !== 0) r.slack = true;",
      "if (false) r.slack = true;"),
@@ -642,6 +732,8 @@ def main():
             sys.exit("ページが見つかりません。--page で指定してください")
         page = cand[0]
     text = page.read_text(encoding="utf-8")
+    global OGP
+    OGP = _load_regen_ogp()
 
     rnd = random.Random(args.seed)
     tokens = [gen_token(rnd) for _ in range(args.n)]
@@ -831,6 +923,43 @@ def main():
                 print("    ✗ %s（%s）" % (b["t"], b["detail"]))
             if bad6:
                 ng += 1
+
+            # ---------------- [7] 名乗っている数（57種類）
+            lits = page_pitfall_codes(body)
+            if lits is None:
+                print("[7] ページに pitfalls() が見つからない")
+                ng += 1
+            else:
+                covered = {}
+                orphan = []
+                for code, _tok in pits:
+                    src = code_origin(code, lits)
+                    if src is None:
+                        orphan.append(code)
+                    else:
+                        covered.setdefault(src, []).append(code)
+                untried = sorted(set(lits) - set(covered))
+                n_kinds = len({c for c, _t in pits})
+                print("[7] 落とし穴の種類: ページの add() %d 種 / この検証が試した %d 種"
+                      % (len(lits), n_kinds))
+                for c in untried:
+                    print("    ✗ ページにあるのに一度も試していない: %s" % c)
+                for c in orphan:
+                    print("    ✗ 試しているのにページのどの add() からも出ない: %s" % c)
+                probs7 = claim_problems(n_kinds, body, OGP)
+                for p in probs7:
+                    print("    ✗ %s" % p)
+                if untried or orphan or probs7:
+                    ng += 1
+                elif label == "そのまま":
+                    # ★空振り確認: わざと1つずれた数で呼び、ちゃんと鳴るか見る
+                    #   (鳴らない検査は「一致した」と言い続けるので、ここで確かめておく)
+                    if not claim_problems(n_kinds + 1, body, OGP):
+                        print("    !! 数を1つずらしても鳴らない（[7]が空振りしている）")
+                        ng += 1
+                    else:
+                        print("    名乗り: 画像・ページとも %d で一致（1ずらすと鳴ることも確認）"
+                              % n_kinds)
 
             if errs:
                 ng += 1

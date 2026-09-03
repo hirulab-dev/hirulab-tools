@@ -239,7 +239,7 @@ VIA_UI = """(o) => {
   const bar = document.getElementById('x-bar');
   const over = document.getElementById('x-jp') || document.getElementById('x-over');
   return {all:g('c-all'), nows:g('c-nows'), lines:g('c-lines'), paras:g('c-paras'),
-          words:g('c-words'), genko:g('c-genko'), pages:g('c-pages'),
+          words:g('c-words'), pages:g('c-pages'),
           x:g('c-x'), time:g('c-time'),
           barClass: bar.className, barWidth: bar.firstElementChild.style.width,
           over: over ? over.textContent : null};
@@ -304,7 +304,10 @@ def check_all(page, cases, cps, lang, label):
         n["bar"] += 1
 
         # 参照(4) 原稿用紙 / ページ・読了時間
-        sheets = got["genko"] if lang == "ja" else got["pages"]
+        # ★2026-09-03: id を日英で `c-pages` に統一した(それまで日本語版だけ `c-genko`)。
+        #   英語版を生成に切り替えるにあたって、**日英で違う理由が無い差**を先に消した。
+        #   意味も両方「ページ数」で通る(日本語=原稿用紙の枚数 / 英語=書籍のページ数)。
+        sheets = got["pages"]
         if sheets != ref_sheets(text, lang):
             fails.append("#%d 原稿用紙/ページが違う(道具 %r / 参照 %r): %r"
                          % (i, sheets, ref_sheets(text, lang), text[:40]))
@@ -434,17 +437,29 @@ def main():
                  g["sheets"], g["time"], g["cp"]))
 
     # --- 参照(6) うちの投稿ゲートも同じ参照に当てる ---
+    # ★2026-09-04: `x_post.py` は**ラボ側にしか置いていない**(公開リポジトリには出さない)。
+    #   この検証は公開側 `tools/tests/` にも同じ中身で写すので、**公開側ではこの import が
+    #   必ず ModuleNotFoundError になり、そこから下が丸ごと動かない**。
+    #   9/3 未明の「公開側の `check_en_parity` が一度も動いていなかった」と同じ形。
+    #   ⚠ 直し方として「公開側だけ削る」は取らない(片方だけ直すと以後ずれ続ける)。
+    #   **同じファイルのまま、無いときは無いと名乗って飛ばす**。黙って飛ばさないのが肝。
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-    from x_post import weighted_len            # noqa: E402
-    gate_bad = [t for t in cases if weighted_len(t) != ref_weight(t)]
-    print("\n投稿ゲート(x_post.weighted_len)を同じ参照に当てる: "
-          "一致 %d / %d" % (len(cases) - len(gate_bad), len(cases)))
-    if gate_bad:
-        low = [t for t in gate_bad if weighted_len(t) < ref_weight(t)]
-        print("  食い違い %d 件(うち**少なく数えている**= 危ない側 %d 件)"
-              % (len(gate_bad), len(low)))
-        for t in gate_bad[:3]:
-            print("    ゲート %d / 参照 %d: %r" % (weighted_len(t), ref_weight(t), t[:40]))
+    try:
+        from x_post import weighted_len        # noqa: E402
+    except ImportError:
+        weighted_len = None
+        print("\n投稿ゲート(x_post.weighted_len)は**この置き場所には無いので見ていません**"
+              "(ラボ側の `lab/scripts/` で回すと見ます)")
+    if weighted_len is not None:
+        gate_bad = [t for t in cases if weighted_len(t) != ref_weight(t)]
+        print("\n投稿ゲート(x_post.weighted_len)を同じ参照に当てる: "
+              "一致 %d / %d" % (len(cases) - len(gate_bad), len(cases)))
+        if gate_bad:
+            low = [t for t in gate_bad if weighted_len(t) < ref_weight(t)]
+            print("  食い違い %d 件(うち**少なく数えている**= 危ない側 %d 件)"
+                  % (len(gate_bad), len(low)))
+            for t in gate_bad[:3]:
+                print("    ゲート %d / 参照 %d: %r" % (weighted_len(t), ref_weight(t), t[:40]))
 
     sw = SkipWatch("test_char_counter")
     sw.check("[1] 画面の検査を最後まで通らなかった見本",

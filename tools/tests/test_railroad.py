@@ -24,7 +24,10 @@
 
 使い方: python lab/scripts/test_railroad.py [--n 3000] [--url file:///...]
 """
-import argparse, random, re, sys, pathlib
+import argparse, random, re, sys, pathlib, os
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from skipwatch import SkipWatch
 
 ATOMS = [
     "a", "b", "z", "0", "9", "_", "-", " ", "@", "%",
@@ -114,7 +117,7 @@ BREAKERS = [
 JS_ONLY = re.compile(r"\\[cku]|\(\?<|\\k<")
 
 JS = r"""([pats, doSamples, flags]) => {
-  const out = {accept: [], draw: [], rows: []};
+  const out = {accept: [], draw: [], rows: [], skipped: 0};
   for (const src of pats) {
     let mine = null, msg = '';
     try { mine = parseRegex(src, flags); } catch (e) { msg = e.msg || String(e); }
@@ -132,7 +135,7 @@ JS = r"""([pats, doSamples, flags]) => {
     try { analyze(mine, src, flags); } catch (e) { out.draw.push({src, why: '落とし穴検出: ' + e}); }
     if (!doSamples) continue;
     const chk = selfCheck(mine, src, flags, 6);
-    if (chk.skipped) continue;
+    if (chk.skipped) { out.skipped++; continue; }   // 対象外は数える（黙って落とさない）
     out.rows.push({src, unsure: chk.unsure,
                    ss: chk.rows.map(r => r.s), ok: chk.rows.map(r => r.ok)});
   }
@@ -141,16 +144,18 @@ JS = r"""([pats, doSamples, flags]) => {
 
 
 def batched(pg, pats, do_samples, flags="", chunk=40):
-    acc = {"accept": [], "draw": [], "rows": []}
+    acc = {"accept": [], "draw": [], "rows": [], "skipped": 0, "died": 0}
     for k in range(0, len(pats), chunk):
         part = pats[k:k + chunk]
         try:
             r = pg.evaluate(JS, [part, do_samples, flags])
         except Exception as e:                       # 1回で止まったら犯人が分かるように潰す
             print(f"  !! この束で止まった: {part[:3]} …  ({e})")
+            acc["died"] += len(part)                 # 落ちた束も「対象外」として数える
             continue
-        for key in acc:
+        for key in ("accept", "draw", "rows"):
             acc[key] += r[key]
+        acc["skipped"] += r["skipped"]
     return acc
 
 
@@ -256,6 +261,17 @@ def main():
             print(f"    {r['src']!r}  {r['why']}")
     else:
         print("全部通った")
+
+    # --- 対象外にした件数を見張る（除外がバグを隠していないか） ---
+    sw = SkipWatch("test_railroad")
+    n_wild = len(wild) + len(broken)
+    sw.check("[1] 束ごと落ちた式", a["died"] + au["died"], n_wild * 2)
+    n_unsure = sum(len(r["ss"]) for r in b["rows"] if r["unsure"])
+    sw.check("[2] 例を作れなかった式", b["skipped"] + b["died"], len(safe))
+    sw.check("[2] 判定を保留した例", n_unsure, n_samples)
+    sw.check("[3] Python に当てなかった式", py_skip, len(b["rows"]))
+    if sw.report():
+        fails += 1
 
     print("\n結果: " + ("問題なし" if fails == 0 else f"{fails} 項目で失敗"))
     return 1 if fails else 0

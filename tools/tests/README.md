@@ -5,12 +5,13 @@
 
 | スクリプト | 何と突き合わせるか |
 |---|---|
-| `test_timezone.py` | [タイムゾーン変換](https://hirulab-dev.github.io/hirulab-tools/tz/) と Python の `zoneinfo`。72ゾーン × 2015〜2030年で 132,996 件 |
+| `test_timezone.py` | [タイムゾーン変換](https://hirulab-dev.github.io/hirulab-tools/tz/) と Python の `zoneinfo`。72ゾーン × 2015〜2030年で 149,196 件（この数は `test_timezone.py` が毎回この行を読んで実測と突き合わせています） |
 | `test_csv.py` | [CSVプレビュー・診断](https://hirulab-dev.github.io/hirulab-tools/csv/) と Python の `csv`。ランダムに作った 2,300 ファイル・52,353 セル。文字コードと区切り文字の判定も同時に採点 。★2026-09-01 追加: **「まったく同じ内容の行」の名指し**を、指摘の本数の差で見る(文言を読まないので日英どちらにも当たる)。英語版だけ行をつなぐ区切りが空文字になっていて、`ab,c` と `a,bc` を「同じ行」と言っていた実バグを見つけた回 |
 | `test_railroad.py` | [正規表現を鉄道図にする](https://hirulab-dev.github.io/hirulab-tools/railroad/) とブラウザの `RegExp` + Python の `re`。ランダム生成した式をのべ 12,148 本、図から作った例文字列を 16,968 件 |
 | `test_regex_why.py` | [なぜマッチしないか診断](https://hirulab-dev.github.io/hirulab-tools/regex-why/) とブラウザの `RegExp`。自前の照合器の結果（マッチするか・範囲・各グループ）を 7,697 件突き合わせ、さらに「止まった位置」の主張を 6,174 個検算し、**正解の分かる欠陥を仕込んで直し方を名指しできるか**を 83 件で確認 |
 | `test_replace.py` | [正規表現の置換プレビュー](https://hirulab-dev.github.io/hirulab-tools/replace/) と ブラウザの `String.prototype.replace`。置換後の文字列を 5,822 件突き合わせ、さらに **「この文字はこのトークンから来た」という主張を、`replace` に関数を渡して本物のエンジンが返す値で 15,191 個検算**。仕込んだ落とし穴 26 件の名指しも確認 |
 | `test_url.py` | [URLの分解・組み立て](https://hirulab-dev.github.io/hirulab-tools/url/) と ブラウザの `URL`。分解した10項目を 965 件、**punycode は Python の `str.encode("punycode")`**、**クエリの読み分けは Python の `parse_qsl`** と別々に突き合わせる。分解して組み立て直すと元に戻るかも見る。仕込んだ落とし穴 29 件の名指しも確認 |
+| `test_headers.py` | [HTTPヘッダの読み下し](https://hirulab-dev.github.io/hirulab-tools/headers/) と ブラウザの `Headers`・Python の `email.utils` / `http.cookies` / `email.message`。分解を 400 件、HTTP日付を 272 件、Set-Cookie の属性と Content-Type をそれぞれ 400 件。仕込んだ落とし穴 48 件の名指しも確認（**参照を出どころで5つに分けています**。下の [`test_headers.py` の節](#test_headerspy--httpヘッダの読み下し)に、規格と `fetch` が本当に違う箇所も書いてあります） |
 | `test_jwt.py` | [JWTの読み下し](https://hirulab-dev.github.io/hirulab-tools/jwt/) と **PyJWT（第三者実装）**・Python の `base64`/`json`・`hmac`/`cryptography`。分解を 400 件、クレームの期限判定を PyJWT と 400 件、**署名の検証をブラウザの `crypto.subtle` vs Python で 23 件**（HS/RS/PS/ES と DER 形式）、壊れた符号化の扱いを 37 件。仕込んだ落とし穴 57 件の名指しも確認 |
 | `test_password.py` | [パスワード生成・強度診断](https://hirulab-dev.github.io/hirulab-tools/password/) の拒否サンプリングを、**理論値そのもの（非心χ²分布）**と突き合わせる。実際に `crypto.getRandomValues` で数万回ずつ引かせ、剰余法の偏り・拒否サンプリングの無偏りの両方を、固定しきい値ではなく統計的な検定力で判定。エントロピー計算を Python の `log2` と56件、χ²のp値近似(Wilson–Hilferty)をSciPyの正確値と144件、落とし穴の名指しを13件で確認 |
 | `test_base64.py` | [Base64・データURLの分解](https://hirulab-dev.github.io/hirulab-tools/base64/) の**参照を3つの出どころに分ける**。(1) 符号化・復号を Python の `base64`（`validate=True`）と 400 件 (2) **データURLの分解を Python 標準の `urllib.request`（`DataHandler`）と 400 件** — 別の言語のデータURL専用パーサに当てる (3) **中身の判定は「本物のファイル」に当てる** — Pillow に実際に PNG/JPEG/GIF/BMP/TIFF/WebP を保存させ、その生バイトを食わせる（マジックナンバーの表を手で書き写した値を参照にしない）。仕込んだ落とし穴 27 件の名指しも確認。`--sabotage` つき |

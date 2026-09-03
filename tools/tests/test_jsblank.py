@@ -34,7 +34,12 @@ import sys
 
 sys.stdout.reconfigure(encoding="utf-8")
 HERE = pathlib.Path(__file__).resolve().parent
+# ★2026-09-04: 手元は `jsblank.py` と同じフォルダだが、**公開側は `tools/jsblank.py` で
+#   この検証は `tools/tests/` に置かれる**ので、隣を見るだけでは ModuleNotFoundError で
+#   1行も動かない(公開してから今日まで、公開側は一度も動いていなかった)。
+#   両方の置き方で当たるように、隣と1つ上の両方を見る。
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parent))
 import jsblank  # noqa: E402
 
 # (説明, 日本語版の断片, 英語版の断片, 一致してほしいか)

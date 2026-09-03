@@ -28,6 +28,9 @@
   python lab/scripts/test_replace.py --sabotage
 """
 import argparse, json, pathlib, random, sys
+import os as _os
+_os.sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from skipwatch import SkipWatch
 
 sys.stdout.reconfigure(encoding="utf-8")
 from playwright.sync_api import sync_playwright
@@ -47,6 +50,22 @@ Q_BOUNDED = ["", "", "", "?", "{2}", "{1,3}", "??"]
 # 「検証の文字集合が薄いと、仕込んだバグが捕まらない」を踏んだので最初から入れる。
 ALPHABET = ("abz09_-. @%,AB\t\n"
             "１Ａａ　 ﻿‑​\U0001f600")
+
+
+
+# ★2026-09-03 夜: 鉄道図の解析器は**コメントの見出しで挟んで**取り出している。
+#   この日にコメントも訳したので、**英語ページでは日本語の見出しが存在しない**。
+#   日英どちらの見出しでも当たる形にする(訳を変えたら、ここも直すことになる)。
+RAIL_HEAD = ("/* ---- 正規表現の解析", "/* ---- Parsing the pattern")
+RAIL_TAIL = ("/* ---- 鉄道図のレイアウト", "/* ---- Laying out the railroad diagram")
+
+
+def _find_any(text, cands, what):
+    for c in cands:
+        i = text.find(c)
+        if i >= 0:
+            return i
+    raise ValueError("%s の見出しが見つかりません(日英どちらも): %s" % (what, cands))
 
 
 def gen_regex(rnd, depth=0):
@@ -327,8 +346,8 @@ def check_parser_identity(page_path, others):
             ref = text[a:b].strip()
         else:
             # 鉄道図は印を持たない（コメントの見出しで挟む）
-            a = text.index("/* ---- 正規表現の解析")
-            b = text.index("/* ---- 鉄道図のレイアウト")
+            a = _find_any(text, RAIL_HEAD, "解析器の先頭")
+            b = _find_any(text, RAIL_TAIL, "解析器の末尾")
             ref = text[a:b].strip()
         same = ref == got
         ok = ok and same
@@ -428,6 +447,9 @@ def main():
             print("\n=== %s ===" % label)
             if errs:
                 print("  JSエラー:", errs[:3])
+            # 基準の鍵は変種の名前を含めない。わざと壊した回が正常時の基準と比べられるようにする
+            # （壊した分だけ「対象外」に流れて検査から消える、という穴を見つけるため）
+            sw = SkipWatch("test_replace")
 
             r1 = chunked(pg, JS_OUT, cases, 80, merge_out)
             n1 = len(cases) - r1["skip"]
@@ -461,6 +483,11 @@ def main():
                 print("    ✗ /%s/%s → %s × %s : 「%s」が出なかった → %s"
                       % (m["pat"], m["flags"], m["tmpl"],
                          json.dumps(m["subj"], ensure_ascii=False), m["want"], m["codes"]))
+
+            sw.check("[1] 置換結果の照合", r1["skip"], len(cases))
+            sw.check("[2] 出どころの検算", st["skip"], len(cases))
+            sw.check("[3] 落とし穴の名指し", len(r3) - len(done), len(r3))
+            sw.report()
             pg.close()
         br.close()
 

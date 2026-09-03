@@ -23,10 +23,16 @@
 - `lab/assets/` の3本(`make_ogp.py` / `regen_ogp.py` / `check_ogp_overlap.py`)も同じ扱い
   (2026-09-03 夜に追加。それまで誰も両者を比べていなかった)
 - それ以外で `tools/` にしか無いものは触らない
-- `tools/tests/` は別管理(検証スクリプト。従来どおり各回の作業で足す)
-  ⚠ **2026-09-04: 「別管理」と決めてあったが、足せているかを誰も見ていなかった。**
-  数えたら28本中 **11本が古く、1本は名前が違う**。写しはしないが、
-  **数を固定して増減を出す**ようにした(`TESTS_STALE_OK`)。揃えるのは次の枠。
+- `tools/tests/` も**手元が原本**(2026-09-04 朝に揃えた)。ただし写しは自動でしない
+  =**既定のパスの決め方だけは置き場所の都合でわざと違う**本があるため。
+  違いは `TESTS_DIFF_OK` に**差の行数で**固定し、増減したら ★ を出す
+  (9/3 の `HTML_DIFF_OK` / `CODE_DIFF` と同じ考え方)。
+  ⚠ **2026-09-04 朝の経緯**: 前夜に「28本中12本が古い」と数えて数だけ固定した状態から、
+  1本ずつ差を読んで **本当に古い8本を写し・意図的な差5本を記録**に分けた。
+  そのとき **公開側の2本が import で1行も動いていなかった**ことも出た
+  (`test_char_counter` → ラボ側にしか無い `x_post` / `test_jsblank` → 1つ上の `jsblank`)。
+  → 検査に **(2) import の連れ**と **(3) 手元にあって公開側に無い本**を足した。
+  ⚠ **写す前にこの2つを見ること**。写すだけだと「動かない検証」を増やす。
 
     python lab/scripts/sync_tools_mirror.py            # 揃える
     python lab/scripts/sync_tools_mirror.py --check    # 見るだけ(ずれていたら終了コード1)
@@ -76,24 +82,31 @@ ASSETS_DIR = HERE.parent / "assets"
 ASSETS = ["make_ogp.py", "regen_ogp.py", "check_ogp_overlap.py"]
 
 
-# ★2026-09-04 追加: `tools/tests/` は上で「別管理(各回の作業で足す)」と**決めてあった**が、
-#   **足せているかを誰も見ていなかった**。数えたら28本中 **11本が古く、1本は名前が違う**
-#   (`test_pattern_tool.py` → 公開側は `test_pattern.py`)。
-#   9/2 夜の「**決めた と 見ていない は、あとから見分けがつかない**」がそのまま出た形。
-#   ⚠ **ここでは写さない**。中身の差が意図的なものかを1本ずつ見ていないので、
-#     まとめて上書きすると 9/3 に踏んだ「片方だけ直して壊す」をやる。
-#     いまは **数を固定して、増えたら ★ にする**だけにする
-#     (9/3 の `HTML_DIFF_OK` / `CODE_DIFF` と同じ考え方。鳴り続ける検査は誰も読まなくなる)。
-#   → 揃える作業は次の枠。揃えたらこの表を空にする。
+# ★2026-09-04 朝: 前夜の「28本中12本が古い」を1本ずつ読んで分けた結果。
+#   **8本は本当に写し忘れ**(この枠で写した)。**5本は意図的な差**で、中身は
+#   どれも「**既定でどのページを見るか**」だけ。手元は公開リポジトリの外にあるので
+#   `docs/` を相対で指せず、公開側は逆に絶対パスを書けない、という置き場所の都合。
+#   ⚠ 意図的だからといって「対象外」にはしない(それをやったのが前夜の穴)。
+#     **差の行数を固定**して、そこ以外が動いたら ★ が出るようにする。
+#     数は `diff` の行数(公開側にしか無い行 + 手元にしか無い行の合計、改行の差は除く)。
 TESTS_DIR_NAME = "tests"
-TESTS_STALE_OK = {
-    "make_qr_reference.py", "test_char_counter.py", "test_cron.py", "test_frima_profit.py",
-    "test_image.py", "test_jwt.py", "test_qr.py", "test_railroad.py", "test_regex_why.py",
-    "test_replace.py", "test_timezone.py",
-    "test_pattern.py",   # 名前も中身も違う(手元は test_pattern_tool.py)
+TESTS_DIFF_OK = {
+    "make_qr_reference.py": (4, "使い方の例に書いたパスだけ(tools/tests/ と lab/scripts/)"),
+    "test_cron.py": (2, "使い方の例に書いたパスだけ"),
+    "test_frima_profit.py": (2, "既定のページ(公開側はリポジトリ相対 / 手元は ~/hirulab-tools)"),
+    "test_image.py": (3, "既定のページ(同上)+ その理由のコメント1行"),
+    "test_pattern.py": (3, "既定のページ(公開側は本番 / 手元は outputs/tools-dev の作業中の版)"),
+    "test_qr.py": (21, "既定のページ(手元はミラーに落ちたとき名乗る節を持つ)"),
 }
 # 公開側にあって手元に同じ名前が無いもの(名前が違うだけで中身は対応している)
 TESTS_RENAMED_OK = {"test_pattern.py": "test_pattern_tool.py"}
+# 手元にあって公開side に**わざと出していない**もの。理由を必ず書く
+# (2026-09-04 新設。ここに書かずに出していないと「決めた」と「見ていない」が見分けられない)
+TESTS_NOT_PUBLISHED = {
+    "test_qr_decode.py": "OpenCV(cv2)が要る。読み戻しの実測は README に数字で載せてあるが、"
+                         "動かすのに重い依存が増えるので公開側には出していない",
+    "test_seamless.py": "和柄の下ごしらえ用。25本目の検証は test_pattern.py が正本",
+}
 
 
 def _norm(path):
@@ -101,33 +114,138 @@ def _norm(path):
     return path.read_bytes().replace(b"\r\n", b"\n")
 
 
+def _difflines(a, b):
+    """改行の差を除いた `diff` の行数(どちらか一方にしか無い行の合計)。"""
+    import difflib
+    la = _norm(a).decode("utf-8").splitlines()
+    lb = _norm(b).decode("utf-8").splitlines()
+    return sum(1 for x in difflib.ndiff(la, lb) if x[:1] in "+-")
+
+
+def _local_imports(path, available):
+    """`path` が import しているもののうち、**公開側に置いていないラボのモジュール**を返す。
+
+    ★2026-09-04 新設。公開側の `test_char_counter.py` は `x_post`(ラボ側だけ)を、
+    `test_jsblank.py` は1つ上の `jsblank` を import していて、**どちらも公開して以来
+    1行も動いていなかった**。9/3 未明に `tools/` 側で直したのと同じ形の tests 版。
+
+    ⚠ 見分けが要るものが2つある。どちらも「動く」ので鳴らしてはいけない:
+      - `tools/tests/` から `sys.path` に**1つ上**を足して `tools/` のものを読む形
+        (`test_jsblank` → `tools/jsblank.py`)。よって在庫は tests と tools の両方で見る
+      - `try: import … except ImportError:` で**無いときの振る舞いが書いてある**形
+        (`test_char_counter` の投稿ゲート)。無いことが分かっていて、無いと名乗って飛ばす
+    """
+    import ast
+    lab = {p.stem for p in HERE.glob("*.py")} | {p.stem for p in ASSETS_DIR.glob("*.py")}
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    guarded = set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Try) and any(
+                (h.type is None) or "ImportError" in ast.dump(h.type) for h in n.handlers):
+            for b in n.body:
+                for x in ast.walk(b):
+                    guarded.add(getattr(x, "lineno", None))
+    out = []
+    for n in ast.walk(tree):
+        names = []
+        if isinstance(n, ast.Import):
+            names = [a.name.split(".")[0] for a in n.names]
+        elif isinstance(n, ast.ImportFrom) and n.level == 0 and n.module:
+            names = [n.module.split(".")[0]]
+        for m in names:
+            if m in lab and m not in available and n.lineno not in guarded:
+                out.append((m, n.lineno))
+    return out
+
+
 def check_tests(dest):
-    """`tools/tests/` の食い違いを**名指しで数える**。写しはしない。"""
+    """`tools/tests/` を見る。**写しはしない**(意図的な差があるので手で写す)。
+
+    見るのは4つ:
+      (1) 差が `TESTS_DIFF_OK` に書いた行数と合っているか(=そこ以外が動いていないか)
+      (2) 公開側が import しているものが公開側に**在るか**(動かない検証を置いていないか)
+      (3) 手元にあって公開側に無い本が `TESTS_NOT_PUBLISHED` に理由つきで書いてあるか
+      (4) 公開側の README が全部を載せているか
+    """
     tdir = dest / TESTS_DIR_NAME
     if not tdir.is_dir():
         print("tests: 公開側に %s が無い" % tdir)
         return 0
-    stale, orphan, same = [], [], 0
-    for p in sorted(tdir.glob("*.py")):
-        local_name = TESTS_RENAMED_OK.get(p.name, p.name)
-        src = HERE / local_name
+    pub = sorted(tdir.glob("*.py"))
+    # 在庫は tests と**1つ上の `tools/`** の両方(`sys.path` に上を足す本があるため)
+    avail = {p.stem for p in pub} | {p.stem for p in dest.glob("*.py")}
+    same, diff_ok, bad, orphan = 0, 0, [], []
+    for p in pub:
+        src = HERE / TESTS_RENAMED_OK.get(p.name, p.name)
         if not src.exists():
             orphan.append(p.name)
-        elif _norm(src) != _norm(p):
-            stale.append(p.name)
-        else:
+            continue
+        if _norm(src) == _norm(p):
             same += 1
-    new_stale = sorted(set(stale) - TESTS_STALE_OK)
-    fixed = sorted(TESTS_STALE_OK - set(stale))
-    print("tests: 見た %d 本 / 一致 %d 本 / 古い %d 本(既知 %d) / 手元に同名が無い %d 本"
-          % (len(list(tdir.glob('*.py'))), same, len(stale), len(TESTS_STALE_OK), len(orphan)))
-    for n in new_stale:
-        print("  ★ 新しく古くなった: tests/%s" % n)
-    for n in fixed:
-        print("  ★ 直ったので TESTS_STALE_OK から消すこと: tests/%s" % n)
+            if p.name in TESTS_DIFF_OK:
+                bad.append("★ 差が無くなった(TESTS_DIFF_OK から消すこと): tests/%s" % p.name)
+            continue
+        n = _difflines(src, p)
+        want = TESTS_DIFF_OK.get(p.name)
+        if want is None:
+            bad.append("★ 写し忘れ(差 %d 行): tests/%s — 手元が原本。写すか、意図的なら "
+                       "TESTS_DIFF_OK に行数と理由を書くこと" % (n, p.name))
+        elif n != want[0]:
+            bad.append("★ 意図した差から動いた: tests/%s は %d 行のはずが %d 行(%s)"
+                       % (p.name, want[0], n, want[1]))
+        else:
+            diff_ok += 1
+
+    # (2) import の連れ
+    miss = []
+    for p in pub:
+        for m, ln in _local_imports(p, avail):
+            miss.append("★ 公開側で動かない: tests/%s:%d が `%s` を import しているが "
+                        "公開側に無い" % (p.name, ln, m))
+
+    # (3) 手元にあって公開側に無い本
+    unpub = []
+    for src in sorted(HERE.glob("test_*.py")):
+        if src.name in avail_names(pub) or src.name in TESTS_RENAMED_OK.values():
+            continue
+        if src.name in TESTS_NOT_PUBLISHED:
+            continue
+        unpub.append("★ 手元にあって公開側に無い: %s — 出すか、"
+                     "TESTS_NOT_PUBLISHED に理由を書くこと" % src.name)
+
+    # (4) README の載せ漏れ
+    # ⚠ 最初は「README のどこかに名前があるか」で見ていたが、**それでは緩すぎた**。
+    #   使い方の例(`python tools/tests/test_cron.py …`)にも名前が出るので、
+    #   **表の行を丸ごと消しても鳴らなかった**(空振り確認で判明。今日2件目の
+    #   「壊して鳴るかだけ見ていると、何にでも鳴る検査が満点を取る」)。
+    #   → 検証(`test_*.py`)は**表の行**に在ることを見る。helper と参照データの
+    #     作成器は表に出さないので、どこかに在ればよい。
+    readme = tdir / "README.md"
+    lost = []
+    if readme.exists():
+        txt = readme.read_text(encoding="utf-8")
+        rows = "\n".join(ln for ln in txt.splitlines() if ln.startswith("|"))
+        for p in pub:
+            if p.name in ("skipwatch.py", "make_qr_reference.py"):
+                if p.name not in txt:
+                    lost.append("・README が名前も出していない: tests/%s" % p.name)
+            elif p.name not in rows:
+                lost.append("・README の表に無い: tests/%s(使い方の例にあるだけでは足りない)"
+                            % p.name)
+
+    print("tests: 見た %d 本 / 一致 %d 本 / 意図した差 %d 本(既知 %d) / 手元に同名が無い %d 本"
+          % (len(pub), same, diff_ok, len(TESTS_DIFF_OK), len(orphan)))
+    for m in bad + miss + unpub:
+        print("  " + m)
+    for m in lost:
+        print("  " + m)
     for n in orphan:
         print("  ★ 手元に同名が無い: tests/%s(名前が違うなら TESTS_RENAMED_OK に足す)" % n)
-    return 1 if (new_stale or fixed or orphan) else 0
+    return 1 if (bad or miss or unpub or orphan or lost) else 0
+
+
+def avail_names(pub):
+    return {p.name for p in pub}
 
 
 def targets():
