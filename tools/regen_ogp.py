@@ -46,8 +46,11 @@ EN_ITEMS = [
      "See where a URL really goes"),
     ("headers-en", "HTTP Header Explainer",
      "Naming the mistakes that raise no error"),
+    # ⚠ 2026-09-04: 日本語版だけが「落とし穴を57種類」と数を名乗り、英語版にも
+    #    日英どちらのページにも 57 が無かった(9/3昼の 132,996 と同じ形)。
+    #    ページ側に 57 を置き、英語の副題にも入れた。**数は `test_jwt.py` が見張っている**。
     ("jwt-en", "JWT Explainer",
-     "See for yourself that the payload is not encrypted. The traps that raise no error get named."),
+     "See for yourself that the payload is not encrypted. 57 traps that raise no error get named."),
     ("password-en", "Password Generator & Strength Check",
      "See the modulo bias with your own eyes, via a real histogram and chi-square test."),
     ("base64-en", "Base64 & Data URL Explainer",

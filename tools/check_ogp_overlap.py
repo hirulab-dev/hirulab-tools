@@ -14,11 +14,25 @@
 本文の最下行がブランド表記の真上まで降りてきて、すき間が数画素になる、というものだった。
 重なりだけを見る検査だと**これを一度も捕まえられない**（最初にそう書いて空振りした）。
 """
-import os, sys
+import os, sys, importlib.util
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OGP_DIR = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(HERE), "docs", "ogp")
+
+# ⚠ 2026-09-04: ここは `os.path.join(os.path.dirname(HERE), "docs", "ogp")` と
+#    **自分のファイル位置から**組み立てていたので、原本のある `lab/assets/` から回すと
+#    存在しない `lab/docs/ogp` を見て FileNotFoundError で落ちていた。
+#    **9/3 夕に `regen_ogp.py` で直したのと同じ傷が、同じフォルダの3本目に残っていた**
+#    (あのとき直したのは `make_ogp.OUT_DIR` で、この道具は make_ogp を import して
+#     いなかったので直しが届かなかった = **名指しされたファイルだけを直した**形)。
+#    → 場所は `make_ogp` の1か所から引く。判定の定数(BRAND_Y など)は
+#      **わざと写したまま**にしてある(検査と検査される側が同じ定数を読むと空振りするため)。
+_spec = importlib.util.spec_from_file_location("make_ogp_for_overlap",
+                                               os.path.join(HERE, "make_ogp.py"))
+_mk = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_mk)
+
+OGP_DIR = sys.argv[1] if len(sys.argv) > 1 else _mk.OUT_DIR
 
 BRAND_Y = 500                 # make_ogp.py と同じ
 LEFT, RIGHT = 88, 830         # 本文が入る帯（フラスコの手前まで）

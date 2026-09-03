@@ -18,8 +18,9 @@
 「画像の中の文字」を確かめられる。ページから拾った題の候補を順に描いて、
 既存の画像の**題の領域**と一致するものを探す。一致した候補が、その画像に描いてある題。
 
-★**副題は照合しない**。画像の副題は og:description ではなく**画像用に書き下ろした短文**で、
-ページのどこにも同じ文字列が無い(既存52枚すべてで確認)。
+★**副題は題と同じ手では読めない**。画像の副題は og:description ではなく**画像用に書き下ろした
+短文**で、ページのどこにも同じ文字列が無い(既存52枚すべてで確認)。
+→ 2026-09-04 に**候補の出どころだけを変えて**読めるようにした(下の「副題」の節)。
 
 ## この検査の持ち場（3者のうちどの辺を見るか）
 
@@ -34,17 +35,42 @@
 9/2〜9/3 に3回踏んだ「同じ表が複数あって全部違う」を、**自分で1つ増やす側**でやりかけた形。
 記録は `regen_ogp.py` の表だけ、が正。
 
+## 副題(2026-09-04 追加)
+
+9/3 に「副題は①の担当」と書いて外したが、**①は表と画像しか比べない**ので
+**副題とページの食い違いは永久に出ない**。実際に外していたあいだ、`jwt` の副題だけが
+「エラーにならない落とし穴を**57種類**、名指しします」と数を名乗っていて、
+**その 57 はページにも英語版にも無く、誰も比べていなかった**
+(9/3 昼の「英語版だけに書いてあった数字が古かった(132,996)」とまったく同じ形)。
+
+**読み方は題と同じ「描き直して画素で確かめる」だが、候補の出どころが違う。**
+題はページから候補を採れる。副題はページに同じ文字列が無いので、
+**候補は `regen_ogp.py` の表しか無い**。
+⚠ つまり副題については**この検査は①と独立ではない**。表と画像が食い違っていれば
+副題は「読めない」となり、①のほうにも同じ食い違いが出る。
+それでも意味があるのは、**読み取った副題をページに突き合わせる**ところが①に無いから。
+
 ## 見ているもの / 見ていない範囲
 
 見る:
 - 画像の**題**が、そのページの題(og:title / title / h1 / JSON-LD name のいずれか)と一致するか
 - 画像の**ブランド表記**が日英どちらか。ページの `og:locale` と食い違っていないか
+- 画像の**副題**が表のとおりに描かれているか(読めるか)
+- 副題が**3行で切れていないか**。`make_ogp` は `wrap(...)[:3]` で**4行目を黙って捨てる**ので、
+  表には残っているのに画像には出ない、という形になりうる(いまは4件が3行ちょうど=余白ゼロ)
+- 副題の**言語**がページの `og:locale` と合っているか
+- 副題の中の**数の主張**が、そのページ自身(本文・meta・JSON-LD)にも書いてあるか
+  = **誰かが比べられる状態になっているか**
 - og:image が実在するか / 参照されていない画像が残っていないか
 
 見ていない:
-- **画像の副題**(①の担当)
 - フラスコの絵・色・レイアウト(文字ではないので目的の外)
 - 画像の中の文字の**訳の質**
+- ★**日英で副題の数字を突き合わせる検査は、作ってから見送った**。
+  `pattern` の日本語副題は「8種を生成」だが、英語ページは "**eight** traditional Japanese
+  patterns" と**綴りで書く**。英語は小さい数を綴るのが普通なので、
+  数字どうしの突き合わせは**必ず空振りする**(実際に空振りした)。
+  綴りの表を持てば当たるが、それは「表を手で書いた穴」を1つ増やすだけなのでやめた。
 """
 import argparse
 import os
@@ -57,12 +83,28 @@ REPO = os.path.join(os.path.expanduser("~"), "hirulab-tools")
 DOCS = os.path.join(REPO, "docs")
 sys.path.insert(0, os.path.join(REPO, "tools"))
 import make_ogp  # noqa: E402  (パスを通してから)
+import regen_ogp  # noqa: E402  (副題の候補はここの表しか出どころが無い)
+# ⚠ この `regen_ogp` は**公開リポジトリ側のミラー**(`~/hirulab-tools/tools/`)。
+#   見ている画像もページも公開側なので揃ってはいるが、**原本(`lab/assets/`)を直した直後は
+#   `sync_tools_mirror.py` を回してから**でないと古い表と比べることになる
+#   (2026-09-04 に実際に踏んだ。表を直したのに「副題が表と違う」と出た)。
 
 # 題を描く領域。make_ogp の x=88 / max_w=740 / y0=128 と、フラスコの左端(cx=1005-152=853)から。
 TITLE_X0, TITLE_X1 = 80, 840
 TITLE_Y0 = 120
 # ブランド表記の行。make_ogp の BRAND_Y=500、その下46pxはURL(全ページ共通)。
 BRAND_Y0, BRAND_Y1 = 496, 540
+
+# 副題。make_ogp の f_sub=REG 34 / 行間 46 / 題の下 14px / **3行で打ち切り**。
+SUB_SIZE, SUB_LINE_H, SUB_MAX_LINES, SUB_GAP = 34, 46, 3, 14
+
+# 日本語の字(かな・漢字)。副題の言語を見るのに使う。
+JA_CHARS = re.compile(r"[぀-ヿ㐀-鿿]")
+
+# 副題の中の数。★「64」(base64)や「2.1」(WCAG 2.1)のような**名前の一部**も拾うが、
+# 落とさない: 名前ならページにも必ず出ているので、この検査は素通りする。
+# 拾いすぎて困るのは「ページに無い数」だけで、それはまさに見たいもの。
+NUM = re.compile(r"[0-9]+(?:\.[0-9]+)?")
 
 
 def unescape(s):
@@ -136,7 +178,12 @@ def same(a, b, box):
 
 
 def find_title(img, slug, cands, bg):
-    """画像の題の領域に一致する候補を探す。返り値: (題, 行の高さ, 行数) か None。"""
+    """画像の題の領域に一致する候補を探す。返り値: (題, 文字の大きさ, 行数) か None。
+
+    ★行数まで返すのは**副題の上端を出すため**(2026-09-04)。
+    `make_ogp` は題を `y0=128` から `round(size*92/76)` 間隔で描くので、
+    行数が分かれば副題がどこから始まるかが決まる。
+    """
     rows = ink_rows(img, TITLE_X0, TITLE_X1, TITLE_Y0, BRAND_Y0 - 4, bg)
     if not rows:
         return None
@@ -149,8 +196,68 @@ def find_title(img, slug, cands, bg):
                 continue
             box = (TITLE_X0, TITLE_Y0, TITLE_X1, prows[-1] + 3)
             if same(img, probe, box):
-                return cand, size, prows
+                return cand, size, len(wrap_title(cand, size))
     return None
+
+
+def wrap_title(title, size):
+    from PIL import ImageDraw
+    d = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    return make_ogp.wrap(d, title, make_ogp.font(make_ogp.FONT_BOLD, size), 740)
+
+
+def wrap_sub(sub):
+    from PIL import ImageDraw
+    d = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    return make_ogp.wrap(d, sub, make_ogp.font(make_ogp.FONT_REG, SUB_SIZE), 740)
+
+
+def sub_top(size, n_title_lines):
+    """副題の1行目の上端。`make_ogp.make` の組み立てと同じ式。"""
+    return 128 + round(size * 92 / 76) * n_title_lines + SUB_GAP
+
+
+def render_sub_only(sub, y, bg):
+    """副題だけを既定の位置に描いた見本。題とブランドは描かない。"""
+    from PIL import ImageDraw
+    probe = bg.copy()
+    d = ImageDraw.Draw(probe)
+    f = make_ogp.font(make_ogp.FONT_REG, SUB_SIZE)
+    for line in wrap_sub(sub)[:SUB_MAX_LINES]:
+        d.text((88, y), line, font=f, fill=make_ogp.GRAY)
+        y += SUB_LINE_H
+    return probe
+
+
+def read_subtitle(img, slug, size, n_title_lines, bg, table):
+    """画像に描いてある副題を読む。候補は表しか出どころが無い(冒頭の説明を参照)。
+
+    返り値: (副題, 折り返した行数) か None(表に無い / 表のとおりに描かれていない)。
+    """
+    sub = table.get(slug)
+    if sub is None:
+        return None
+    y = sub_top(size, n_title_lines)
+    probe = render_sub_only(sub, y, bg)
+    if same(img, probe, (TITLE_X0, y, TITLE_X1, BRAND_Y0 - 4)):
+        return sub, len(wrap_sub(sub))
+    return None
+
+
+def page_text(html):
+    """ページが「言っていること」。本文に加えて meta と JSON-LD も入れる。
+
+    ⚠ 本文だけにすると `pattern` の「8種類」を見落とす(あれは JSON-LD と
+    twitter:description にしか無い)。逆に生HTMLをそのまま使うと、色コード `#5703f`
+    の中の `57` に当たって**何でも「ページにある」ことになってしまう**
+    (実際、最初に書いたときはこれで `jwt` の 57 を見逃した)。
+    """
+    metas = re.findall(r'<meta[^>]+content="([^"]*)"', html)
+    ld = re.findall(r'<script type="application/ld\+json">(.*?)</script>', html, re.S)
+    body = re.sub(r"<script.*?</script>", " ", html, flags=re.S)
+    body = re.sub(r"<style.*?</style>", " ", body, flags=re.S)
+    body = re.sub(r"<[^>]+>", " ", body)
+    return unescape(" ".join(metas) + " " + " ".join(ld) + " " + body)
 
 
 def render_title_only(slug, title, size):
@@ -197,6 +304,11 @@ def brand_of(img, bg):
     return None
 
 
+def subtitle_table():
+    """スラッグ → 副題。**表は `regen_ogp.py` の1つだけ**(9/3 に2つ目を作りかけた)。"""
+    return {s: sub for s, _t, sub in regen_ogp.ITEMS}
+
+
 def pages():
     for dirpath, _dirs, files in os.walk(DOCS):
         for fn in sorted(files):
@@ -207,12 +319,54 @@ def pages():
             yield os.path.relpath(p, DOCS).replace("\\", "/"), html
 
 
-def check_one(rel, html, img, name, bg):
+def subtitle_checks(rel, html, img, name, slug, hit, want, bg, table, kinds):
+    """副題まわり。**題が読めたときだけ**呼ぶ(副題の位置が題の行数で決まるため)。"""
+    _title, size, n_lines = hit
+    out = []
+    got = read_subtitle(img, slug, size, n_lines, bg, table)
+    if got is None:
+        kinds.add("subtitle")
+        out.append("%s: 画像の副題が、表(regen_ogp.py)のとおりに描かれていない (%s)%s"
+                   % (rel, name, "" if slug in table else " ← そもそも表に無い"))
+        return out
+    sub, n_sub = got
+
+    if n_sub > SUB_MAX_LINES:
+        kinds.add("subtitle-cut")
+        out.append("%s: 副題が %d 行あるが、画像には %d 行しか出ていない (%s)\n"
+                   "      画像に出ていない: %r"
+                   % (rel, n_sub, SUB_MAX_LINES, name,
+                      "".join(wrap_sub(sub)[SUB_MAX_LINES:])))
+
+    has_ja = bool(JA_CHARS.search(sub))
+    if want == "en" and has_ja:
+        kinds.add("subtitle-lang")
+        out.append("%s: 英語ページなのに画像の副題に日本語がある (%s): %r" % (rel, name, sub))
+    elif want == "ja" and not has_ja:
+        kinds.add("subtitle-lang")
+        out.append("%s: 日本語ページなのに画像の副題に日本語が1文字も無い (%s): %r"
+                   % (rel, name, sub))
+
+    text = page_text(html)
+    missing = [n for n in sorted(set(NUM.findall(sub))) if n not in text]
+    if missing:
+        kinds.add("subtitle-number")
+        out.append("%s: 画像の副題が名乗っている数が、ページのどこにも無い (%s): %s\n"
+                   "      副題: %r\n"
+                   "      → 数はページ側にも置くこと。片方にしか無い数は誰も比べられない"
+                   % (rel, name, " / ".join(missing), sub))
+    return out
+
+
+def check_one(rel, html, img, name, bg, table=None):
     """1ページぶんの検査。**画像も HTML も引数で受け取る**ので、
     空振り確認はメモリ上で仕込める(公開フォルダを壊さずに済む)。
     返り値: (指摘のリスト, どの検査が出したかの名札の集合)"""
+    if table is None:
+        table = subtitle_table()
     problems, kinds = [], set()
     slug = name[len("ogp-"):-len(".png")]
+    want = "en" if (meta(html, "og:locale") or "").startswith("en") else "ja"
 
     hit = find_title(img, slug, title_candidates(html), bg)
     if hit is None:
@@ -220,9 +374,10 @@ def check_one(rel, html, img, name, bg):
         problems.append("%s: 画像の題が、このページのどの題とも一致しない (%s)\n"
                         "      ページ側の候補: %s"
                         % (rel, name, " / ".join(title_candidates(html)[:3])))
+    else:
+        problems += subtitle_checks(rel, html, img, name, slug, hit, want, bg, table, kinds)
 
     b = brand_of(img, bg)
-    want = "en" if (meta(html, "og:locale") or "").startswith("en") else "ja"
     if b is None:
         kinds.add("brand-unknown")
         problems.append("%s: 画像のブランド表記が日英どちらとも一致しない (%s)" % (rel, name))
@@ -260,6 +415,10 @@ def sabotage(docs, bg):
     ja = next(x for x in base if x[0] == "qr/index.html")
     en = next(x for x in base if x[0] == "en/qr.html")
 
+    table = subtitle_table()
+    QR_T, QR_S = "QRコード作成", table["qr"]
+    EN_T = "QR Code Generator"
+
     cases = []
     # 1) 画像の題を別の言葉にする
     bad = render("qr", "QRコードを作る道具", "テキスト・URL・Wi-Fi・メール・電話からQRを作ります。")
@@ -287,11 +446,47 @@ def sabotage(docs, bg):
     rr = next(x for x in base if x[0] == "railroad/index.html")
     cases.append(("題が途中で切れている", rr[0], rr[1], rr[2], bad_half, "title"))
 
+    # --- ここから副題 (2026-09-04)。**表のほうも一緒に差し替える**ので、
+    #     「表と画像が食い違っている」ではなく「表どおりの画像が悪い」を試せる。
+    # 6) 画像の副題だけを別の文言にする(表はそのまま)
+    cases.append(("画像の副題が表と違う", ja[0], ja[1], ja[2],
+                  render("qr", QR_T, "テキストからQRを作ります。"), "subtitle", None))
+    # 7) 副題が長すぎて4行目が画像から落ちる
+    long_sub = ("テキスト・URL・Wi-Fi・メール・電話番号・位置情報・カレンダーの予定など、"
+                "いろいろな形のQRコードをその場で作ります。どれも端末の中だけで動きます。")
+    assert len(wrap_sub(long_sub)) > SUB_MAX_LINES, "4行にならない見本では試せない"
+    cases.append(("副題の4行目が画像から落ちている", ja[0], ja[1], ja[2],
+                  render("qr", QR_T, long_sub), "subtitle-cut", {"qr": long_sub}))
+    # 8) 英語ページの画像の副題が日本語
+    cases.append(("英語ページの副題が日本語", en[0], en[1], en[2],
+                  render("qr-en", EN_T, "Wi-Fiのパスワードを入れても、どこにも送りません。"),
+                  "subtitle-lang", {"qr-en": "Wi-Fiのパスワードを入れても、どこにも送りません。"}))
+    # 9) 副題がページのどこにも無い数を名乗る
+    n_sub = "Wi-Fiのパスワードを入れても、どこにも送りません。対応する形式は99種類。"
+    cases.append(("副題がページに無い数を名乗る", ja[0], ja[1], ja[2],
+                  render("qr", QR_T, n_sub), "subtitle-number", {"qr": n_sub}))
+    # 10) ★逆に**鳴ってはいけない**形。同じ数がページにも書いてあれば素通りが正しい
+    #     (9 と 10 の差はページ側だけ。これが通らないと 9 は「数さえあれば何でも鳴る」検査)
+    ja_with_99 = ja[1].replace("<h1>QRコード作成</h1>",
+                               "<h1>QRコード作成</h1><p>対応する形式は99種類。</p>")
+    assert "99" in page_text(ja_with_99), "見本のページに 99 が入っていない"
+    cases.append(("同じ数がページにもある(鳴ってはいけない)", ja[0], ja_with_99, ja[2],
+                  render("qr", QR_T, n_sub), None, {"qr": n_sub}))
+
     print("\n=== 空振り確認 (%d 種) ===" % len(cases))
     ok = 0
-    for label, rel, html, name, img, want_kind in cases:
-        _probs, kinds = check_one(rel, html, img, name, bg)
-        if want_kind in kinds:
+    for case in cases:
+        label, rel, html, name, img, want_kind = case[:6]
+        over = case[6] if len(case) > 6 else None
+        _probs, kinds = check_one(rel, html, img, name, bg,
+                                  dict(table, **over) if over else table)
+        if want_kind is None:
+            if kinds:
+                print("  ✗ %s → 鳴ってはいけないのに %s が出た" % (label, sorted(kinds)))
+            else:
+                print("  ✓ %s → 何も出なかった(正しい)" % label)
+                ok += 1
+        elif want_kind in kinds:
             print("  ✓ %s → %s が捕まえた" % (label, want_kind))
             ok += 1
         else:
@@ -313,7 +508,8 @@ def main():
 
     problems = []
     seen_images = set()
-    n_pages = n_title_ok = 0
+    table = subtitle_table()
+    n_pages = n_title_ok = n_sub_ok = 0
 
     for rel, html, name, img, err in collect(a.docs, a.only):
         if err:
@@ -321,10 +517,12 @@ def main():
             continue
         seen_images.add(name)
         n_pages += 1
-        probs, kinds = check_one(rel, html, img, name, bg)
+        probs, kinds = check_one(rel, html, img, name, bg, table)
         problems += probs
         if "title" not in kinds:
             n_title_ok += 1
+        if not (kinds & {"title", "subtitle"}):
+            n_sub_ok += 1
 
     if not a.only:
         orphans = sorted(x for x in os.listdir(os.path.join(a.docs, "ogp"))
@@ -332,9 +530,10 @@ def main():
         for x in orphans:
             problems.append("ogp/%s: どのページからも参照されていない" % x)
 
-    print("見たページ %d 枚 / 画像 %d 枚 / 題がページと一致 %d 枚"
-          % (n_pages, len(seen_images), n_title_ok))
-    print("見ていない範囲: 画像の副題(regen_ogp.py --check の担当)・絵柄・訳の質")
+    print("見たページ %d 枚 / 画像 %d 枚 / 題がページと一致 %d 枚 / 副題が読めた %d 枚"
+          % (n_pages, len(seen_images), n_title_ok, n_sub_ok))
+    print("見ていない範囲: 絵柄・訳の質・日英で副題の数字を揃えること"
+          "(英語は小さい数を綴るので当たらない。冒頭の説明を参照)")
     if problems:
         print("\n★ %d 件" % len(problems))
         for p in problems:

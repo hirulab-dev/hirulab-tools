@@ -626,8 +626,8 @@ HTML_PARTS = [
  ('<meta property="og:title" content="JWTの読み下し — 中身は暗号化されていない、を目で見る道具">',
   '<meta property="og:title" content="JWT Explainer — see for yourself that the payload is not encrypted">'),
 
- ('<meta property="og:description" content="JWTを貼ると3つの部分に分けて読み下し、期限がいつ切れるか・署名が正しいか・危ない書き方をしていないかを見せます。exp をミリ秒で入れて数万年先、alg が none、ペイロードにパスワード。エラーにならない落とし穴を名指しします。">',
-  '<meta property="og:description" content="Paste a JWT and it is split into three parts and read back: when it expires, whether the signature checks out, whether it is written in a way that will hurt. exp in milliseconds, alg none, a password in the payload. The traps that raise no error get named.">'),
+ ('<meta property="og:description" content="JWTを貼ると3つの部分に分けて読み下し、期限がいつ切れるか・署名が正しいか・危ない書き方をしていないかを見せます。exp をミリ秒で入れて数万年先、alg が none、ペイロードにパスワード。エラーにならない落とし穴を57種類、名指しします。">',
+  '<meta property="og:description" content="Paste a JWT and it is split into three parts and read back: when it expires, whether the signature checks out, whether it is written in a way that will hurt. exp in milliseconds, alg none, a password in the payload. 57 traps that raise no error get named.">'),
 
  ('<meta property="og:url" content="' + SITE + '/jwt/">',
   '<meta property="og:url" content="' + SITE + '/en/jwt.html">'),
@@ -638,8 +638,8 @@ HTML_PARTS = [
  ('<meta name="twitter:title" content="JWTの読み下し — 中身は暗号化されていない、を目で見る道具">',
   '<meta name="twitter:title" content="JWT Explainer — see for yourself that the payload is not encrypted">'),
 
- ('<meta name="twitter:description" content="JWTを3つの部分に分けて読み下し、期限・署名・危ない書き方を見せます。エラーにならない落とし穴を名指しします。貼ったトークンはどこにも送信されません。">',
-  '<meta name="twitter:description" content="A JWT split into three parts and read back: expiry, signature, and the writing that will hurt later. The traps that raise no error get named. The token you paste is never uploaded.">'),
+ ('<meta name="twitter:description" content="JWTを3つの部分に分けて読み下し、期限・署名・危ない書き方を見せます。エラーにならない落とし穴を57種類、名指しします。貼ったトークンはどこにも送信されません。">',
+  '<meta name="twitter:description" content="A JWT split into three parts and read back: expiry, signature, and the writing that will hurt later. 57 traps that raise no error get named. The token you paste is never uploaded.">'),
 
  ('<meta name="twitter:image" content="' + SITE + '/ogp/ogp-jwt.png">',
   '<meta name="twitter:image" content="' + SITE + '/ogp/ogp-jwt-en.png">'),
@@ -662,13 +662,13 @@ HTML_PARTS = [
     JWT でいちばん多い誤解は<strong>「中身は暗号化されている」</strong>で、実際は
     <strong>base64 で書いてあるだけ</strong>です。誰でも読めます。
     <code>exp</code> をミリ秒で入れて期限が数万年先になっていても、エラーは出ません。
-    この道具は、そういうところを名指しします。</p>''',
+    この道具は、そういうところを57種類、名指しします。</p>''',
   '''  <p class="lead">Paste a JWT and this page <strong>splits it into its three parts and reads each one back,
     saying what will actually happen</strong>.
     The most common misunderstanding about JWTs is that <strong>the payload is encrypted</strong>. It is not:
     it is <strong>written in base64</strong>, and anyone can read it.
     Put <code>exp</code> in milliseconds so the expiry lands tens of thousands of years from now, and
-    nothing raises an error. This page names that kind of thing.</p>'''),
+    nothing raises an error. This page names 57 such traps.</p>'''),
 
  ('''  <div class="privacy">
     <strong>このページは通信を一切行いません。</strong>
