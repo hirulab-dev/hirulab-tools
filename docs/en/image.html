@@ -251,7 +251,7 @@ const fmtBytes = n => n < 1024 ? n + " B"
   : n < 1024*1024 ? (n/1024).toFixed(1) + " KB"
   : (n/1024/1024).toFixed(2) + " MB";
 
-/** 削減率の表示。四捨五入で 100% になっても「ゼロになった」と誤読されないよう 99% で止める */
+/** Shows the reduction. Capped at 99% so that rounding to 100% is not read as "gone to zero" */
 const pctText = (before, after) => {
   if (!before) return "";
   const d = 1 - after / before;
@@ -259,7 +259,7 @@ const pctText = (before, after) => {
   return Math.round(-d * 100) + "% larger";
 };
 
-/* ---------- 入力 ---------- */
+/* ---------- Input ---------- */
 const drop = $("drop"), input = $("file");
 drop.addEventListener("click", () => input.click());
 drop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } });
@@ -293,7 +293,7 @@ $("clear").addEventListener("click", () => {
   $("status").textContent = "Choose an image to start.";
 });
 
-/* ---------- コントロールの連動 ---------- */
+/* ---------- Keeping the controls in sync ---------- */
 const LABELS = { longest:["Longest side (px)","Never enlarged beyond the original"], width:["Width (px)","The height follows, keeping the aspect ratio"],
   height:["Height (px)","The width follows, keeping the aspect ratio"], percent:["Percentage (%)","Values above 100% are allowed"],
   none:["(not used)","The size is left alone; only compression and format conversion happen"] };
@@ -311,7 +311,7 @@ $("format").addEventListener("change", () => {
   $("quality").disabled = png;
 });
 
-/* ---------- 変換 ---------- */
+/* ---------- Conversion ---------- */
 function targetSize(ow, oh) {
   const m = $("mode").value, n = +$("size").value;
   if (m === "none" || !Number.isFinite(n) || n <= 0) return [ow, oh];
@@ -321,7 +321,7 @@ function targetSize(ow, oh) {
   else if (m === "height") { h = n; w = ow * (n / oh); }
   else {                                        // longest
     const scale = n / Math.max(ow, oh);
-    if (scale >= 1) return [ow, oh];            // 引き伸ばさない
+    if (scale >= 1) return [ow, oh];            // Never upscale
     w = ow * scale; h = oh * scale;
   }
   w = Math.max(1, Math.min(MAXW, Math.round(w)));
@@ -336,7 +336,7 @@ const loadImage = url => new Promise((res, rej) => {
   img.src = url;
 });
 
-/** 大きく縮めるときは半分ずつ段階的に縮小する(一発で縮めるとジャギる) */
+/** Shrink in halving steps for large reductions (one big step comes out jagged) */
 function drawScaled(img, tw, th, fillWhite) {
   let cw = img.naturalWidth, ch = img.naturalHeight;
   let canvas = document.createElement("canvas");
@@ -377,7 +377,7 @@ $("run").addEventListener("click", async () => {
       const [tw, th] = targetSize(img.naturalWidth, img.naturalHeight);
       const canvas = drawScaled(img, tw, th, fillWhite);
       const blob = await toBlob(canvas, type, q);
-      // 実際に要求した形式で出たか(未対応だとPNGで返るブラウザがある)
+      // Did we actually get the format we asked for (some browsers fall back to PNG)
       if (blob.type !== type) item.warn = `This browser cannot write ${type.split("/")[1].toUpperCase()}, so it produced ${blob.type.split("/")[1].toUpperCase()} instead`;
       if (item.outUrl) URL.revokeObjectURL(item.outUrl);
       item.blob = blob;
@@ -392,7 +392,7 @@ $("run").addEventListener("click", async () => {
     }
     done++;
     renderItems();
-    await new Promise(r => setTimeout(r, 0));   // UIを描き直させる
+    await new Promise(r => setTimeout(r, 0));   // Force the UI to redraw
   }
   const total = files.reduce((s,f) => s + (f.blob ? f.blob.size : 0), 0);
   const orig  = files.filter(f => f.blob).reduce((s,f) => s + f.file.size, 0);

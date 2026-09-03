@@ -215,14 +215,14 @@
 "use strict";
 
 /* ============================================================
-   診断の本体。この関数の中身がそのままブックマークレットになる。
-   （下で String(hirulabContrast) を取り出して javascript: URL を組み立てている）
-   ページの外の変数に依存しないよう、必要なものは全部この中に閉じてある。
+   The diagnosis itself. The body of this function IS the bookmarklet.
+   (below, String(hirulabContrast) is pulled out to build the javascript: URL)
+   Everything it needs is closed inside, so it depends on nothing outside.
    ============================================================ */
 function hirulabContrast(){
   var ID = "__hirulab_contrast__";
   var prev = document.getElementById(ID);
-  if (prev){                                        /* 2回目は閉じる */
+  if (prev){                                        /* A second run closes it */
     prev.parentNode.removeChild(prev);
     var marked = document.querySelectorAll("[data-hlc-outline]");
     for (var i = 0; i < marked.length; i++){
@@ -242,7 +242,7 @@ function hirulabContrast(){
     var l1 = lum(a), l2 = lum(b);
     return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
   }
-  function bgOf(el){                                 /* 透明を遡って、実際に見えている色を探す */
+  function bgOf(el){                                 /* Walk up through transparency to find the color actually seen */
     var e = el;
     while (e && e.nodeType === 1){
       var cs = getComputedStyle(e), b = cs.backgroundColor;
@@ -252,7 +252,7 @@ function hirulabContrast(){
     var hb = getComputedStyle(document.documentElement).backgroundColor;
     return rgb(hb) && alpha(hb) > 0.6 ? rgb(hb) : [255, 255, 255];
   }
-  function ownText(el){                               /* 子要素ではなく自分が持っている文字 */
+  function ownText(el){                               /* Text this element owns, not the text of its children */
     var t = "";
     for (var i = 0; i < el.childNodes.length; i++){
       var n = el.childNodes[i];
@@ -344,7 +344,7 @@ function hirulabContrast(){
   });
 }
 
-/* ---- ブックマークレットのURLを、上の関数そのものから組み立てる ---- */
+/* ---- Build the bookmarklet URL from the function above itself ---- */
 var code = "javascript:(" + String(hirulabContrast).replace(/\s*\n\s*/g, " ") + ")();void 0;";
 document.getElementById("bm").href = code;
 document.getElementById("bm").addEventListener("click", function(e){

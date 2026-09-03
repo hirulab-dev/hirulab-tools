@@ -172,15 +172,15 @@ function update() {
   const pack = +$("pack").value || 0;
   const feePct = +$("feePct").value || 0;
   const payout = +$("payout").value || 0;
-  // 販売手数料は円未満を切り捨てる。小数のまま持つと、内訳の行を足しても合計に
-  // ならない(表示だけ四捨五入するので端数が合計にだけ乗る)。売値2,005円・10%なら
-  // 「¥2,005 − ¥201 − … = ¥895」と出るのに、左辺を足すと894 になっていた。
+  // The selling fee is floored to whole yen. Kept as a fraction, the rows of the
+  // breakdown do not add up: only the display rounds, so the remainder lands on the total.
+  // At 2,005 yen and 10%: ¥2,005 - ¥201 - ... = ¥895, yet the left side summed to 894.
   const fee = Math.floor(price * feePct / 100);
   const profit = price - fee - ship - cost - pack - payout;
   const margin = price > 0 ? profit / price * 100 : 0;
-  // 損益分岐: price*(1-fee%) = 固定費 …だが、手数料を円未満で切り捨てるので
-  // 連続の式が出す売値は 1円ほど高く出ることがある(切り捨てのぶん実際は少し安く済む)。
-  // 式で当たりを付けてから、赤字にならない範囲で1円ずつ下げて詰める。
+  // Break-even: price*(1-fee%) = fixed costs -- but the fee is floored to whole yen, so
+  // the closed-form price can come out about 1 yen too high (flooring makes it cheaper).
+  // So start from the formula, then step down 1 yen at a time while it stays profitable.
   const fixed = ship + cost + pack + payout;
   let breakeven = Infinity;
   if (feePct < 100) {

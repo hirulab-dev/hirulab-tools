@@ -240,7 +240,7 @@
 <script>
 "use strict";
 
-/* ---------- 色のパース ---------- */
+/* ---------- Parsing colors ---------- */
 const NAMED = { black:"#000000", white:"#ffffff", red:"#ff0000", blue:"#0000ff",
   green:"#008000", gray:"#808080", grey:"#808080", silver:"#c0c0c0", navy:"#000080",
   teal:"#008080", orange:"#ffa500", purple:"#800080", yellow:"#ffff00" };
@@ -259,8 +259,8 @@ function parseColor(s) {
   if (m) {
     const parts = m[1].split(/[,\s/]+/).filter(Boolean).slice(0,3);
     if (parts.length < 3) return null;
-    // ⚠ 2.55 を掛けると 50% が 127.49999999999999 になって 127 に落ちる(ブラウザは 128)。
-    //    小数の指定も parseInt では切り捨てになる(1.5 → 1。ブラウザは 2)。どちらも 2026-09-01 修正。
+    // Note: multiplying by 2.55 turns 50% into 127.49999999999999, which drops to 127 (browsers: 128).
+    //    parseInt also truncates fractions (1.5 -> 1; browsers: 2). Both were fixed on 2026-09-01.
     const v = parts.map(p => p.endsWith("%") ? Math.round(parseFloat(p)*255/100)
                                              : Math.round(parseFloat(p)));
     if (v.some(n => !Number.isFinite(n) || n < 0 || n > 255)) return null;
@@ -271,7 +271,7 @@ function parseColor(s) {
 const toHex = rgb => "#" + rgb.map(v =>
   Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2,"0")).join("");
 
-/* ---------- WCAG 2.1 コントラスト比 ---------- */
+/* ---------- WCAG 2.1 contrast ratio ---------- */
 const srgbToLin = c => { const s = c/255; return s <= 0.04045 ? s/12.92 : Math.pow((s+0.055)/1.055, 2.4); };
 function luminance(rgb) {
   const [r,g,b] = rgb.map(srgbToLin);
@@ -282,7 +282,7 @@ function contrast(a, b) {
   return (Math.max(l1,l2) + 0.05) / (Math.min(l1,l2) + 0.05);
 }
 
-/* ---------- APCA(WCAG 3.0 ドラフト・参考値) ---------- */
+/* ---------- APCA (WCAG 3.0 draft, shown for reference) ---------- */
 function apca(fg, bg) {
   const Y = rgb => 0.2126729*Math.pow(rgb[0]/255,2.4)
                  + 0.7151522*Math.pow(rgb[1]/255,2.4)
@@ -296,7 +296,7 @@ function apca(fg, bg) {
   return C * 100;
 }
 
-/* ---------- 色覚特性シミュレーション(LMS空間での近似) ---------- */
+/* ---------- Color-vision simulation (approximated in LMS space) ---------- */
 const RGB2LMS = [[0.31399022,0.63951294,0.04649755],
                  [0.15537241,0.75789446,0.08670142],
                  [0.01775239,0.10944209,0.87256922]];
@@ -320,7 +320,7 @@ function simulate(rgb, kind) {
   });
 }
 
-/* ---------- 修正案の生成 ---------- */
+/* ---------- Building suggested fixes ---------- */
 function rgbToHsl(rgb) {
   const [r,g,b] = rgb.map(v => v/255);
   const mx = Math.max(r,g,b), mn = Math.min(r,g,b), d = mx-mn;
@@ -342,7 +342,7 @@ function hslToRgb(h,s,l) {
   else if (h < 240) p = [0,x,c]; else if (h < 300) p = [x,0,c]; else p = [c,0,x];
   return p.map(v => Math.round((v+m)*255));
 }
-/** 色相・彩度を保ったまま明度だけ動かして目標比に届く最も近い色を探す */
+/** Keep hue and saturation, move lightness only, find the nearest color that reaches the target */
 function nudgeLightness(target, fixed, goal) {
   const [h,s,l0] = rgbToHsl(target);
   let best = null;
@@ -389,7 +389,7 @@ function render() {
   pv.style.color = toHex(fg);
   pv.style.borderColor = toHex(fg);
 
-  // 色覚特性
+  // Color vision
   const sims = [
     ["Typical colour vision", "normal"],
     ["Protanopia (red)", "protanopia"],
@@ -404,7 +404,7 @@ function render() {
       <div class="val">ratio ${r.toFixed(2)}:1 / ${toHex(f)} on ${toHex(b)}</div></div>`;
   }).join("");
 
-  // 修正案
+  // Suggested fixes
   const box = $("fixes");
   if (ratio >= 4.5) {
     box.innerHTML = `<div class="empty">This pair already clears AA (4.5:1). If you want AAA (7:1), try Swap or Random above to look for one.</div>`;
