@@ -17,7 +17,7 @@ import pathlib, re, sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank
-from en_common import translate_comments
+from en_common import comments, translate_comments
 
 # ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
 COMMENTS = {
@@ -623,12 +623,14 @@ def main():
     # ★2026-09-03 夜 追加: コメントも訳す。
     #   下の検査は**コメントを落としてから**日本語を探すので、
     #   この道具は最初から「英語ページに日本語の注釈が載っている」を見ていなかった。
-    m = re.search(r"<script>(.*)</script>", en, re.S)
-    core_en, missing = translate_comments(en[m.start(1):m.end(1)], COMMENTS)
+    # ⚠ greedy に書くと JSON-LD とその間のHTML本文まで飲み込む(url で実際に踏んだ)。
+    s0 = en.index("<script>") + len("<script>")
+    e0 = en.index("</script>", s0)
+    core_en, missing = translate_comments(en[s0:e0], COMMENTS)
     if missing:
         sys.exit("訳されていないコメントが %d 件あります:\n  %s"
                  % (len(missing), "\n  ".join(x[:100] for x in missing[:8])))
-    en = en[:m.start(1)] + core_en + en[m.end(1):]
+    en = en[:s0] + core_en + en[e0:]
 
     body = re.sub(r"/\*.*?\*/", "", en, flags=re.S)
     body = re.sub(r"(?m)(?<!:)//.*$", "", body)

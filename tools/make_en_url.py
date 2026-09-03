@@ -24,6 +24,122 @@ import pathlib, re, sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank
+from en_common import comments, translate_comments
+
+# ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
+COMMENTS = {
+    '/* ------------------------------------------------------------------\n'
+    '   WHATWG URL Standard をなぞった解析。ブラウザの URL は使わない\n'
+    '   （使ったら「ブラウザと一致するか」を確かめる意味が無くなる）。\n'
+    '   ------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   A parser that follows the WHATWG URL Standard. The browser URL class is\n'
+    '   not used (using it would defeat the point of comparing against a browser).\n'
+    '   ------------------------------------------------------------------ */',
+
+    '/* 既定だと先頭の BOM が黙って消える */':
+    '/* By default a leading BOM is silently dropped */',
+    '/* 引用符は文字コードで書く（英語版の照合のため） */':
+    '/* The quote is written as a character code, for the English-page comparison */',
+
+    '/* 符号化する文字の範囲は WHATWG の一覧どおり。ただし実装によって割れるところがあり\n'
+    '   （| をパスで符号化するかは whatwg/url#852、Chromium は符号化し Firefox はしない）、\n'
+    '   そこだけ **読み込み時にこのブラウザを実測して**足す。何を足したかは画面に出す。 */':
+    '/* The characters to percent-encode follow the WHATWG list. Implementations disagree\n'
+    '   in places (whether | is encoded in a path: whatwg/url#852, Chromium yes, Firefox no),\n'
+    '   so those are **measured in this browser on load** and added, and shown on screen. */',
+
+    '/* 禁止ホスト文字の符号位置（下位バイトの判定に使う） */':
+    '/* Code points of the forbidden host characters (used for the low-byte test) */',
+    '/* ---- punycode（RFC 3492）。ホスト名の xn-- を自分で作る ---- */':
+    '/* ---- punycode (RFC 3492). We build the xn-- form of a host ourselves ---- */',
+    '/* ---- ホスト名の文字の直し（UTS #46 のうち、よく出るところだけ） ---- */':
+    '/* ---- Host character mapping (the common parts of UTS #46 only) ---- */',
+    '/* 3種類の全角ピリオド */': '/* The three full-width period characters */',
+    '/* 全角ASCII */': '/* Full-width ASCII */',
+
+    '/* UTS #46 が「無かったことにする」文字。見えないのに消えるので、\n'
+    '     見た目が同じまま別のドメインになる。指摘のほうで名指しする。 */':
+    '/* Characters UTS #46 maps to nothing. They are invisible and then removed, so the\n'
+    '     name looks the same but resolves elsewhere. The findings list names them. */',
+
+    '/* ノーブレークスペースは空白に直る */':
+    '/* A no-break space maps to an ordinary space */',
+
+    '/* ZWNJ と ZWJ は UTS #46 の deviation。前後の文字を見る決まり（CONTEXTJ）が要るので、\n'
+    '   こちらは実装せず拒む。ブラウザも同じ形の入力を拒む（実測）。 */':
+    '/* ZWNJ and ZWJ are deviations in UTS #46. Handling them needs the surrounding-context\n'
+    '   rule (CONTEXTJ), so we reject instead. Browsers reject the same input (measured). */',
+
+    '/* 書字方向の制御文字はホスト名では拒む（見た目の順序を入れ替えられるため）。 */':
+    '/* Bidi control characters are rejected in a host name (they can reorder what you see). */',
+
+    '/* ---- IPv4（WHATWG の書き方。16進・8進・省略形も通る） ---- */':
+    '/* ---- IPv4 (the WHATWG rules: hex, octal and short forms all parse) ---- */',
+    '/* ---- ホスト全体 ---- */': '/* ---- The host as a whole ---- */',
+
+    '/* 見ているブラウザが「下位バイトだけで禁止文字を判定している」と実測できたときは、\n'
+    '         同じ判定をする。仕様どおりなら通る文字なので、こちらの都合ではなく相手に合わせている。 */':
+    '/* When this browser is measured to test forbidden characters by the low byte alone,\n'
+    '         we do the same. They pass per the standard, so this follows the browser. */',
+
+    '/* 見えない文字だけのホスト名は、直したあと空になる。特別スキームで空のホストは許されない。 */':
+    '/* A host of invisible characters only becomes empty after mapping. A special scheme forbids that. */',
+
+    '/* UTS #46 でノーブレークスペースが空白に直ると、禁止文字の空白がホスト名に現れる。\n'
+    '     ブラウザは拒まずに %20 にするので、そこだけ合わせる。 */':
+    '/* Once UTS #46 maps a no-break space to a space, a forbidden space appears in the host.\n'
+    '     Browsers do not reject it but write %20, so we match them here. */',
+
+    '/* ---- パスの . と .. ---- */': '/* ---- . and .. in a path ---- */',
+    '/* ---- 本体 ---- */': '/* ---- The parser itself ---- */',
+
+    '/* Windows のネットワークパス。規格には無い決まりだが、ブラウザは file:// として読む\n'
+    '     （読み込み時に実測して、そうだったときだけ有効にする）。 */':
+    '/* A Windows network path. The standard says nothing, but browsers read it as file://\n'
+    '     (measured on load, and only enabled when that turns out to be true). */',
+
+    '/* ---- クエリ文字列の読み分け ---- */': '/* ---- How a query string is read ---- */',
+
+    '/* このブラウザが一覧より余分に符号化する文字を実測する。\n'
+    '   ここだけはブラウザに合わせにいく（この道具の目的が「実際にどう読まれるか」だから）。\n'
+    '   何を足したかは画面に出すので、黙って合わせることにはならない。 */':
+    '/* Measure which characters this browser encodes beyond the standard list.\n'
+    '   This is the one place we follow the browser, because the point of this tool is\n'
+    '   how a URL is actually read. What was added is shown, so nothing is matched silently. */',
+
+    '/* 非特別スキームのホストで、下位バイトだけを見て禁止文字を判定していないか。\n'
+    '     U+043E（キリル文字の о）は下位バイトが 0x3E = > になる。仕様上は通る文字。 */':
+    '/* In a non-special scheme host, does it test forbidden characters by the low byte alone?\n'
+    '     U+043E (Cyrillic small o) has low byte 0x3E, that is >. The standard lets it through. */',
+
+    '/* \\\\server\\share を file:// として読むか（規格には無い決まり）。 */':
+    '/* Does it read \\\\server\\share as file:// (a rule the standard does not have). */',
+
+    '/* ------------------------------------------------------------------\n'
+    '   指摘。エラーにならないので気づけないものだけを出す。\n'
+    '   data-code は言語に依存しない鍵（検証と英語版がそのまま当たるように）。\n'
+    '   ------------------------------------------------------------------ */':
+    '/* ------------------------------------------------------------------\n'
+    '   Findings. Only things that raise no error, so you cannot notice them.\n'
+    '   data-code is a language-independent key, so the tests and this page share it.\n'
+    '   ------------------------------------------------------------------ */',
+
+    '/* punycode 前の見た目で判定したいので、入力側のラベルを見る */':
+    '/* Judged on how it looks before punycode, so we read the label as typed */',
+    '/* ------------------------------------------------------------------ 画面 */':
+    '/* ------------------------------------------------------------------ Screen */',
+    '/* 「書いたもの」の欄。厳密な位置合わせではなく、目で比べるための素朴な切り出し。 */':
+    '/* The "as written" column: a plain split for eyeballing, not an exact alignment. */',
+
+    '/* すでに符号化されているものは戻さずそのまま置く。戻してから組み直すと\n'
+    '     %2E%2e が .. になって「1つ上の階層」に化ける（実際に検証で踏んだ）。 */':
+    '/* Already-encoded sequences are left as they are. Decoding and rebuilding turns\n'
+    '     %2E%2e into .., which climbs one level up (we hit this while testing). */',
+
+    '/* ---- 自己検査: 自前の解析とブラウザの URL を毎回突き合わせる ---- */':
+    '/* ---- Self-check: compare our parser with the browser URL class on every load ---- */',
+}
 
 SITE = "https://hirulab-dev.github.io/hirulab-tools"
 
@@ -303,6 +419,25 @@ def main():
         en = en.replace(a, b, 1)
     for a, b in sorted(TR.items(), key=lambda kv: -len(kv[0])):
         en = en.replace('"' + a + '"', '"' + b + '"')
+
+    # ★2026-09-03 夜 追加: コメントも訳す。下の検査は**コメントを落としてから**
+    #   日本語を探すので、この道具は最初から英語ページのコメントを見ていなかった。
+    # ⚠ `<script>(.*)</script>` を greedy で書くと、**JSON-LD と その間のHTML本文まで
+    #    飲み込む**(url で実際に踏んだ: 本文の句点をコメントの日本語として数えた)。
+    #    `core_of` と同じ「最初の <script> から最初の </script> まで」で切る。
+    s0 = en.index("<script>") + len("<script>")
+    e0 = en.index("</script>", s0)
+    core_en, missing = translate_comments(en[s0:e0], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(x[:100] for x in missing[:8])))
+    # ⚠ **コメントだけ**を見る。コア全体に当てると、わざと残してある見本
+    #    (全角ピリオドのプリセット)の日本語を「訳し忘れ」と呼んでしまう。
+    left_c = re.findall("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？]+",
+                        "\n".join(comments(core_en)))
+    if left_c:
+        sys.exit("コメントに日本語が %d 箇所残っています: %s" % (len(left_c), left_c[:12]))
+    en = en[:s0] + core_en + en[e0:]
 
     # 画面に出るところに日本語が残っていないか。
     # 仮名・漢字だけ見ていると約物（、。「」（））が素通りするので、そこも見る。

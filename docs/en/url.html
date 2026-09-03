@@ -308,25 +308,25 @@
 <script>
 /*==URLCORE-START==*/
 /* ------------------------------------------------------------------
-   WHATWG URL Standard をなぞった解析。ブラウザの URL は使わない
-   （使ったら「ブラウザと一致するか」を確かめる意味が無くなる）。
+   A parser that follows the WHATWG URL Standard. The browser URL class is
+   not used (using it would defeat the point of comparing against a browser).
    ------------------------------------------------------------------ */
 
 var SPECIAL = {ftp:"21", file:null, http:"80", https:"443", ws:"80", wss:"443"};
 function isSpecial(scheme){ return Object.prototype.hasOwnProperty.call(SPECIAL, scheme); }
 
-var TE = new TextEncoder(), TD = new TextDecoder("utf-8", {ignoreBOM: true});  /* 既定だと先頭の BOM が黙って消える */
-var APOS = String.fromCharCode(39);      /* 引用符は文字コードで書く（英語版の照合のため） */
+var TE = new TextEncoder(), TD = new TextDecoder("utf-8", {ignoreBOM: true});  /* By default a leading BOM is silently dropped */
+var APOS = String.fromCharCode(39);      /* The quote is written as a character code, for the English-page comparison */
 
 function pctByte(b){ var h = b.toString(16).toUpperCase(); return "%" + (h.length < 2 ? "0" + h : h); }
 
 function isC0OrHigh(ch){ var c = ch.codePointAt(0); return c <= 0x1f || c > 0x7e; }
-/* 符号化する文字の範囲は WHATWG の一覧どおり。ただし実装によって割れるところがあり
-   （| をパスで符号化するかは whatwg/url#852、Chromium は符号化し Firefox はしない）、
-   そこだけ **読み込み時にこのブラウザを実測して**足す。何を足したかは画面に出す。 */
+/* The characters to percent-encode follow the WHATWG list. Implementations disagree
+   in places (whether | is encoded in a path: whatwg/url#852, Chromium yes, Firefox no),
+   so those are **measured in this browser on load** and added, and shown on screen. */
 var EXTRA_QUERY = "", EXTRA_PATH = "";
 var HOST_LOWBYTE_QUIRK = false, UNC_TO_FILE = false;
-/* 禁止ホスト文字の符号位置（下位バイトの判定に使う） */
+/* Code points of the forbidden host characters (used for the low-byte test) */
 var FORBIDDEN_LOW = [0x00, 0x09, 0x0A, 0x0D, 0x20, 0x23, 0x2F, 0x3A, 0x3C,
                      0x3E, 0x3F, 0x40, 0x5B, 0x5C, 0x5D, 0x5E, 0x7C];
 function inFragmentSet(ch){ return isC0OrHigh(ch) || " \"<>`".indexOf(ch) >= 0; }
@@ -362,7 +362,7 @@ function pctDecodeBytes(str){
 }
 function pctDecode(str){ return TD.decode(pctDecodeBytes(str)); }
 
-/* ---- punycode（RFC 3492）。ホスト名の xn-- を自分で作る ---- */
+/* ---- punycode (RFC 3492). We build the xn-- form of a host ourselves ---- */
 var PUNY_BASE = 36, PUNY_TMIN = 1, PUNY_TMAX = 26, PUNY_SKEW = 38,
     PUNY_DAMP = 700, PUNY_INITIAL_BIAS = 72, PUNY_INITIAL_N = 128;
 
@@ -413,21 +413,21 @@ function punyEncode(label){
   return out.join("");
 }
 
-/* ---- ホスト名の文字の直し（UTS #46 のうち、よく出るところだけ） ---- */
+/* ---- Host character mapping (the common parts of UTS #46 only) ---- */
 function mapHostChar(ch){
   var c = ch.codePointAt(0);
-  if (c === 0x3002 || c === 0xFF0E || c === 0xFF61) return ".";        /* 3種類の全角ピリオド */
-  if (c >= 0xFF01 && c <= 0xFF5E) return String.fromCodePoint(c - 0xFEE0); /* 全角ASCII */
-  /* UTS #46 が「無かったことにする」文字。見えないのに消えるので、
-     見た目が同じまま別のドメインになる。指摘のほうで名指しする。 */
+  if (c === 0x3002 || c === 0xFF0E || c === 0xFF61) return ".";        /* The three full-width period characters */
+  if (c >= 0xFF01 && c <= 0xFF5E) return String.fromCodePoint(c - 0xFEE0); /* Full-width ASCII */
+  /* Characters UTS #46 maps to nothing. They are invisible and then removed, so the
+     name looks the same but resolves elsewhere. The findings list names them. */
   if (c === 0x00AD || c === 0x200B || c === 0x2060 || c === 0xFEFF) return "";
-  if (c === 0x00A0) return " ";      /* ノーブレークスペースは空白に直る */
+  if (c === 0x00A0) return " ";      /* A no-break space maps to an ordinary space */
   return ch;
 }
-/* ZWNJ と ZWJ は UTS #46 の deviation。前後の文字を見る決まり（CONTEXTJ）が要るので、
-   こちらは実装せず拒む。ブラウザも同じ形の入力を拒む（実測）。 */
+/* ZWNJ and ZWJ are deviations in UTS #46. Handling them needs the surrounding-context
+   rule (CONTEXTJ), so we reject instead. Browsers reject the same input (measured). */
 function isDeviationChar(ch){ var c = ch.codePointAt(0); return c === 0x200C || c === 0x200D; }
-/* 書字方向の制御文字はホスト名では拒む（見た目の順序を入れ替えられるため）。 */
+/* Bidi control characters are rejected in a host name (they can reorder what you see). */
 function isBidiControl(ch){
   var c = ch.codePointAt(0);
   return (c >= 0x202A && c <= 0x202E) || (c >= 0x2066 && c <= 0x2069) || c === 0x200E || c === 0x200F;
@@ -467,7 +467,7 @@ function domainToASCII(domain, rec){
   return out.join(".");
 }
 
-/* ---- IPv4（WHATWG の書き方。16進・8進・省略形も通る） ---- */
+/* ---- IPv4 (the WHATWG rules: hex, octal and short forms all parse) ---- */
 function parseIPv4Number(s){
   if (s === "") return null;
   var radix = 10, ve = false;
@@ -593,7 +593,7 @@ function serializeIPv6(address){
   return out;
 }
 
-/* ---- ホスト全体 ---- */
+/* ---- The host as a whole ---- */
 function parseHost(input, notSpecial, rec){
   if (input[0] === "["){
     if (input[input.length - 1] !== "]") return {err: "the closing bracket of the IPv6 address is missing"};
@@ -606,8 +606,8 @@ function parseHost(input, notSpecial, rec){
       var c = input.charCodeAt(i);
       if (c <= 0x1f || c === 0x7f || (FORBIDDEN_HOST.indexOf(input[i]) >= 0 && input[i] !== "%"))
         return {err: "the host contains a character that is not allowed there"};
-      /* 見ているブラウザが「下位バイトだけで禁止文字を判定している」と実測できたときは、
-         同じ判定をする。仕様どおりなら通る文字なので、こちらの都合ではなく相手に合わせている。 */
+      /* When this browser is measured to test forbidden characters by the low byte alone,
+         we do the same. They pass per the standard, so this follows the browser. */
       if (HOST_LOWBYTE_QUIRK && c > 0x7f && FORBIDDEN_LOW.indexOf(c & 0xff) >= 0)
         return {err: "this browser treats that character as forbidden in a host (its low byte is "
                      + "U+00" + (c & 0xff).toString(16).toUpperCase().padStart(2, "0") + ")"};
@@ -623,10 +623,10 @@ function parseHost(input, notSpecial, rec){
     else if (isBidiControl(dchars[di]))
       return {err: "the host name contains a bidirectional control character"};
   var ascii = domainToASCII(domain, rec);
-  /* 見えない文字だけのホスト名は、直したあと空になる。特別スキームで空のホストは許されない。 */
+  /* A host of invisible characters only becomes empty after mapping. A special scheme forbids that. */
   if (ascii === "") return {err: "the host is empty (it was nothing but invisible characters)"};
-  /* UTS #46 でノーブレークスペースが空白に直ると、禁止文字の空白がホスト名に現れる。
-     ブラウザは拒まずに %20 にするので、そこだけ合わせる。 */
+  /* Once UTS #46 maps a no-break space to a space, a forbidden space appears in the host.
+     Browsers do not reject it but write %20, so we match them here. */
   if (hasForbiddenDomain(ascii.split(" ").join(""))) return {err: "the host name contains a character that is not allowed there"};
   if (ascii.indexOf(" ") >= 0) ascii = ascii.split(" ").join("%20");
   if (endsInNumber(ascii)){
@@ -637,13 +637,13 @@ function parseHost(input, notSpecial, rec){
   return {host: ascii, kind: "domain"};
 }
 
-/* ---- パスの . と .. ---- */
+/* ---- . and .. in a path ---- */
 function isSingleDot(b){ var l = b.toLowerCase(); return b === "." || l === "%2e"; }
 function isDoubleDot(b){ var l = b.toLowerCase(); return b === ".." || l === ".%2e" || l === "%2e." || l === "%2e%2e"; }
 function isWindowsDrive(s){ return s.length === 2 && /^[A-Za-z]$/.test(s[0]) && (s[1] === ":" || s[1] === "|"); }
 function isNormalizedWindowsDrive(s){ return s.length === 2 && /^[A-Za-z]$/.test(s[0]) && s[1] === ":"; }
 
-/* ---- 本体 ---- */
+/* ---- The parser itself ---- */
 function basicParse(input, base){
   var rec = {trimmed: 0, stripped: 0, backslash: 0, spaceEncoded: 0,
              dotLookalike: false, widthFolded: false, caseFolded: false,
@@ -656,8 +656,8 @@ function basicParse(input, base){
   var nl = (s.match(/[\t\n\r]/g) || []).length;
   if (nl){ rec.stripped = nl; s = s.replace(/[\t\n\r]/g, ""); }
   if (s.indexOf(" ") >= 0) rec.spaceEncoded = (s.match(/ /g) || []).length;
-  /* Windows のネットワークパス。規格には無い決まりだが、ブラウザは file:// として読む
-     （読み込み時に実測して、そうだったときだけ有効にする）。 */
+  /* A Windows network path. The standard says nothing, but browsers read it as file://
+     (measured on load, and only enabled when that turns out to be true). */
   if (UNC_TO_FILE && s.slice(0, 2) === "\\\\"){
     rec.unc = true;
     s = "file:" + s.split("\\").join("/");
@@ -930,7 +930,7 @@ function parseURL(input, baseInput){
   return r;
 }
 
-/* ---- クエリ文字列の読み分け ---- */
+/* ---- How a query string is read ---- */
 function splitQuery(q){
   if (q === null || q === "") return [];
   var out = [], parts = q.split("&"), i;
@@ -949,9 +949,9 @@ function splitQuery(q){
   return out;
 }
 
-/* このブラウザが一覧より余分に符号化する文字を実測する。
-   ここだけはブラウザに合わせにいく（この道具の目的が「実際にどう読まれるか」だから）。
-   何を足したかは画面に出すので、黙って合わせることにはならない。 */
+/* Measure which characters this browser encodes beyond the standard list.
+   This is the one place we follow the browser, because the point of this tool is
+   how a URL is actually read. What was added is shown, so nothing is matched silently. */
 function calibrate(){
   var probe = "|^`{}" + APOS + "!$&()*+,;=:@[]~";
   var addQ = "", addP = "", i, ch;
@@ -970,12 +970,12 @@ function calibrate(){
   }
   EXTRA_PATH = addP;
 
-  /* 非特別スキームのホストで、下位バイトだけを見て禁止文字を判定していないか。
-     U+043E（キリル文字の о）は下位バイトが 0x3E = > になる。仕様上は通る文字。 */
+  /* In a non-special scheme host, does it test forbidden characters by the low byte alone?
+     U+043E (Cyrillic small o) has low byte 0x3E, that is >. The standard lets it through. */
   try { new URL("foo://x" + String.fromCharCode(0x043E) + "y/"); HOST_LOWBYTE_QUIRK = false; }
   catch (e) { HOST_LOWBYTE_QUIRK = true; }
 
-  /* \\server\share を file:// として読むか（規格には無い決まり）。 */
+  /* Does it read \\server\share as file:// (a rule the standard does not have). */
   try {
     var unc = new URL("\\\\srv\\share");
     UNC_TO_FILE = (unc.protocol === "file:" && unc.host === "srv");
@@ -987,8 +987,8 @@ function calibrate(){
 
 /*==DIAG-START==*/
 /* ------------------------------------------------------------------
-   指摘。エラーにならないので気づけないものだけを出す。
-   data-code は言語に依存しない鍵（検証と英語版がそのまま当たるように）。
+   Findings. Only things that raise no error, so you cannot notice them.
+   data-code is a language-independent key, so the tests and this page share it.
    ------------------------------------------------------------------ */
 var ZERO_WIDTH = "\u200B\u200C\u200D\u2060\uFEFF";
 var BIDI = "\u202A\u202B\u202C\u202D\u202E\u2066\u2067\u2068\u2069\u200E\u200F";
@@ -1058,7 +1058,7 @@ function diagnose(input, baseInput, res){
     var labels = pctDecode(u.host).split(".");
     var mixed = [];
     for (i = 0; i < labels.length; i++){
-      /* punycode 前の見た目で判定したいので、入力側のラベルを見る */
+      /* Judged on how it looks before punycode, so we read the label as typed */
     }
   }
   if (u.host !== null && u.hostKind === "domain"){
@@ -1185,7 +1185,7 @@ function diagnose(input, baseInput, res){
 }
 /*==DIAG-END==*/
 
-/* ------------------------------------------------------------------ 画面 */
+/* ------------------------------------------------------------------ Screen */
 var PRESETS = [
   ["an ordinary one", "https://example.com:8080/a/b/../c/d?q=1&q=2&name=Ada+Lovelace#top"],
   ["the @ trick", "https://www.google.com@evil.test/login"],
@@ -1269,7 +1269,7 @@ function run(){
 }
 
 function rawPieces(input){
-  /* 「書いたもの」の欄。厳密な位置合わせではなく、目で比べるための素朴な切り出し。 */
+  /* The "as written" column: a plain split for eyeballing, not an exact alignment. */
   var s = input.trim();
   var out = {};
   var m = /^([A-Za-z][A-Za-z0-9+\-.]*):/.exec(s);
@@ -1375,8 +1375,8 @@ var BUILD_KEYS = [["scheme", "scheme"], ["username", "user name"], ["password", 
 function renderBuild(res){
   var u = res.url, grid = $("buildGrid");
   grid.innerHTML = "";
-  /* すでに符号化されているものは戻さずそのまま置く。戻してから組み直すと
-     %2E%2e が .. になって「1つ上の階層」に化ける（実際に検証で踏んだ）。 */
+  /* Already-encoded sequences are left as they are. Decoding and rebuilding turns
+     %2E%2e into .., which climbs one level up (we hit this while testing). */
   var vals = {scheme: u.scheme, username: u.username, password: u.password,
               host: u.host === null ? "" : u.host, port: u.port === null ? "" : u.port,
               path: pathnameOf(u), query: u.query === null ? "" : u.query,
@@ -1437,7 +1437,7 @@ function renderNotes(notes){
   }
 }
 
-/* ---- 自己検査: 自前の解析とブラウザの URL を毎回突き合わせる ---- */
+/* ---- Self-check: compare our parser with the browser URL class on every load ---- */
 var SELF_CASES = [
   ["https://example.com:443/a/./b/../c?x=1#f", ""],
   ["https://www.google.com@evil.test/login", ""],
