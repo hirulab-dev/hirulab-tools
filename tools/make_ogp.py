@@ -27,8 +27,25 @@ FONT_BOLD = r"C:\Windows\Fonts\YuGothB.ttc"
 FONT_REG = r"C:\Windows\Fonts\YuGothR.ttc"
 FONT_MONO = r"C:\Windows\Fonts\consola.ttf"
 
+# ★2026-09-03 夜: 出力先を**自分のファイル位置から**組み立てていたので、
+#   同じ中身のコピーでも `lab/assets/` に置いた側は存在しない `lab/docs/ogp` を見て
+#   FileNotFoundError で落ちていた(9/3 昼に記録だけしてあった件)。
+#   9/3 未明の `check_stray_chars` と同じ直し方で、**公開リポジトリを実在から探す**。
+#   ⚠ **原本は `lab/assets/` の側**にした(`sync_tools_mirror.py` が
+#      「手元が原本・公開側はミラー」で動いているので、そこに合わせる)。
+#      これで `lab/assets/*.py` も食い違いを見張られる。
+def _find_out_dir():
+    here = os.path.dirname(os.path.abspath(__file__))
+    cands = [os.path.join(os.path.dirname(here), "docs", "ogp"),
+             os.path.join(os.path.expanduser("~"), "hirulab-tools", "docs", "ogp")]
+    for c in cands:
+        if os.path.isdir(c):
+            return c
+    return cands[0]          # 無ければ従来どおり(作る側が mkdir する)
+
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT_DIR = os.path.join(ROOT, "docs", "ogp")
+OUT_DIR = _find_out_dir()
 
 # 下部のブランド表記。英語ページの og:site_name と同じ文字列にしてある
 BRAND_Y = 500          # 下部のブランド表記の上端。題と副題はここより上に収める

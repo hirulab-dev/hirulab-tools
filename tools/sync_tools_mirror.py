@@ -20,7 +20,9 @@
 
 - **手元(`lab/scripts/`)が原本**。`tools/` は常にその複製で、手で直さない
 - 複製する対象は下の `MIRROR`(生成器・その helper・検査のうち、公開する意味のあるもの)
-- `tools/` にしか無いもの(`make_ogp.py` など公開用の道具)は触らない
+- `lab/assets/` の3本(`make_ogp.py` / `regen_ogp.py` / `check_ogp_overlap.py`)も同じ扱い
+  (2026-09-03 夜に追加。それまで誰も両者を比べていなかった)
+- それ以外で `tools/` にしか無いものは触らない
 - `tools/tests/` は別管理(検証スクリプト。従来どおり各回の作業で足す)
 
     python lab/scripts/sync_tools_mirror.py            # 揃える
@@ -62,9 +64,18 @@ HELPERS = [
 ]
 
 
+# ★2026-09-03 夜 追加: `lab/assets/` にも公開側と同じ道具が3本あるのに、
+#   **この道具は `lab/scripts/` しか見ていなかった**ので、誰も両者を比べていなかった。
+#   実際 `lab/assets/regen_ogp.py` は公開側とバイト単位で同一なのに
+#   **置き場所のせいで起動即エラー**という状態が9/3昼まで残っていた(同日中に是正)。
+#   ここも「手元が原本・公開側はミラー」で揃える。
+ASSETS_DIR = HERE.parent / "assets"
+ASSETS = ["make_ogp.py", "regen_ogp.py", "check_ogp_overlap.py"]
+
+
 def targets():
     names = sorted(p.name for p in HERE.glob("make_en_*.py"))
-    return names + HELPERS
+    return [(HERE, n) for n in names + HELPERS] + [(ASSETS_DIR, n) for n in ASSETS]
 
 
 def main(argv=None):
@@ -79,8 +90,8 @@ def main(argv=None):
         sys.exit("× tools が無い: %s" % dest)
 
     missing_src, stale, added, same = [], [], [], 0
-    for name in targets():
-        src = HERE / name
+    for where, name in targets():
+        src = where / name
         if not src.exists():
             missing_src.append(name)
             continue
@@ -111,17 +122,19 @@ def main(argv=None):
     #   → **写す対象が import している手元のモジュールが、全部写されているか**を数える。
     #     実行はしない(読むだけ)。
     listed = set(targets())
-    local = {p.stem for p in HERE.glob("*.py")}
+    names = {n for _, n in listed}
+    # ★assets のぶんも「手元のモジュール」に数える(regen_ogp が make_ogp を import する)
+    local = {p.stem for p in HERE.glob("*.py")} | {p.stem for p in ASSETS_DIR.glob("*.py")}
     lack = []
-    for name in sorted(listed):
-        src = HERE / name
+    for where, name in sorted(listed, key=lambda t: t[1]):
+        src = where / name
         if not src.exists():
             continue
         text = src.read_text(encoding="utf-8", errors="replace")
         used = set(re.findall(r"^\s*(?:from|import)\s+([A-Za-z_][A-Za-z0-9_]*)",
                               text, re.M))
         for mod in sorted(used & local):
-            if mod + ".py" not in listed:
+            if mod + ".py" not in names:
                 lack.append("%s が import する %s.py が公開側に無い" % (name, mod))
     for msg in lack:
         print("★ " + msg)
