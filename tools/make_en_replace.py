@@ -18,7 +18,72 @@ import pathlib, re, sys
 
 import pathlib as _pl, sys as _sys
 _sys.path.insert(0, str(_pl.Path(__file__).resolve().parent))
-from en_common import translate_css_comments
+from en_common import comments, translate_comments, translate_css_comments
+from make_en_railroad import PARSER_COMMENTS   # 解析器のコメントも鉄道図と共有する
+
+# ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
+COMMENTS = dict(PARSER_COMMENTS)
+COMMENTS.update({
+    '/* ---- 置換テンプレートの読み取り ------------------------------------------\n'
+    '   ECMAScript の GetSubstitution をなぞる。ここの肝は「特別扱いされなかった\n'
+    '   ものはエラーではなく、書いたままの文字として出る」こと。仕様がそうなって\n'
+    '   いるせいで、綴りを間違えても静かに通ってしまう。だからこの道具は\n'
+    '   「特別扱いされたか / されなかったか」を必ず並べて出す。                 */':
+    '/* ---- Reading the replacement template ------------------------------------\n'
+    '   Follows GetSubstitution from ECMAScript. The crux: anything not treated\n'
+    '   specially is not an error, it comes out as the characters you typed. The\n'
+    '   spec being that way is why a misspelling passes in silence. So this tool\n'
+    '   always shows, side by side, what was treated specially and what was not. */',
+
+    '/* ドル記号。以下 D と書く */': '/* The dollar sign, written D below */',
+    '/* 逆引用符 */': '/* The backtick */',
+    '/* アポストロフィ */': '/* The apostrophe */',
+    '/* ここが落とし穴。番号が範囲外だと「そのまま文字」になる。 */':
+    '/* Here is the pitfall: an out-of-range number comes out as plain characters. */',
+
+    '/* トークンを1件のマッチにあてはめる。返すのは「どのトークンが何を生んだか」の並び。\n'
+    '   結果の文字列だけでなく出どころを残すのは、画面で対応づけるため。 */':
+    '/* Apply the tokens to one match. What comes back is the list of which token produced what.\n'
+    '   Keeping the origin as well as the resulting text is what lets the screen line them up. */',
+
+    '/* 長さ0のマッチのあと、どれだけ進むか。u フラグがあるとコードポイント単位。 */':
+    '/* How far to advance after a zero-length match. With the u flag it is one code point. */',
+
+    '/* 置換の本体。ブラウザの replace と同じ順序で当てていく。\n'
+    '   結果は「元のまま残った部分」と「トークンが生んだ部分」に分けて返す。 */':
+    '/* The replacement itself, applied in the same order as the browser replace.\n'
+    '   The result comes back split into what survived unchanged and what a token produced. */',
+
+    '/* ---- 見えない文字・紛らわしい文字 ---------------------------------------- */':
+    '/* ---- Invisible characters and lookalikes ---------------------------------- */',
+
+    '/* 見えない文字はソースにも直に書かない。書いた本人が見失うので、必ず \\uXXXX で書く\n'
+    '   （18本目を作ったときに踏んだ）。 */':
+    '/* Never write an invisible character into the source directly. The author loses track of\n'
+    '   it, so always spell it \\uXXXX (learned the hard way on the 18th tool). */',
+
+    '/* ---- 自己検査（自前の展開をブラウザの replace と突き合わせる） ------------ */':
+    '/* ---- Self-check (our expansion against the browser replace) ---------------- */',
+
+    '/* ---- 落とし穴の検出 -------------------------------------------------------\n'
+    '   「エラーにならないので気づけない」ものだけを出す。式の書き方そのものの\n'
+    '   指摘は鉄道図の道具にあるので、ここは置換に効くものに絞る。             */':
+    '/* ---- Pitfall detection ----------------------------------------------------\n'
+    '   Only things that raise no error, so you never notice them. Findings about\n'
+    '   the pattern itself live in the railroad tool; here we stay on replacement. */',
+
+    '/* ---- 画面 ---------------------------------------------------------------- */':
+    '/* ---- Screen -------------------------------------------------------------- */',
+    '/* 置換後（入った場所に印） */': '/* After replacement, with what went in marked */',
+    '/* 元の文字列（当たった場所に印） */': '/* The original string, with the matches marked */',
+    '/* テンプレートの読み下し */': '/* The template read back in words */',
+    '/* マッチごとの中身 */': '/* What each match contained */',
+    '/* 落とし穴 */': '/* Pitfalls */',
+    '/* 隠すだけだと中身が残る。前の入力の指摘が DOM に居座るので必ず消す。 */':
+    '/* Hiding alone leaves the content: findings from the previous input stay in the DOM, so clear it. */',
+    '/* 見えない文字 */': '/* Invisible characters */',
+    '/* 自己検査 */': '/* Self-check */',
+})
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -282,6 +347,19 @@ def main():
             if x != y:
                 sys.exit('コードが一致しません（%d行目）:\n  ja: %s\n  en: %s' % (k + 1, x, y))
         sys.exit('コードの行数が違います（ja %d / en %d）' % (a.count('\n'), b.count('\n')))
+
+    # ★（2026-09-03 夜）JS のコメントも訳す
+    s0 = en.index("<script>") + len("<script>")
+    e0 = en.index("</script>", s0)
+    core_en, cmt_missing = translate_comments(en[s0:e0], COMMENTS)
+    if cmt_missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(cmt_missing), "\n  ".join(x[:100] for x in cmt_missing[:8])))
+    left_c = re.findall("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？]+",
+                        "\n".join(comments(core_en)))
+    if left_c:
+        sys.exit("コメントに日本語が %d 箇所残っています: %s" % (len(left_c), left_c[:12]))
+    en = en[:s0] + core_en + en[e0:]
 
     en_path.parent.mkdir(parents=True, exist_ok=True)
     # ★（2026-09-03 夜）CSS のコメントも訳す（<script> の外なので誰も見ていなかった）

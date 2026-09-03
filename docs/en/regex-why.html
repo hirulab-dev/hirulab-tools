@@ -348,20 +348,20 @@
 
 <script>
 /*==PARSER-START==*/
-/* ---- 正規表現の解析 ------------------------------------------------------
-   ECMAScript の正規表現を、位置つきで再帰下降で読む。エラーは必ず
-   「どこで」を持たせる（キャレット行を出すため）。                        */
+/* ---- Parsing the pattern --------------------------------------------------
+   Reads an ECMAScript pattern by recursive descent, carrying positions. Every
+   error knows where it happened, so a caret line can be drawn.             */
 
 function ParseError(msg, pos, len) { this.msg = msg; this.pos = pos; this.len = len || 1; }
 
-/* u（と v）フラグの有無で「読める式」が変わる。付いていないときの ECMAScript は
-   壊れたエスケープをエラーにせず「\ のあとの1文字そのもの」として読み流す（Annex B）。
-   ここを厳しくすると、ブラウザが通す式をこの道具だけが拒むことになる。 */
+/* Which patterns parse depends on the u (and v) flag. Without it, ECMAScript does
+   not error on a broken escape: it reads the character after the \ as itself (Annex B).
+   Being stricter here would reject patterns that every browser accepts. */
 function parseRegex(src, flags) {
   var U = /[uv]/.test(String(flags || ''));
   var IDENT_OK_U = '^$\\.*+?()[]{}|/';
   var i = 0, capIndex = 0, names = [];
-  // 名前つきグループは前方参照 \k<name> があるので先に名前を集めておく
+  // Named groups can be referenced forward with \k<name>, so collect the names first
   var nre = /\(\?<([A-Za-z_$][\w$]*)>/g, m;
   while ((m = nre.exec(src))) names.push(m[1]);
 
@@ -389,20 +389,20 @@ function parseRegex(src, flags) {
     if (!q) return atom;
     if (atom.t === 'anchor')
       err('"' + atom.raw + '" marks a position rather than a character, so it cannot be repeated', atom.pos, atom.raw.length);
-    // 後読みはくり返せない。先読みは u フラグ無しのときだけ通る（後方互換の名残）
+    // Lookbehind cannot be quantified; lookahead can, but only without the u flag (legacy)
     if (atom.t === 'group' && (atom.kind === 'lb' || atom.kind === 'nlb'))
       err('a lookbehind cannot be repeated', q.pos, q.raw.length);
     if (U && atom.t === 'group' && (atom.kind === 'la' || atom.kind === 'nla'))
       err('with the u flag, a lookahead cannot be repeated', q.pos, q.raw.length);
-    // くり返しの直後にもう1つくり返しは書けない（a** や a?{2} など）。
-    // ただし a?? の2つめの ? は「最小一致」として readQuantifier が食べているので、ここには来ない。
+    // A quantifier cannot follow a quantifier (a** or a?{2} and the like).
+    // The second ? of a?? is the lazy marker and readQuantifier already ate it, so it never lands here.
     if (isQuantifierAt(i))
       err('two repeat markers in a row. Wrap the part you want to repeat in (?:...)', i, 1);
     return { t: 'rep', x: atom, min: q.min, max: q.max, lazy: q.lazy, raw: q.raw, pos: atom.pos };
   }
 
-  /* いまの位置からくり返しの記号が始まるか。{ は「数の形」になっているときだけ数える
-     （{abc} はただの文字列として通るのが ECMAScript の挙動）。 */
+  /* Does a quantifier start here? A { counts only when it has the shape of a count
+     ({abc} passes as plain text; that is how ECMAScript behaves). */
   function isQuantifierAt(p) {
     var c = src[p];
     if (c === '*' || c === '+' || c === '?') return true;
@@ -416,7 +416,7 @@ function parseRegex(src, flags) {
     else if (c === '?') { i++; min = 0; max = 1; }
     else if (c === '{') {
       var mm = /^\{(\d+)(,(\d*))?\}/.exec(src.slice(i));
-      if (!mm) return null;               // {abc} はただの文字列（ECMAScript の挙動）
+      if (!mm) return null;               // {abc} is plain text (how ECMAScript behaves)
       i += mm[0].length;
       min = parseInt(mm[1], 10);
       max = mm[2] === undefined ? min : (mm[3] === '' ? Infinity : parseInt(mm[3], 10));
@@ -443,7 +443,7 @@ function parseRegex(src, flags) {
     if (isQuantifierAt(i)) err('"' + /^\{\d+(,\d*)?\}/.exec(src.slice(i))[0] +
                                '" has nothing before it to repeat', i,
                                /^\{\d+(,\d*)?\}/.exec(src.slice(i))[0].length);
-    // u フラグ無しの ECMAScript は { } ] をそのままの文字として通すが、u があると通らない
+    // Without u, ECMAScript passes { } ] as literal characters; with u it does not
     if (U && (c === '{' || c === '}' || c === ']'))
       err('with the u flag, "' + c + '" has to be escaped with a backslash', i, 1);
     i++;
@@ -485,9 +485,9 @@ function parseRegex(src, flags) {
     if (CLASS_ESC[c]) { i++; return { t: 'esc', k: c, raw: '\\' + c, pos: start }; }
     if (!inClass && (c === 'b' || c === 'B')) { i++; return { t: 'anchor', k: '\\' + c, raw: '\\' + c, pos: start }; }
     if (inClass && c === 'b') { i++; return { t: 'char', c: '\b', raw: '\\b', pos: start }; }
-    // \k は、式のどこかに名前つきグループがあるときだけ「参照」になる。
-    // 1つも無ければ ECMAScript は \k をただの文字 k として扱う（Annex B の後方互換）。
-    // u フラグがあるときは後方互換が効かないので、いつでも参照として読む。
+    // \k is a reference only when the pattern has a named group somewhere.
+    // With none at all, ECMAScript treats \k as the plain letter k (Annex B legacy).
+    // With the u flag the legacy rule is off, so it is always read as a reference.
     if (!inClass && c === 'k' && (names.length || U)) {
       var mk = /^\\k<([A-Za-z_$][\w$]*)>/.exec(src.slice(start));
       if (!mk) err('a named backreference has to be written as \\k<name>', start, 2);
@@ -510,9 +510,9 @@ function parseRegex(src, flags) {
         err('octal escapes are not allowed when the u flag is on', start, 2);
       i++; return { t: 'char', c: SIMPLE[c], raw: '\\' + c, pos: start };
     }
-    /* \x \u \c は、形が揃っていないとエラー…にはならない。ECMAScript（u フラグなし）は
-       「\ のあとの1文字そのもの」として読み流す。ここを厳しくすると、ブラウザが通す式を
-       この道具だけが拒んでしまう。u フラグ付きでは本当にエラーになるので注記だけ出す。 */
+    /* A malformed \x \u \c is not an error. ECMAScript without the u flag reads the
+       character after the \ as itself. Being stricter here would reject patterns every
+       browser accepts. With u it really is an error, so we only add a note. */
     if (c === 'x') {
       var mx = /^\\x([0-9a-fA-F]{2})/.exec(src.slice(start));
       if (mx) {
@@ -524,8 +524,8 @@ function parseRegex(src, flags) {
       return { t: 'char', c: 'x', raw: '\\x', pos: start };
     }
     if (c === 'u') {
-      // \u{…} が符号位置になるのは u フラグがあるときだけ。無いときは
-      // 「u」1文字 + {…} のくり返し指定として読まれる（/\u{2}/ は "uu" にマッチする）。
+      // \u{...} is a code point only with the u flag. Without it, it reads as
+      // the single letter u followed by a {...} count (/\u{2}/ matches "uu").
       var mu = U ? /^\\u\{([0-9a-fA-F]{1,6})\}/.exec(src.slice(start)) : null;
       if (mu && parseInt(mu[1], 16) > 0x10FFFF)
         err('code point is too large (the maximum is 10FFFF)', start, mu[0].length);
@@ -546,7 +546,7 @@ function parseRegex(src, flags) {
                  raw: mc[0], pos: start };
       }
       if (U) err('\\c needs one letter after it, and the u flag stops it from being read as plain text', start, 2);
-      // \c のあとが英字でないときは「\」そのもの。c は次の文字として読み直す
+      // If a letter does not follow \c, the \ is itself and the c is re-read as the next character
       return { t: 'char', c: '\\', raw: '\\', pos: start };
     }
     if (U && IDENT_OK_U.indexOf(c) < 0 && !(inClass && c === '-'))
@@ -562,7 +562,7 @@ function parseRegex(src, flags) {
     while (true) {
       if (i >= src.length) err('this "[" is never closed', start, 1);
       if (src[i] === ']' && !first) { i++; break; }
-      if (src[i] === ']' && first) { i++; break; }   // [] は空集合（何にもマッチしない）
+      if (src[i] === ']' && first) { i++; break; }   // [] is the empty set (it matches nothing)
       first = false;
       var lo = classAtom();
       if (src[i] === '-' && src[i + 1] !== ']' && i + 1 < src.length) {
@@ -570,8 +570,8 @@ function parseRegex(src, flags) {
         i++;
         var hi = classAtom();
         if (lo.t !== 'char' || hi.t !== 'char') {
-          // [\d-x] のように範囲にできない組み合わせ。u フラグ無しの ECMAScript は
-          // 「-」をただの文字として扱うが、u があるとエラーになる
+          // A combination that cannot be a range, as in [\d-x]. Without the u flag ECMAScript
+          // treats the - as a plain character; with u it is an error
           if (U) err('this "-" cannot form a range, and with the u flag it has to be written as \\-', dashPos, 1);
           items.push(lo); items.push({ t: 'char', c: '-', raw: '-', pos: dashPos }); items.push(hi);
         } else if (lo.c.codePointAt(0) > hi.c.codePointAt(0)) {
@@ -593,9 +593,9 @@ function parseRegex(src, flags) {
   var node = parseAlt();
   if (i < src.length) err('cannot read the pattern from here on', i, 1);
 
-  /* \3 と書いてあってもグループが2個しか無いことがある。u フラグがあればエラーだが、
-     無ければ ECMAScript は 8進エスケープ（\3 = \x03）として読む。
-     グループの総数は最後まで読まないと分からないので、ここでまとめて直す。 */
+  /* A pattern may say \3 while having only two groups. With the u flag that is an error;
+     without it ECMAScript reads it as an octal escape (\3 = \x03).
+     The group count is not known until the end, so these are fixed up together here. */
   (function fixRefs(n) {
     if (!n) return;
     if (n.t === 'ref' && n.num !== undefined && n.num > capIndex) {
@@ -610,9 +610,9 @@ function parseRegex(src, flags) {
     if (n.x) fixRefs(n.x);
   })(node);
 
-  /* 同じ名前のグループを2つ書けるのは「同じ | の別の枝にあるとき」だけ。
-     どちらも同時に成立しうる置き方だとエラーになる（1つのマッチで名前が2つの値を
-     持てないため）。どの枝にいるかは、根から辿った道を突き合わせて調べる。 */
+  /* Two groups may share a name only when they sit in different branches of the same |.
+     Placed where both could hold at once it is an error, because one match cannot give
+     a name two values. Which branch a group is in is found by comparing paths from the root. */
   var named = [];
   (function collect(n, path) {
     if (n.t === 'group' && n.name) named.push({ n: n, path: path });
@@ -636,17 +636,17 @@ function parseRegex(src, flags) {
 }
 /*==PARSER-END==*/
 
-/* ---- 自前のバックトラック照合器 ------------------------------------------
-   ブラウザの RegExp は「当たったか」しか返さない。当たらなかったときに
-   「どこまで進んで、そこで何を待っていたか」を出すには、自分で照合するしかない。
-   ここは ECMAScript の照合の規則をなぞって書いてある。後読みは仕様どおり
-   「右から左へ読む」形にした（最初は開始位置を左から探す近似で書いたが、
-    7,697 件の突き合わせで 3 件だけ中身がずれ、原因が全部これだった）。
-   自前である以上ずれる可能性があるので、結果は毎回ブラウザと突き合わせて表示する。 */
+/* ---- Our own backtracking matcher ----------------------------------------
+   The browser RegExp only tells you whether it matched. To say how far it got
+   and what it was waiting for there, you have to do the matching yourself.
+   This follows the ECMAScript matching rules. Lookbehind reads right to left,
+   as the spec says (it was first written as a left-to-right approximation, and
+   3 of 7,697 comparisons disagreed, every one of them from that).
+   Being our own, it can drift, so every result is shown against the browser. */
 
-var BUDGET = { budget: true };      // 試行の上限に達した合図
-var STEP_LIMIT = 300000;            // これを超えたら打ち切る（打ち切り自体が診断結果）
-var RISK_MAX = 26;                  // 組み合わせ爆発の形のとき、本物に当てる入力の上限
+var BUDGET = { budget: true };      // The signal that the attempt limit was reached
+var STEP_LIMIT = 300000;            // Past this we give up (giving up is itself part of the diagnosis)
+var RISK_MAX = 26;                  // With a blow-up-shaped pattern, the limit on input we hand to the real engine
 
 var WS_EXTRA = '\t\n\v\f\r \u00a0\u1680\u2028\u2029\u202f\u205f\u3000\ufeff';
 
@@ -655,8 +655,8 @@ function isWordCh(ch) { return ch !== undefined && ch !== '' && /[A-Za-z0-9_]/.t
 function isDigitCh(ch) { return ch >= '0' && ch <= '9'; }
 function isWSCh(ch) { return WS_EXTRA.indexOf(ch) >= 0 || (ch >= '\u2000' && ch <= '\u200a'); }
 
-/* \p{...} と v フラグの集合演算は自前では扱わない。扱わないものを黙って
-   間違えるより、扱わないと言うほうがいい。 */
+/* \p{...} and the v flag set operations are not handled here. Better to say so
+   than to get them quietly wrong. */
 function engineHandles(parsed, flags) {
   if (/v/.test(flags)) return false;
   var ok = true;
@@ -670,7 +670,7 @@ function engineHandles(parsed, flags) {
   return ok;
 }
 
-/* くり返しの中にくり返しがあると、外れた瞬間に分け方の数が跳ねる。 */
+/* A repeat inside a repeat makes the number of splits explode the moment it misses. */
 function nestedUnbounded(node) {
   var risk = false;
   (function w(n) {
@@ -703,9 +703,9 @@ function runMatch(parsed, flags, input) {
   var caps = [], steps = 0, curStart = 0;
   var far = { pos: -1, prog: -1, nodes: [], start: 0 };
 
-  /* ECMAScript の Canonicalize の近似。u なしは「大文字にして1文字のままなら採用、
-     ただし非ASCIIがASCIIに化けたら元に戻す」。u ありは簡易ケースフォールディング
-     （小文字化で近似）。ずれたら自己検査に出る。 */
+  /* An approximation of Canonicalize from ECMAScript. Without u: uppercase it and keep
+     the result if it is still one character, but undo it if non-ASCII became ASCII.
+     With u: simple case folding (approximated by lowercasing). Drift shows in the self-check. */
   function canon(ch) {
     if (U) { var l = ch.toLowerCase(); return l.length === ch.length ? l : ch; }
     var u = ch.toUpperCase();
@@ -715,8 +715,8 @@ function runMatch(parsed, flags, input) {
   }
   function eqc(a, b) { return a === b || (I && canon(a) === canon(b)); }
 
-  /* dir = +1 なら p から右の1文字、-1 なら p で終わる1文字。
-     後読みは仕様どおり右から左へ照合するので、逆向きに読む口が要る。 */
+  /* dir = +1 is the character to the right of p, -1 the character ending at p.
+     Lookbehind matches right to left as specified, so a backward reader is needed. */
   function at(p, dir) {
     if (dir < 0) {
       if (p <= 0) return null;
@@ -772,14 +772,14 @@ function runMatch(parsed, flags, input) {
     return k === '\\b' ? (a !== b) : (a === b);
   }
 
-  /* 「いちばん先まで進めた地点」を覚える。同じ地点で複数の待ち方が落ちたら並べて持つ。
-     ★ここで見るのは絶対位置ではなく「開始位置からどれだけ進めたか」。
-     絶対位置で比べると、末尾から試したときに ^ が落ちるだけの回が
-     いつも最遠になってしまい（pos = 文字列長）、診断が役に立たなくなる。 */
-  /* 後読みの中（逆向きに読んでいるとき）は記録しない。逆向きの失敗は
-     「pos の1つ前の文字が合わない」ことなので、そのまま混ぜると
-     画面の「N文字目で止まった／待っていたのは X」が嘘になる。
-     後読みそのものが落ちたことは、その group ノードとして別に記録される。 */
+  /* Remember the furthest point reached; if several expectations fail there, keep them all.
+     Note that this measures progress from the start position, not absolute position.
+     Compared absolutely, an attempt near the end that only fails on ^ would always
+     look furthest (pos = length of the string) and the diagnosis would be useless. */
+  /* Nothing is recorded inside a lookbehind (while reading backwards). A backward
+     failure means the character before pos did not fit, so mixing it in would make
+     the on-screen "stopped at character N, waiting for X" a lie.
+     That the lookbehind itself failed is recorded separately, as its group node. */
   function reach(pos, node) {
     var prog = pos - curStart;
     if (prog > far.prog || (prog === far.prog && curStart < far.start)) {
@@ -822,7 +822,7 @@ function runMatch(parsed, flags, input) {
         var save = [];
         for (var q = 0; q < inner.length; q++) { save.push(caps[inner[q]]); caps[inner[q]] = undefined; }
         var ok = m(body, p, function (p2) {
-          // 空回りの禁止（下限を満たしたあと、1回まわって位置が進まないなら打ち切る）
+          // No spinning in place: once the minimum is met, a lap that does not advance ends it
           if (p2 === p && count >= min) return false;
           return step(count + 1, p2);
         }, dir);
@@ -843,7 +843,7 @@ function runMatch(parsed, flags, input) {
       var old = caps[node.num];
       var ok = m(node.x, pos, function (p2) {
         var prev = caps[node.num];
-        // 逆向きに読んでいるときは、終わりから始まりへ進んでいる
+        // While reading backwards, we are moving from the end towards the start
         caps[node.num] = dir < 0 ? [p2, pos] : [pos, p2];
         if (k(p2)) return true;
         caps[node.num] = prev;
@@ -852,8 +852,8 @@ function runMatch(parsed, flags, input) {
       if (!ok) caps[node.num] = old;
       return ok;
     }
-    /* 先読みは前向き、後読みは後ろ向きに読む（外側がどちら向きでも変わらない）。
-       どちらも位置を動かさないので、成否だけを見て pos のまま次へ渡す。 */
+    /* Lookahead reads forward and lookbehind backward, whichever way the outside runs.
+       Neither moves the position, so only success matters and pos is passed on unchanged. */
     var inner = (kind === 'lb' || kind === 'nlb') ? -1 : 1;
     var negate = (kind === 'nla' || kind === 'nlb');
     var save = caps.slice();
@@ -872,7 +872,7 @@ function runMatch(parsed, flags, input) {
   function ref(node, pos, k, dir) {
     var num = node.num !== undefined ? node.num : nameNum[node.name];
     var c = caps[num];
-    if (!c) return k(pos);                 // 参加していないグループは空文字に当たる
+    if (!c) return k(pos);                 // A group that did not take part matches the empty string
     var sub = input.slice(c[0], c[1]), n = sub.length;
     var base = dir < 0 ? pos - n : pos;
     if (base < 0 || base + n > input.length) {
@@ -925,13 +925,13 @@ function runMatch(parsed, flags, input) {
     }
   } catch (e) {
     if (e === BUDGET) aborted = true;
-    else if (e instanceof RangeError) deep = true;   // 再帰が深すぎた（長い入力）
+    else if (e instanceof RangeError) deep = true;   // The recursion went too deep (a long input)
     else throw e;
   }
   return { matched: !!res, res: res, far: far, steps: steps, aborted: aborted, deep: deep };
 }
 
-/* ---- 待っていたものを日本語にする ---------------------------------------- */
+/* ---- Putting what it was waiting for into words --------------------------- */
 
 var ESC_JA = { d: 'a digit (0-9)', D: 'a character that is not a digit', w: 'a letter, a digit, or <code>_</code>',
                W: 'a character other than a letter, digit, or <code>_</code>', s: 'whitespace', S: 'a character that is not whitespace' };
@@ -940,7 +940,7 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/* 見えない文字・紛らわしい文字の名前。ここに載っているものは画面で名指しする。 */
+/* Names of invisible and lookalike characters; anything listed here is named on screen. */
 var CHAR_NAMES = {
   '\t': 'tab', '\n': 'line feed (LF)', '\r': 'carriage return (CR)',
   ' ': 'space', '\u00a0': 'no-break space', '\u3000': 'ideographic space',
@@ -995,7 +995,7 @@ function nodeSpan(node) {
   return { a: node.pos, b: node.pos + len };
 }
 
-/* ---- 紛らわしい文字を拾う ------------------------------------------------ */
+/* ---- Picking out the lookalike characters -------------------------------- */
 
 function suspicious(text) {
   var out = [];
@@ -1017,9 +1017,9 @@ function suspicious(text) {
   return out;
 }
 
-/* ---- 「1か所だけ変えて当て直す」 ----------------------------------------
-   推測を書くのではなく、変えた式・文字列を本物の RegExp に当てて、
-   当たったものだけを出す。 */
+/* ---- Change one thing and run it again -----------------------------------
+   Nothing here is a guess: the changed pattern or string is run against the
+   real RegExp, and only what actually matched is shown. */
 
 function safeRe(pat, fl) {
   try { return new RegExp(pat, fl.replace(/[gy]/g, '')); } catch (e) { return null; }
@@ -1116,7 +1116,7 @@ function buildFixes(src, flags, subj) {
   return out;
 }
 
-/* ---- 式を前から伸ばして当てる（ブラウザだけを使う独立の調べ方） ---------- */
+/* ---- Grow the pattern from the front (an independent test, browser only) -- */
 
 function ladderRows(parsed, src, flags, subj) {
   var n = parsed.node, rows = [];
@@ -1137,7 +1137,7 @@ function ladderRows(parsed, src, flags, subj) {
   return { kind: 'prefix', rows: rows };
 }
 
-/* ---- 自己検査（自前の結果をブラウザの結果と突き合わせる） ---------------- */
+/* ---- Self-check (our results against the browser results) ----------------- */
 
 var CHECK_CASES = [
   ['^(\\d{4})-(\\d{2})$', '', '2026-08'],
@@ -1213,7 +1213,7 @@ function selfCheck(src, flags, subj) {
   return { ok: ok, skip: skip, bad: bad, total: cases.length };
 }
 
-/* ---- 画面 ---------------------------------------------------------------- */
+/* ---- Screen -------------------------------------------------------------- */
 
 function $(id) { return document.getElementById(id); }
 
@@ -1228,7 +1228,7 @@ function caretLine(src, pos, len) {
   return '/' + src + '/\n ' + head + new Array((len || 1) + 1).join('^');
 }
 
-/* 文字1つを画面用の HTML に。見えない文字は記号にして枠をつける。 */
+/* One character as HTML for the screen; an invisible one becomes a boxed symbol. */
 function cell(ch) {
   var map = { '\n': '␊', '\r': '␍', '\t': '␉', ' ': '␣', '\u3000': '␣',
               '\u00a0': '␣', '\u200b': '␦', '\u200c': '␦', '\u200d': '␦',
@@ -1304,7 +1304,7 @@ function run() {
   var tooBig = risky && subj.length > RISK_MAX;
   var handled = engineHandles(parsed, flags);
 
-  // 本物の RegExp。組み合わせ爆発の形で入力が長いときは、当てるとページが固まるので当てない。
+  // The real RegExp. With a blow-up shape and a long input, running it freezes the page, so we do not.
   var real = null, realErr = null;
   if (!tooBig) {
     try {
@@ -1316,7 +1316,7 @@ function run() {
 
   var mine = handled ? runMatch(parsed, flags, subj) : null;
 
-  /* --- 判定 --- */
+  /* --- The verdict --- */
   var v = $('verdict');
   var matched = tooBig ? (mine && mine.matched) : !!real;
   if (tooBig) {
@@ -1348,7 +1348,7 @@ function run() {
       'Below: where the match stopped, and the single change that makes it work.';
   }
 
-  /* --- どこまで進んだか --- */
+  /* --- How far it got --- */
   var sp = $('stopPanel');
   if (!handled) {
     sp.className = 'panel';
@@ -1399,7 +1399,7 @@ function run() {
       ? renderPatStrip(src, far.nodes.map(nodeSpan)) : renderPatStrip(src, []);
   }
 
-  /* --- 式のどこまでなら当たるか --- */
+  /* --- How much of the pattern still matches --- */
   var lp = $('ladderPanel');
   var lad = tooBig ? null : ladderRows(parsed, src, flags, subj);
   if (matched || !lad) {
@@ -1423,7 +1423,7 @@ function run() {
     $('ladder').innerHTML = body;
   }
 
-  /* --- こうすればマッチします --- */
+  /* --- Do this and it matches --- */
   var fp = $('fixPanel');
   if (matched || tooBig) {
     fp.className = 'panel off';
@@ -1440,7 +1440,7 @@ function run() {
         'Use "how far it got" above to decide whether to change the pattern or the input.</li>';
   }
 
-  /* --- 紛れている文字 --- */
+  /* --- Characters hiding in there --- */
   var cp = $('charPanel');
   var sus = suspicious(subj), susPat = suspicious(src);
   if (!sus.length && !susPat.length) {
@@ -1459,7 +1459,7 @@ function run() {
     $('chars').innerHTML = t;
   }
 
-  /* --- 自己検査 --- */
+  /* --- Self-check --- */
   var sc = selfCheck(src, flags, subj);
   var el = $('selfcheck');
   if (sc.bad.length) {

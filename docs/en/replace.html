@@ -341,20 +341,20 @@
 
 <script>
 /*==PARSER-START==*/
-/* ---- 正規表現の解析 ------------------------------------------------------
-   ECMAScript の正規表現を、位置つきで再帰下降で読む。エラーは必ず
-   「どこで」を持たせる（キャレット行を出すため）。                        */
+/* ---- Parsing the pattern --------------------------------------------------
+   Reads an ECMAScript pattern by recursive descent, carrying positions. Every
+   error knows where it happened, so a caret line can be drawn.             */
 
 function ParseError(msg, pos, len) { this.msg = msg; this.pos = pos; this.len = len || 1; }
 
-/* u（と v）フラグの有無で「読める式」が変わる。付いていないときの ECMAScript は
-   壊れたエスケープをエラーにせず「\ のあとの1文字そのもの」として読み流す（Annex B）。
-   ここを厳しくすると、ブラウザが通す式をこの道具だけが拒むことになる。 */
+/* Which patterns parse depends on the u (and v) flag. Without it, ECMAScript does
+   not error on a broken escape: it reads the character after the \ as itself (Annex B).
+   Being stricter here would reject patterns that every browser accepts. */
 function parseRegex(src, flags) {
   var U = /[uv]/.test(String(flags || ''));
   var IDENT_OK_U = '^$\\.*+?()[]{}|/';
   var i = 0, capIndex = 0, names = [];
-  // 名前つきグループは前方参照 \k<name> があるので先に名前を集めておく
+  // Named groups can be referenced forward with \k<name>, so collect the names first
   var nre = /\(\?<([A-Za-z_$][\w$]*)>/g, m;
   while ((m = nre.exec(src))) names.push(m[1]);
 
@@ -382,20 +382,20 @@ function parseRegex(src, flags) {
     if (!q) return atom;
     if (atom.t === 'anchor')
       err('"' + atom.raw + '" marks a position rather than a character, so it cannot be repeated', atom.pos, atom.raw.length);
-    // 後読みはくり返せない。先読みは u フラグ無しのときだけ通る（後方互換の名残）
+    // Lookbehind cannot be quantified; lookahead can, but only without the u flag (legacy)
     if (atom.t === 'group' && (atom.kind === 'lb' || atom.kind === 'nlb'))
       err('a lookbehind cannot be repeated', q.pos, q.raw.length);
     if (U && atom.t === 'group' && (atom.kind === 'la' || atom.kind === 'nla'))
       err('with the u flag, a lookahead cannot be repeated', q.pos, q.raw.length);
-    // くり返しの直後にもう1つくり返しは書けない（a** や a?{2} など）。
-    // ただし a?? の2つめの ? は「最小一致」として readQuantifier が食べているので、ここには来ない。
+    // A quantifier cannot follow a quantifier (a** or a?{2} and the like).
+    // The second ? of a?? is the lazy marker and readQuantifier already ate it, so it never lands here.
     if (isQuantifierAt(i))
       err('two repeat markers in a row. Wrap the part you want to repeat in (?:...)', i, 1);
     return { t: 'rep', x: atom, min: q.min, max: q.max, lazy: q.lazy, raw: q.raw, pos: atom.pos };
   }
 
-  /* いまの位置からくり返しの記号が始まるか。{ は「数の形」になっているときだけ数える
-     （{abc} はただの文字列として通るのが ECMAScript の挙動）。 */
+  /* Does a quantifier start here? A { counts only when it has the shape of a count
+     ({abc} passes as plain text; that is how ECMAScript behaves). */
   function isQuantifierAt(p) {
     var c = src[p];
     if (c === '*' || c === '+' || c === '?') return true;
@@ -409,7 +409,7 @@ function parseRegex(src, flags) {
     else if (c === '?') { i++; min = 0; max = 1; }
     else if (c === '{') {
       var mm = /^\{(\d+)(,(\d*))?\}/.exec(src.slice(i));
-      if (!mm) return null;               // {abc} はただの文字列（ECMAScript の挙動）
+      if (!mm) return null;               // {abc} is plain text (how ECMAScript behaves)
       i += mm[0].length;
       min = parseInt(mm[1], 10);
       max = mm[2] === undefined ? min : (mm[3] === '' ? Infinity : parseInt(mm[3], 10));
@@ -436,7 +436,7 @@ function parseRegex(src, flags) {
     if (isQuantifierAt(i)) err('"' + /^\{\d+(,\d*)?\}/.exec(src.slice(i))[0] +
                                '" has nothing before it to repeat', i,
                                /^\{\d+(,\d*)?\}/.exec(src.slice(i))[0].length);
-    // u フラグ無しの ECMAScript は { } ] をそのままの文字として通すが、u があると通らない
+    // Without u, ECMAScript passes { } ] as literal characters; with u it does not
     if (U && (c === '{' || c === '}' || c === ']'))
       err('with the u flag, "' + c + '" has to be escaped with a backslash', i, 1);
     i++;
@@ -478,9 +478,9 @@ function parseRegex(src, flags) {
     if (CLASS_ESC[c]) { i++; return { t: 'esc', k: c, raw: '\\' + c, pos: start }; }
     if (!inClass && (c === 'b' || c === 'B')) { i++; return { t: 'anchor', k: '\\' + c, raw: '\\' + c, pos: start }; }
     if (inClass && c === 'b') { i++; return { t: 'char', c: '\b', raw: '\\b', pos: start }; }
-    // \k は、式のどこかに名前つきグループがあるときだけ「参照」になる。
-    // 1つも無ければ ECMAScript は \k をただの文字 k として扱う（Annex B の後方互換）。
-    // u フラグがあるときは後方互換が効かないので、いつでも参照として読む。
+    // \k is a reference only when the pattern has a named group somewhere.
+    // With none at all, ECMAScript treats \k as the plain letter k (Annex B legacy).
+    // With the u flag the legacy rule is off, so it is always read as a reference.
     if (!inClass && c === 'k' && (names.length || U)) {
       var mk = /^\\k<([A-Za-z_$][\w$]*)>/.exec(src.slice(start));
       if (!mk) err('a named backreference has to be written as \\k<name>', start, 2);
@@ -503,9 +503,9 @@ function parseRegex(src, flags) {
         err('octal escapes are not allowed when the u flag is on', start, 2);
       i++; return { t: 'char', c: SIMPLE[c], raw: '\\' + c, pos: start };
     }
-    /* \x \u \c は、形が揃っていないとエラー…にはならない。ECMAScript（u フラグなし）は
-       「\ のあとの1文字そのもの」として読み流す。ここを厳しくすると、ブラウザが通す式を
-       この道具だけが拒んでしまう。u フラグ付きでは本当にエラーになるので注記だけ出す。 */
+    /* A malformed \x \u \c is not an error. ECMAScript without the u flag reads the
+       character after the \ as itself. Being stricter here would reject patterns every
+       browser accepts. With u it really is an error, so we only add a note. */
     if (c === 'x') {
       var mx = /^\\x([0-9a-fA-F]{2})/.exec(src.slice(start));
       if (mx) {
@@ -517,8 +517,8 @@ function parseRegex(src, flags) {
       return { t: 'char', c: 'x', raw: '\\x', pos: start };
     }
     if (c === 'u') {
-      // \u{…} が符号位置になるのは u フラグがあるときだけ。無いときは
-      // 「u」1文字 + {…} のくり返し指定として読まれる（/\u{2}/ は "uu" にマッチする）。
+      // \u{...} is a code point only with the u flag. Without it, it reads as
+      // the single letter u followed by a {...} count (/\u{2}/ matches "uu").
       var mu = U ? /^\\u\{([0-9a-fA-F]{1,6})\}/.exec(src.slice(start)) : null;
       if (mu && parseInt(mu[1], 16) > 0x10FFFF)
         err('code point is too large (the maximum is 10FFFF)', start, mu[0].length);
@@ -539,7 +539,7 @@ function parseRegex(src, flags) {
                  raw: mc[0], pos: start };
       }
       if (U) err('\\c needs one letter after it, and the u flag stops it from being read as plain text', start, 2);
-      // \c のあとが英字でないときは「\」そのもの。c は次の文字として読み直す
+      // If a letter does not follow \c, the \ is itself and the c is re-read as the next character
       return { t: 'char', c: '\\', raw: '\\', pos: start };
     }
     if (U && IDENT_OK_U.indexOf(c) < 0 && !(inClass && c === '-'))
@@ -555,7 +555,7 @@ function parseRegex(src, flags) {
     while (true) {
       if (i >= src.length) err('this "[" is never closed', start, 1);
       if (src[i] === ']' && !first) { i++; break; }
-      if (src[i] === ']' && first) { i++; break; }   // [] は空集合（何にもマッチしない）
+      if (src[i] === ']' && first) { i++; break; }   // [] is the empty set (it matches nothing)
       first = false;
       var lo = classAtom();
       if (src[i] === '-' && src[i + 1] !== ']' && i + 1 < src.length) {
@@ -563,8 +563,8 @@ function parseRegex(src, flags) {
         i++;
         var hi = classAtom();
         if (lo.t !== 'char' || hi.t !== 'char') {
-          // [\d-x] のように範囲にできない組み合わせ。u フラグ無しの ECMAScript は
-          // 「-」をただの文字として扱うが、u があるとエラーになる
+          // A combination that cannot be a range, as in [\d-x]. Without the u flag ECMAScript
+          // treats the - as a plain character; with u it is an error
           if (U) err('this "-" cannot form a range, and with the u flag it has to be written as \\-', dashPos, 1);
           items.push(lo); items.push({ t: 'char', c: '-', raw: '-', pos: dashPos }); items.push(hi);
         } else if (lo.c.codePointAt(0) > hi.c.codePointAt(0)) {
@@ -586,9 +586,9 @@ function parseRegex(src, flags) {
   var node = parseAlt();
   if (i < src.length) err('cannot read the pattern from here on', i, 1);
 
-  /* \3 と書いてあってもグループが2個しか無いことがある。u フラグがあればエラーだが、
-     無ければ ECMAScript は 8進エスケープ（\3 = \x03）として読む。
-     グループの総数は最後まで読まないと分からないので、ここでまとめて直す。 */
+  /* A pattern may say \3 while having only two groups. With the u flag that is an error;
+     without it ECMAScript reads it as an octal escape (\3 = \x03).
+     The group count is not known until the end, so these are fixed up together here. */
   (function fixRefs(n) {
     if (!n) return;
     if (n.t === 'ref' && n.num !== undefined && n.num > capIndex) {
@@ -603,9 +603,9 @@ function parseRegex(src, flags) {
     if (n.x) fixRefs(n.x);
   })(node);
 
-  /* 同じ名前のグループを2つ書けるのは「同じ | の別の枝にあるとき」だけ。
-     どちらも同時に成立しうる置き方だとエラーになる（1つのマッチで名前が2つの値を
-     持てないため）。どの枝にいるかは、根から辿った道を突き合わせて調べる。 */
+  /* Two groups may share a name only when they sit in different branches of the same |.
+     Placed where both could hold at once it is an error, because one match cannot give
+     a name two values. Which branch a group is in is found by comparing paths from the root. */
   var named = [];
   (function collect(n, path) {
     if (n.t === 'group' && n.name) named.push({ n: n, path: path });
@@ -629,15 +629,15 @@ function parseRegex(src, flags) {
 }
 /*==PARSER-END==*/
 
-/* ---- 置換テンプレートの読み取り ------------------------------------------
-   ECMAScript の GetSubstitution をなぞる。ここの肝は「特別扱いされなかった
-   ものはエラーではなく、書いたままの文字として出る」こと。仕様がそうなって
-   いるせいで、綴りを間違えても静かに通ってしまう。だからこの道具は
-   「特別扱いされたか / されなかったか」を必ず並べて出す。                 */
+/* ---- Reading the replacement template ------------------------------------
+   Follows GetSubstitution from ECMAScript. The crux: anything not treated
+   specially is not an error, it comes out as the characters you typed. The
+   spec being that way is why a misspelling passes in silence. So this tool
+   always shows, side by side, what was treated specially and what was not. */
 
-var D = String.fromCharCode(36);        /* ドル記号。以下 D と書く */
-var BQ = String.fromCharCode(96);       /* 逆引用符 */
-var AP = String.fromCharCode(39);       /* アポストロフィ */
+var D = String.fromCharCode(36);        /* The dollar sign, written D below */
+var BQ = String.fromCharCode(96);       /* The backtick */
+var AP = String.fromCharCode(39);       /* The apostrophe */
 
 function parseTemplate(tmpl, capCount, names) {
   var hasNamed = names && names.length > 0;
@@ -669,7 +669,7 @@ function parseTemplate(tmpl, capCount, names) {
       if (one >= 1 && one <= capCount) {
         flush(); out.push({ t: 'group', n: one, raw: D + nx }); i += 2; continue;
       }
-      /* ここが落とし穴。番号が範囲外だと「そのまま文字」になる。 */
+      /* Here is the pitfall: an out-of-range number comes out as plain characters. */
       bad(D + nx, one === 0
         ? 'group numbers start at 1 (the whole match is ' + D + '&). ' +
           'It is emitted as plain characters'
@@ -702,8 +702,8 @@ function parseTemplate(tmpl, capCount, names) {
   return out;
 }
 
-/* トークンを1件のマッチにあてはめる。返すのは「どのトークンが何を生んだか」の並び。
-   結果の文字列だけでなく出どころを残すのは、画面で対応づけるため。 */
+/* Apply the tokens to one match. What comes back is the list of which token produced what.
+   Keeping the origin as well as the resulting text is what lets the screen line them up. */
 function expandTokens(tokens, m, input) {
   var segs = [];
   for (var k = 0; k < tokens.length; k++) {
@@ -720,7 +720,7 @@ function expandTokens(tokens, m, input) {
   return segs;
 }
 
-/* 長さ0のマッチのあと、どれだけ進むか。u フラグがあるとコードポイント単位。 */
+/* How far to advance after a zero-length match. With the u flag it is one code point. */
 function advance(s, idx, uni) {
   if (!uni || idx + 1 >= s.length) return idx + 1;
   var a = s.charCodeAt(idx);
@@ -731,8 +731,8 @@ function advance(s, idx, uni) {
 
 var MAX_MATCHES = 5000;
 
-/* 置換の本体。ブラウザの replace と同じ順序で当てていく。
-   結果は「元のまま残った部分」と「トークンが生んだ部分」に分けて返す。 */
+/* The replacement itself, applied in the same order as the browser replace.
+   The result comes back split into what survived unchanged and what a token produced. */
 function runReplace(pat, flags, tokens, input) {
   var g = flags.indexOf('g') >= 0, uni = /[uv]/.test(flags);
   var re = new RegExp(pat, flags);
@@ -764,10 +764,10 @@ function runReplace(pat, flags, tokens, input) {
   return { out: out, segs: segs, matches: ms, truncated: truncated };
 }
 
-/* ---- 見えない文字・紛らわしい文字 ---------------------------------------- */
+/* ---- Invisible characters and lookalikes ---------------------------------- */
 
-/* 見えない文字はソースにも直に書かない。書いた本人が見失うので、必ず \uXXXX で書く
-   （18本目を作ったときに踏んだ）。 */
+/* Never write an invisible character into the source directly. The author loses track of
+   it, so always spell it \uXXXX (learned the hard way on the 18th tool). */
 var SUSPECT = {};
 SUSPECT['\ufeff'] = 'BOM (an invisible marker at the start of a file)';
 SUSPECT['\u200b'] = 'zero-width space';
@@ -807,7 +807,7 @@ function visibleChar(ch) {
   return (shown ? shown + ' ' : '') + 'U+' + hex;
 }
 
-/* ---- 自己検査（自前の展開をブラウザの replace と突き合わせる） ------------ */
+/* ---- Self-check (our expansion against the browser replace) ---------------- */
 
 var CHECK_CASES = [
   ['(\\d{4})-(\\d{2})-(\\d{2})', 'g', '$3/$2/$1', '2026-08-23 and 2026-12-31'],
@@ -878,9 +878,9 @@ function selfCheck(pat, flags, tmpl, subj) {
   return { ok: ok, skip: skip, bad: bad };
 }
 
-/* ---- 落とし穴の検出 -------------------------------------------------------
-   「エラーにならないので気づけない」ものだけを出す。式の書き方そのものの
-   指摘は鉄道図の道具にあるので、ここは置換に効くものに絞る。             */
+/* ---- Pitfall detection ----------------------------------------------------
+   Only things that raise no error, so you never notice them. Findings about
+   the pattern itself live in the railroad tool; here we stay on replacement. */
 
 function findTraps(pat, flags, tmpl, subj, parsed, tokens, res) {
   var t = [];
@@ -978,7 +978,7 @@ function findTraps(pat, flags, tmpl, subj, parsed, tokens, res) {
   return t;
 }
 
-/* ---- 画面 ---------------------------------------------------------------- */
+/* ---- Screen -------------------------------------------------------------- */
 
 function $(id) { return document.getElementById(id); }
 function esc(s) {
@@ -1051,7 +1051,7 @@ function run() {
   try { res = runReplace(pat, flags, tokens, subj); }
   catch (e) { res = { out: subj, segs: [{ keep: true, s: subj }], matches: [], truncated: false }; }
 
-  /* 置換後（入った場所に印） */
+  /* After replacement, with what went in marked */
   var html = '';
   res.segs.forEach(function (sg) {
     if (sg.keep) html += esc(sg.s);
@@ -1064,7 +1064,7 @@ function run() {
     ' (original ' + subj.length + ' characters, result ' + res.out.length + ' characters).' +
     (res.truncated ? ' ' + MAX_MATCHES + ' matches, then cut off.' : '');
 
-  /* 元の文字列（当たった場所に印） */
+  /* The original string, with the matches marked */
   var bh = '', bpos = 0;
   res.matches.forEach(function (m) {
     bh += esc(subj.slice(bpos, m.index));
@@ -1075,7 +1075,7 @@ function run() {
   bh += esc(subj.slice(bpos));
   $('before').innerHTML = bh || '<span class="empty">(empty)</span>';
 
-  /* テンプレートの読み下し */
+  /* The template read back in words */
   var m0 = res.matches[0];
   var tt = '<tr><th>what you wrote</th><th>what it means</th><th>value at match 1</th></tr>';
   if (tokens.length === 0) {
@@ -1114,7 +1114,7 @@ function run() {
     ? 'Point at a row to highlight the part of the result it produced.'
     : '';
 
-  /* マッチごとの中身 */
+  /* What each match contained */
   var head = '<tr><th>#</th><th>at</th><th>matched text</th>';
   for (var gi = 1; gi <= parsed.capCount; gi++) head += '<th>' + D + gi + '</th>';
   head += '<th>replaced with</th></tr>';
@@ -1136,7 +1136,7 @@ function run() {
           (res.matches.length - showN) + ' more (the table shows the first ' + showN + ')</td></tr>';
   $('matchtable').innerHTML = mt;
 
-  /* 落とし穴 */
+  /* Pitfalls */
   var traps = findTraps(pat, flags, tmpl, subj, parsed, tokens, res);
   if (traps.length) {
     $('trappanel').className = 'panel';
@@ -1144,12 +1144,12 @@ function run() {
       return '<li class="' + x[0] + '" data-code="' + x[1] + '"><b>' + x[2] + '</b>' + x[3] + '</li>';
     }).join('');
   } else {
-    /* 隠すだけだと中身が残る。前の入力の指摘が DOM に居座るので必ず消す。 */
+    /* Hiding alone leaves the content: findings from the previous input stay in the DOM, so clear it. */
     $('trappanel').className = 'panel off';
     $('traps').innerHTML = '';
   }
 
-  /* 見えない文字 */
+  /* Invisible characters */
   var sp = suspicious(pat), st = suspicious(tmpl), ss = suspicious(subj);
   if (sp.length + st.length + ss.length === 0) {
     $('charpanel').className = 'panel off';
@@ -1166,7 +1166,7 @@ function run() {
     $('chars').innerHTML = ct;
   }
 
-  /* 自己検査 */
+  /* Self-check */
   var sc = selfCheck(pat, flags, tmpl, subj);
   var el = $('selfcheck');
   if (sc.bad.length) {

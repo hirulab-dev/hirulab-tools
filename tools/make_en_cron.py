@@ -27,7 +27,9 @@ import pathlib, re, sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank, literals  # noqa: E402
-from en_common import (JA_CHARS, code_japanese, script_span,  # noqa: E402
+from en_common import (translate_css_comments,
+                       translate_comments,  # noqa: E402
+                       JA_CHARS, code_japanese, script_span,  # noqa: E402
                        translate_literals)
 
 HTML_PARTS = [
@@ -288,6 +290,103 @@ EN_NAV = '''  <nav class="hl-nav">
 # cron には1件も無い。計算はすべて数値で書かれていて、日本語のリテラルは
 # 全部「画面に出す文言」だった(QR と同じ)。
 KEEP = {}
+
+# ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
+COMMENTS = {
+    '/* ---- cron式の解析と次回実行時刻の計算 ----------------------------------\n'
+    '   壁時計（ローカルの見た目の時刻）でそのまま一致を判定する。cron自身が\n'
+    '   壁時計を見て動くので、内部表現も壁時計のまま持つのが素直になる。\n'
+    '   実装上は Date.UTC を「タイムゾーンのないカレンダー計算機」として使い、\n'
+    '   タイムゾーン変換は最後の表示・カウントダウンでだけ行う。            */':
+    '/* ---- Parsing a cron expression and finding the next run times -----------\n'
+    '   Matching is done directly on wall-clock time, the time as it reads locally.\n'
+    '   cron itself watches the wall clock, so holding the same internally is the\n'
+    '   straightforward choice. Date.UTC is used as a calendar calculator with no\n'
+    '   time zone, and conversion happens only in the display and the countdown. */',
+
+    '/* ---- 画面に出すことば -----------------------------------------------------\n'
+    '   ここから下の4つの表と W は、**役目ごとに枠を分けた1本の文字列**にしてある。\n'
+    '   「日」は曜日の日曜でもあり、フィールド名の day of month でもあり、日付の\n'
+    '   接尾辞でもある。日本語では同じ1文字で通るが、英語では必ず別の語になる。\n'
+    '   短いリテラルのまま置くと、英語版を作るときに「同じ文字列は同じ訳」に\n'
+    '   引きずられて割れなくなるので、先に枠で分けてある。\n'
+    '   （表示は1文字も変わらない。英語版はこの数行の中身だけが差し替わる） */':
+    '/* ---- The words that appear on screen --------------------------------------\n'
+    '   The four tables below and W are one string per role, split up on purpose.\n'
+    '   One short word can mean Sunday, the field name day of month, and a suffix\n'
+    '   on a date all at once in one language, while the other language needs a\n'
+    '   different word for each. Left as short literals, the rule that identical\n'
+    '   strings get identical translations would fuse them, so they are split first.\n'
+    '   (Nothing on screen changes; only these few lines differ between languages) */',
+
+    '// フィールド名': '// Field names',
+    '// 経過時間の単位': '// Units of elapsed time',
+    '/* 文をつなぐ語。日本語では空になる枠があるので、まとめて1つの表にしてある */':
+    '/* The words that join a sentence. Some slots are empty in one language, so they share a table */',
+    '// [名前, 最小, 最大, 名前表, 日本語名]': '// [name, min, max, name table, localised name]',
+    '/* 1フィールドを解析して { values:[..], restricted:bool, raw:string } を返す */':
+    '/* Parse one field and return { values:[..], restricted:bool, raw:string } */',
+    '// Quartz の ? は * と同じ扱いにする': '// The Quartz ? is treated the same as *',
+    '// L / W / # は Quartz の拡張。ただし JUL・WED のように名前の中にも L と W が':
+    '// L / W / # are Quartz extensions, but names such as JUL and WED contain L and W,',
+    '// 出てくるので、先に名前を数字へ置き換えてから探す。':
+    '// so the names are turned into numbers first and only then are these looked for.',
+    '// 先頭の - は負数扱いにせずここで拾わない': '// A leading - is not a negative number and is not taken here',
+    '// 「5/10」は「5 から最大値まで 10 おき」。「5」単独なら 5 だけ。':
+    '// 5/10 means every 10th from 5 up to the maximum. A bare 5 means only 5.',
+    '// 曜日の 7 は 0（日曜）と同じ': '// Day-of-week 7 is the same as 0 (Sunday)',
+    '// 「*で始まるかどうか」で絞り込みの有無を判定する。Vixie cron が':
+    '// Whether a field starts with * decides whether it is restricted. That is the same',
+    '// 日と曜日のOR判定に使っているのと同じ基準。*/2 は「絞っていない」側。':
+    '// test Vixie cron uses for the day/weekday OR rule. */2 counts as unrestricted.',
+    '/* cron式全体を解析する */': '/* Parse the whole cron expression */',
+    '/* ---- 壁時計のカレンダー計算 ---- */': '/* ---- Calendar arithmetic on wall-clock time ---- */',
+    '/* 日（日付＋曜日）が一致するか。標準cronの OR 規則を実装する。 */':
+    '/* Does the day match (date and weekday)? This implements the standard cron OR rule. */',
+
+    '/* t（壁時計ミリ秒、この時刻自身を含む）以降で最初に一致する時刻を返す。\n'
+    '   見つからなければ null。 */':
+    '/* Return the first matching time at or after t (wall-clock milliseconds, t included).\n'
+    '   Returns null if there is none. */',
+
+    '// うるう年がらみでも8年見れば十分': '// Eight years is enough even with leap years involved',
+    '// 秒の刻みに丸める（余りの秒があれば切り上げ）': '// Round to the second (any leftover rounds up)',
+    '// 月が違う → 翌月1日00:00へ': '// Wrong month: jump to the 1st of next month at 00:00',
+    '// 日が違う → 翌日00:00へ': '// Wrong day: jump to tomorrow at 00:00',
+    '// 時が違う → 次の該当時刻へ': '// Wrong hour: jump to the next matching hour',
+    '// values の中で v 以上の最小値': '// The smallest value in values that is at least v',
+    '/* 壁時計の連続 n 件 */': '/* The next n wall-clock times in a row */',
+    '/* ---- ここから下は画面まわり ---- */': '/* ---- Everything below this point is screen plumbing ---- */',
+    '/* 壁時計 → 実時刻（epoch）。指定タイムゾーンでその壁時計になる瞬間を求める。 */':
+    '/* Wall clock to real time (epoch): the instant that reads as that wall clock in the given zone. */',
+    '// まずUTCだと仮定して当てにいく': '// Start by assuming it is UTC and aim from there',
+    '// そのタイムゾーンのUTCからのずれ(ms)': '// That zone offset from UTC, in milliseconds',
+    '// 指定タイムゾーンの「いまの壁時計」': '// The wall clock right now in the chosen zone',
+    '/* ---- 表示用のことば ---- */': '/* ---- Wording for the display ---- */',
+    '/* 等間隔なら「n おき」と言えるようにする */': '/* Evenly spaced values can be said as every n */',
+    '// 秒あり・毎秒': '// With seconds, and every second',
+    '// 「毎時n分」型': '// The at n minutes past every hour shape',
+    '// 時が絞られている': '// The hour is restricted',
+    '// 「9時0分」を「9:00」で読ませたほうが速い': '// 9:00 reads faster than 9 hours 0 minutes',
+    '// 日にちの絞りなし': '// No restriction on the day',
+    '/* ---- 落とし穴の検出 ---- */': '/* ---- Pitfall detection ---- */',
+    '// 1) 日と曜日のOR': '// 1) The day/weekday OR',
+    '// 2) 割り切れないステップ（折り返しで間隔が飛ぶ）':
+    '// 2) A step that does not divide evenly (the gap jumps as it wraps)',
+    '// *で始まり、周期を割り切れないときだけ「折り返しで飛ぶ」':
+    '// It only jumps at the wrap when the field starts with * and the step does not divide',
+    '// 3) 存在しない日付・稀な日付': '// 3) Dates that do not exist, and rare ones',
+    '// 4) 曜日の 0/7': '// 4) Day-of-week 0 and 7',
+    '// 5) ? を使っている': '// 5) A ? is in use',
+    '// 6) 毎分・毎秒の高頻度': '// 6) Every minute or every second, which is very frequent',
+    '/* ---- 頻度の統計（1年ぶん、上限つき） ---- */':
+    '/* ---- Frequency statistics (one year, with a cap) ---- */',
+    '/* ---- 画面の更新 ---- */': '/* ---- Updating the screen ---- */',
+    '// 気をつけるところ': '// Things to watch out for',
+    '// フィールド表': '// The field table',
+    '// 次の実行時刻': '// The next run times',
+    '// 統計': '// Statistics',
+}
 
 # ── 文字列の中身だけの差し替え(TR辞書) ────────────────────────────────────
 TR = {
@@ -550,7 +649,11 @@ def main():
     en = en[:nav.start()] + EN_NAV + en[nav.end():]
 
     s, e = script_span(en)
-    core_en, missing = translate_literals(en[s:e], TR, KEEP)
+    core_en, missing = translate_comments(en[s:e], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(m[:100] for m in missing[:8])))
+    core_en, missing = translate_literals(core_en, TR, KEEP)
     if missing:
         sys.exit("訳されていない文字列が %d 件あります:\n  %s"
                  % (len(missing), "\n  ".join(sorted(set(missing))[:12])))
@@ -581,6 +684,12 @@ def main():
         sys.exit("コードの行数が違います(ja %d / en %d)" % (a.count("\n"), b.count("\n")))
 
     en_path.parent.mkdir(parents=True, exist_ok=True)
+    # ★2026-09-03 夜: CSS のコメントも訳す(<script> の外なので、それまで誰も見ていなかった)
+    en, css_missing = translate_css_comments(en)
+    if css_missing:
+        sys.exit("訳されていない CSS のコメントが %d 件あります:\n  %s"
+                 % (len(css_missing), "\n  ".join(x[:100] for x in css_missing[:8])))
+
     en_path.write_text(en, encoding="utf-8", newline="\n")
     print("書き出した: %s" % en_path)
     print("訳した文字列: %d 件" % len(TR))

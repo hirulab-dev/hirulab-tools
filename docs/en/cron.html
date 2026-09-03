@@ -311,34 +311,34 @@
 
 <script>
 /*==CORE-START==*/
-/* ---- cron式の解析と次回実行時刻の計算 ----------------------------------
-   壁時計（ローカルの見た目の時刻）でそのまま一致を判定する。cron自身が
-   壁時計を見て動くので、内部表現も壁時計のまま持つのが素直になる。
-   実装上は Date.UTC を「タイムゾーンのないカレンダー計算機」として使い、
-   タイムゾーン変換は最後の表示・カウントダウンでだけ行う。            */
+/* ---- Parsing a cron expression and finding the next run times -----------
+   Matching is done directly on wall-clock time, the time as it reads locally.
+   cron itself watches the wall clock, so holding the same internally is the
+   straightforward choice. Date.UTC is used as a calendar calculator with no
+   time zone, and conversion happens only in the display and the countdown. */
 
 var MONTH_NAMES = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 var DOW_NAMES   = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
 
-/* ---- 画面に出すことば -----------------------------------------------------
-   ここから下の4つの表と W は、**役目ごとに枠を分けた1本の文字列**にしてある。
-   「日」は曜日の日曜でもあり、フィールド名の day of month でもあり、日付の
-   接尾辞でもある。日本語では同じ1文字で通るが、英語では必ず別の語になる。
-   短いリテラルのまま置くと、英語版を作るときに「同じ文字列は同じ訳」に
-   引きずられて割れなくなるので、先に枠で分けてある。
-   （表示は1文字も変わらない。英語版はこの数行の中身だけが差し替わる） */
+/* ---- The words that appear on screen --------------------------------------
+   The four tables below and W are one string per role, split up on purpose.
+   One short word can mean Sunday, the field name day of month, and a suffix
+   on a date all at once in one language, while the other language needs a
+   different word for each. Left as short literals, the rule that identical
+   strings get identical translations would fuse them, so they are split first.
+   (Nothing on screen changes; only these few lines differ between languages) */
 var DOW_JA = 'Sun,Mon,Tue,Wed,Thu,Fri,Sat'.split(',');
-var LBL    = 'seconds,minutes,hours,day of month,month,day of week'.split(',');          // フィールド名
-var GAP    = ' s, min, h, d, mo'.split(',');           // 経過時間の単位
+var LBL    = 'seconds,minutes,hours,day of month,month,day of week'.split(',');          // Field names
+var GAP    = ' s, min, h, d, mo'.split(',');           // Units of elapsed time
 var MON_LB = 'January,February,March,April,May,June,July,August,September,October,November,December'.split(',');
 
-/* 文をつなぐ語。日本語では空になる枠があるので、まとめて1つの表にしてある */
+/* The words that join a sentence. Some slots are empty in one language, so they share a table */
 var W = {};
 'runPre=Runs |monPre=in |monthOf=, |dowPre=on |domPre=on day |at=at '.split('|').forEach(function(kv){
   var i = kv.indexOf('='); W[kv.slice(0, i)] = kv.slice(i + 1);
 });
 
-// [名前, 最小, 最大, 名前表, 日本語名]
+// [name, min, max, name table, localised name]
 var SPECS = {
   second: { label:LBL[0], min:0, max:59, names:null },
   minute: { label:LBL[1], min:0, max:59, names:null },
@@ -364,15 +364,15 @@ function CronError(msg, fieldIndex, raw) {
   this.raw = raw || null;
 }
 
-/* 1フィールドを解析して { values:[..], restricted:bool, raw:string } を返す */
+/* Parse one field and return { values:[..], restricted:bool, raw:string } */
 function parseField(raw, kind, idx) {
   var spec = SPECS[kind];
   var text = raw;
-  if (text === '?') text = '*';            // Quartz の ? は * と同じ扱いにする
+  if (text === '?') text = '*';            // The Quartz ? is treated the same as *
   if (text === '') throw new CronError(spec.label + ' field is empty.', idx, raw);
 
-  // L / W / # は Quartz の拡張。ただし JUL・WED のように名前の中にも L と W が
-  // 出てくるので、先に名前を数字へ置き換えてから探す。
+  // L / W / # are Quartz extensions, but names such as JUL and WED contain L and W,
+  // so the names are turned into numbers first and only then are these looked for.
   var scan = text;
   if (spec.names) {
     for (var ni = 0; ni < spec.names.length; ni++) {
@@ -411,13 +411,13 @@ function parseField(raw, kind, idx) {
     if (body === '*') {
       lo = spec.min; hi = spec.max;
     } else {
-      var dash = body.indexOf('-', 1);   // 先頭の - は負数扱いにせずここで拾わない
+      var dash = body.indexOf('-', 1);   // A leading - is not a negative number and is not taken here
       if (dash > 0) {
         lo = toNumber(body.slice(0, dash), spec, idx, raw);
         hi = toNumber(body.slice(dash + 1), spec, idx, raw);
       } else {
         lo = toNumber(body, spec, idx, raw);
-        // 「5/10」は「5 から最大値まで 10 おき」。「5」単独なら 5 だけ。
+        // 5/10 means every 10th from 5 up to the maximum. A bare 5 means only 5.
         hi = (slash >= 0) ? spec.max : lo;
       }
     }
@@ -428,7 +428,7 @@ function parseField(raw, kind, idx) {
   }
 
   var values = Object.keys(set).map(Number).sort(function(a,b){ return a-b; });
-  // 曜日の 7 は 0（日曜）と同じ
+  // Day-of-week 7 is the same as 0 (Sunday)
   if (kind === 'dow') {
     var norm = {};
     for (var i = 0; i < values.length; i++) norm[values[i] === 7 ? 0 : values[i]] = true;
@@ -440,8 +440,8 @@ function parseField(raw, kind, idx) {
   return {
     raw: raw,
     values: values,
-    // 「*で始まるかどうか」で絞り込みの有無を判定する。Vixie cron が
-    // 日と曜日のOR判定に使っているのと同じ基準。*/2 は「絞っていない」側。
+    // Whether a field starts with * decides whether it is restricted. That is the same
+    // test Vixie cron uses for the day/weekday OR rule. */2 counts as unrestricted.
     restricted: !(raw.charAt(0) === '*' || raw === '?')
   };
 }
@@ -465,7 +465,7 @@ function toNumber(token, spec, idx, raw) {
                 : spec.min + '–' + spec.max + '.'), idx, raw);
 }
 
-/* cron式全体を解析する */
+/* Parse the whole cron expression */
 function parseCron(input) {
   var src = String(input).trim().replace(/\s+/g, ' ');
   if (src === '') throw new CronError('The expression is empty.', -1, null);
@@ -503,7 +503,7 @@ function parseCron(input) {
   };
 }
 
-/* ---- 壁時計のカレンダー計算 ---- */
+/* ---- Calendar arithmetic on wall-clock time ---- */
 function wcFromParts(y, mo, d, h, mi, s) { return Date.UTC(y, mo - 1, d, h, mi, s); }
 function wcParts(t) {
   var d = new Date(t);
@@ -513,7 +513,7 @@ function wcParts(t) {
 }
 var MS_MIN = 60000, MS_HOUR = 3600000, MS_DAY = 86400000;
 
-/* 日（日付＋曜日）が一致するか。標準cronの OR 規則を実装する。 */
+/* Does the day match (date and weekday)? This implements the standard cron OR rule. */
 function dayMatches(cron, p) {
   var dom = cron.fields.dom, dow = cron.fields.dow;
   var inDom = dom.values.indexOf(p.d) >= 0;
@@ -522,16 +522,16 @@ function dayMatches(cron, p) {
   return inDom && inDow;
 }
 
-/* t（壁時計ミリ秒、この時刻自身を含む）以降で最初に一致する時刻を返す。
-   見つからなければ null。 */
+/* Return the first matching time at or after t (wall-clock milliseconds, t included).
+   Returns null if there is none. */
 function nextFrom(cron, t) {
-  var limit = t + MS_DAY * 366 * 8;      // うるう年がらみでも8年見れば十分
+  var limit = t + MS_DAY * 366 * 8;      // Eight years is enough even with leap years involved
   var sec = cron.fields.second.values;
   var min = cron.fields.minute.values;
   var hr  = cron.fields.hour.values;
   var mon = cron.fields.month.values;
 
-  // 秒の刻みに丸める（余りの秒があれば切り上げ）
+  // Round to the second (any leftover rounds up)
   t = Math.ceil(t / 1000) * 1000;
 
   var guard = 0;
@@ -539,16 +539,16 @@ function nextFrom(cron, t) {
     if (++guard > 500000) return null;
     var p = wcParts(t);
 
-    if (mon.indexOf(p.mo) < 0) {                       // 月が違う → 翌月1日00:00へ
+    if (mon.indexOf(p.mo) < 0) {                       // Wrong month: jump to the 1st of next month at 00:00
       var ny = p.mo === 12 ? p.y + 1 : p.y, nm = p.mo === 12 ? 1 : p.mo + 1;
       t = wcFromParts(ny, nm, 1, 0, 0, 0);
       continue;
     }
-    if (!dayMatches(cron, p)) {                        // 日が違う → 翌日00:00へ
+    if (!dayMatches(cron, p)) {                        // Wrong day: jump to tomorrow at 00:00
       t = wcFromParts(p.y, p.mo, p.d, 0, 0, 0) + MS_DAY;
       continue;
     }
-    if (hr.indexOf(p.h) < 0) {                         // 時が違う → 次の該当時刻へ
+    if (hr.indexOf(p.h) < 0) {                         // Wrong hour: jump to the next matching hour
       var nh = nextIn(hr, p.h);
       if (nh === null) { t = wcFromParts(p.y, p.mo, p.d, 0, 0, 0) + MS_DAY; continue; }
       t = wcFromParts(p.y, p.mo, p.d, nh, 0, 0);
@@ -571,12 +571,12 @@ function nextFrom(cron, t) {
   return null;
 }
 
-function nextIn(values, v) {          // values の中で v 以上の最小値
+function nextIn(values, v) {          // The smallest value in values that is at least v
   for (var i = 0; i < values.length; i++) if (values[i] >= v) return values[i];
   return null;
 }
 
-/* 壁時計の連続 n 件 */
+/* The next n wall-clock times in a row */
 function nextN(cron, fromWall, n) {
   var out = [], t = fromWall, step = cron.hasSecond ? 1000 : MS_MIN;
   for (var i = 0; i < n; i++) {
@@ -589,11 +589,11 @@ function nextN(cron, fromWall, n) {
 }
 /*==CORE-END==*/
 
-/* ---- ここから下は画面まわり ---- */
+/* ---- Everything below this point is screen plumbing ---- */
 
-/* 壁時計 → 実時刻（epoch）。指定タイムゾーンでその壁時計になる瞬間を求める。 */
+/* Wall clock to real time (epoch): the instant that reads as that wall clock in the given zone. */
 function wallToEpoch(wall, tz) {
-  var guess = wall;                       // まずUTCだと仮定して当てにいく
+  var guess = wall;                       // Start by assuming it is UTC and aim from there
   for (var i = 0; i < 3; i++) {
     var off = tzOffset(guess, tz);
     var next = wall - off;
@@ -603,7 +603,7 @@ function wallToEpoch(wall, tz) {
   return guess;
 }
 var _offCache = {};
-function tzOffset(epoch, tz) {            // そのタイムゾーンのUTCからのずれ(ms)
+function tzOffset(epoch, tz) {            // That zone offset from UTC, in milliseconds
   var key = tz + '|' + Math.floor(epoch / MS_HOUR);
   if (_offCache[key] !== undefined) return _offCache[key];
   var dtf = getDTF(tz);
@@ -624,12 +624,12 @@ function getDTF(tz) {
   });
   return _dtfCache[tz];
 }
-function nowWall(tz) {                    // 指定タイムゾーンの「いまの壁時計」
+function nowWall(tz) {                    // The wall clock right now in the chosen zone
   var now = Date.now();
   return Math.floor(now / 1000) * 1000 + tzOffset(now, tz);
 }
 
-/* ---- 表示用のことば ---- */
+/* ---- Wording for the display ---- */
 function listJa(values, kind) {
   var spec = SPECS[kind];
   if (kind === 'dow') return values.map(function(v){ return DOW_JA[v] + ''; }).join(', ');
@@ -641,7 +641,7 @@ function isFull(f, kind) {
   var need = (kind === 'dow') ? 7 : (spec.max - spec.min + 1);
   return f.values.length >= need;
 }
-/* 等間隔なら「n おき」と言えるようにする */
+/* Evenly spaced values can be said as every n */
 function stepInfo(f, kind) {
   var v = f.values, spec = SPECS[kind];
   if (v.length < 2) return null;
@@ -663,7 +663,7 @@ function describeTime(cron) {
   var hFull = isFull(f.hour,'hour'), miFull = isFull(f.minute,'minute'),
       sFull = hasSec ? isFull(f.second,'second') : false;
 
-  // 秒あり・毎秒
+  // With seconds, and every second
   if (hasSec && sFull && miFull && hFull) return '<span class="em">every second</span>.';
   if (!hasSec && miFull && hFull) return '<span class="em">every minute</span>.';
 
@@ -679,7 +679,7 @@ function describeTime(cron) {
     }
   }
 
-  // 「毎時n分」型
+  // The at n minutes past every hour shape
   if (hFull && !miFull) {
     var ms = stepInfo(f.minute,'minute');
     var mtxt;
@@ -691,7 +691,7 @@ function describeTime(cron) {
     return '<span class="em">every hour &mdash; ' + mtxt + '</span>' + (secTxt ? ' (' + secTxt + ')' : '') + '.';
   }
 
-  // 時が絞られている
+  // The hour is restricted
   var hs = stepInfo(f.hour,'hour');
   var htxt;
   if (hFull) htxt = 'every hour';
@@ -706,7 +706,7 @@ function describeTime(cron) {
   if (f.minute.values.length === 1) {
     mtxt2 = f.minute.values[0] + ' min';
     if (!hFull && f.hour.values.length <= 3 && f.hour.values.length >= 1 && (!hs || hs.step === 1 || f.hour.values.length <= 2)) {
-      // 「9時0分」を「9:00」で読ませたほうが速い
+      // 9:00 reads faster than 9 hours 0 minutes
       var joined = f.hour.values.map(function(h){ return h + ':' + pad2(f.minute.values[0]); }).join(', ');
       return W.at + '<span class="em">' + joined + '</span>' + (secTxt ? ' (' + secTxt + ')' : '') + '.';
     }
@@ -725,7 +725,7 @@ function describeDate(cron) {
 
   var domR = f.dom.restricted, dowR = f.dow.restricted;
 
-  if (!domR && !dowR) return monFull ? '' : monTxt;   // 日にちの絞りなし
+  if (!domR && !dowR) return monFull ? '' : monTxt;   // No restriction on the day
 
   var domTxt = '', dowTxt = '';
   if (domR) {
@@ -751,7 +751,7 @@ function describeDate(cron) {
   return monTxt + '<span class="em">' + dowTxt + '</span>, ';
 }
 
-/* ---- 落とし穴の検出 ---- */
+/* ---- Pitfall detection ---- */
 function findNotes(cron) {
   var out = [], f = cron.fields;
 
@@ -765,7 +765,7 @@ function findNotes(cron) {
       'pasting this as it stands is rejected as &ldquo;too many fields&rdquo; in some places. ' +
       'Quartz and Spring (<code>@Scheduled(cron=...)</code>) use this six-field form.']);
 
-  // 1) 日と曜日のOR
+  // 1) The day/weekday OR
   if (f.dom.restricted && f.dow.restricted)
     out.push(['w', 'Both day-of-month and day-of-week are set &rarr; this is OR, not AND',
       'When both the day-of-month and the day-of-week are narrowed, standard cron <b>runs if either one matches</b>. ' +
@@ -774,7 +774,7 @@ function findNotes(cron) {
       'A condition like &ldquo;the 1st of the month, but only when it is a Monday&rdquo; cannot be written in a cron expression at all, so ' +
       'the usual approach is to check the weekday at the top of the script and exit early.']);
 
-  // 2) 割り切れないステップ（折り返しで間隔が飛ぶ）
+  // 2) A step that does not divide evenly (the gap jumps as it wraps)
   [['minute',LBL[1],60],['hour',LBL[2],24],['second',LBL[0],60]].forEach(function(kv){
     var kind = kv[0], label = kv[1], period = kv[2];
     if (kind === 'second' && !cron.hasSecond) return;
@@ -782,7 +782,7 @@ function findNotes(cron) {
     if (!fld || fld.raw.indexOf('/') < 0) return;
     var st = stepInfo(fld, kind);
     if (!st || st.step <= 1) return;
-    // *で始まり、周期を割り切れないときだけ「折り返しで飛ぶ」
+    // It only jumps at the wrap when the field starts with * and the step does not divide
     if (fld.raw.charAt(0) !== '*') return;
     if (period % st.step === 0) return;
     var last = fld.values[fld.values.length - 1];
@@ -799,7 +799,7 @@ function findNotes(cron) {
       'a long-running process or a timer.']);
   });
 
-  // 3) 存在しない日付・稀な日付
+  // 3) Dates that do not exist, and rare ones
   if (f.dom.restricted) {
     var maxDays = {1:31,2:29,3:31,4:30,5:31,6:30,7:31,8:31,9:30,10:31,11:30,12:31};
     var impossible = [], leapOnly = [], rare = [];
@@ -830,19 +830,19 @@ function findNotes(cron) {
         'whether tomorrow is the 1st.']);
   }
 
-  // 4) 曜日の 0/7
+  // 4) Day-of-week 0 and 7
   if (/(^|[^0-9])7([^0-9]|$)/.test(f.dow.raw) && f.dow.restricted)
     out.push(['i', '7 in the day-of-week field means Sunday',
       'In cron, both 0 and 7 point at Sunday. ' +
       (f.dow.values.length === 7 ? '<code>' + f.dow.raw + '</code> therefore ends up meaning every day of the week.' : '')]);
 
-  // 5) ? を使っている
+  // 5) A ? is in use
   if (f.dom.raw === '?' || f.dow.raw === '?')
     out.push(['i', '&ldquo;?&rdquo; is used',
       '<code>?</code> is Quartz notation; standard cron does not have it. ' +
       'It is read here as the same thing as <code>*</code>. Change it to <code>*</code> before pasting into a crontab.']);
 
-  // 6) 毎分・毎秒の高頻度
+  // 6) Every minute or every second, which is very frequent
   if (isFull(f.minute,'minute') && isFull(f.hour,'hour') && !f.dom.restricted && !f.dow.restricted && !cron.hasSecond)
     out.push(['w', 'Fires every minute (about 526,000 times a year)',
       'The next run starts whether or not the previous one has finished. If the job takes longer than a minute they pile up on each other, so ' +
@@ -860,7 +860,7 @@ function divisorsOf(n) {
   return out;
 }
 
-/* ---- 頻度の統計（1年ぶん、上限つき） ---- */
+/* ---- Frequency statistics (one year, with a cap) ---- */
 var STAT_CAP = 60000;
 function stats(cron, fromWall) {
   var end = fromWall + MS_DAY * 365;
@@ -896,7 +896,7 @@ function trimNum(n) {
   return (r % 1 === 0) ? String(r) : r.toFixed(1);
 }
 
-/* ---- 画面の更新 ---- */
+/* ---- Updating the screen ---- */
 var PRESETS = [
   ['0 9 * * 1-5',    'Weekdays at 9am'],
   ['*/15 * * * *',   'Every 15 minutes'],
@@ -968,7 +968,7 @@ function render() {
     ? 'Read as six fields with seconds (the Quartz / Spring form)'
     : 'Read as the standard five fields (the crontab form)';
 
-  // 気をつけるところ
+  // Things to watch out for
   var notes = findNotes(cron);
   var nl = $('notes'); nl.innerHTML = '';
   if (notes.length === 0) {
@@ -983,7 +983,7 @@ function render() {
     });
   }
 
-  // フィールド表
+  // The field table
   var tb = $('fields'); tb.innerHTML = '';
   cron.order.forEach(function(kind){
     var f = cron.fields[kind], spec = SPECS[kind];
@@ -1004,7 +1004,7 @@ function render() {
     tb.appendChild(tr);
   });
 
-  // 次の実行時刻
+  // The next run times
   var tz = $('tz').value;
   var from = nowWall(tz);
   var runs = nextN(cron, from, 20);
@@ -1029,7 +1029,7 @@ function render() {
       : 'The left column is the run time (wall clock in ' + escapeHtml(tz) + '), the right is the time since the first one.';
   }
 
-  // 統計
+  // Statistics
   var st = stats(cron, from);
   var sw = $('stats');
   var perYear = st.capped ? STAT_CAP.toLocaleString() + '+ times' : st.count.toLocaleString() + ' times';

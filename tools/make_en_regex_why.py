@@ -17,7 +17,114 @@ import pathlib, re, sys
 
 import pathlib as _pl, sys as _sys
 _sys.path.insert(0, str(_pl.Path(__file__).resolve().parent))
-from en_common import translate_css_comments
+from en_common import comments, translate_comments, translate_css_comments
+from make_en_railroad import PARSER_COMMENTS   # 解析器のコメントも鉄道図と共有する
+
+# ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
+COMMENTS = dict(PARSER_COMMENTS)
+COMMENTS.update({
+    '/* ---- 自前のバックトラック照合器 ------------------------------------------\n'
+    '   ブラウザの RegExp は「当たったか」しか返さない。当たらなかったときに\n'
+    '   「どこまで進んで、そこで何を待っていたか」を出すには、自分で照合するしかない。\n'
+    '   ここは ECMAScript の照合の規則をなぞって書いてある。後読みは仕様どおり\n'
+    '   「右から左へ読む」形にした（最初は開始位置を左から探す近似で書いたが、\n'
+    '    7,697 件の突き合わせで 3 件だけ中身がずれ、原因が全部これだった）。\n'
+    '   自前である以上ずれる可能性があるので、結果は毎回ブラウザと突き合わせて表示する。 */':
+    '/* ---- Our own backtracking matcher ----------------------------------------\n'
+    '   The browser RegExp only tells you whether it matched. To say how far it got\n'
+    '   and what it was waiting for there, you have to do the matching yourself.\n'
+    '   This follows the ECMAScript matching rules. Lookbehind reads right to left,\n'
+    '   as the spec says (it was first written as a left-to-right approximation, and\n'
+    '   3 of 7,697 comparisons disagreed, every one of them from that).\n'
+    '   Being our own, it can drift, so every result is shown against the browser. */',
+
+    '// 試行の上限に達した合図': '// The signal that the attempt limit was reached',
+    '// これを超えたら打ち切る（打ち切り自体が診断結果）':
+    '// Past this we give up (giving up is itself part of the diagnosis)',
+    '// 組み合わせ爆発の形のとき、本物に当てる入力の上限':
+    '// With a blow-up-shaped pattern, the limit on input we hand to the real engine',
+
+    '/* \\p{...} と v フラグの集合演算は自前では扱わない。扱わないものを黙って\n'
+    '   間違えるより、扱わないと言うほうがいい。 */':
+    '/* \\p{...} and the v flag set operations are not handled here. Better to say so\n'
+    '   than to get them quietly wrong. */',
+
+    '/* くり返しの中にくり返しがあると、外れた瞬間に分け方の数が跳ねる。 */':
+    '/* A repeat inside a repeat makes the number of splits explode the moment it misses. */',
+
+    '/* ECMAScript の Canonicalize の近似。u なしは「大文字にして1文字のままなら採用、\n'
+    '     ただし非ASCIIがASCIIに化けたら元に戻す」。u ありは簡易ケースフォールディング\n'
+    '     （小文字化で近似）。ずれたら自己検査に出る。 */':
+    '/* An approximation of Canonicalize from ECMAScript. Without u: uppercase it and keep\n'
+    '     the result if it is still one character, but undo it if non-ASCII became ASCII.\n'
+    '     With u: simple case folding (approximated by lowercasing). Drift shows in the self-check. */',
+
+    '/* dir = +1 なら p から右の1文字、-1 なら p で終わる1文字。\n'
+    '     後読みは仕様どおり右から左へ照合するので、逆向きに読む口が要る。 */':
+    '/* dir = +1 is the character to the right of p, -1 the character ending at p.\n'
+    '     Lookbehind matches right to left as specified, so a backward reader is needed. */',
+
+    '/* 「いちばん先まで進めた地点」を覚える。同じ地点で複数の待ち方が落ちたら並べて持つ。\n'
+    '     ★ここで見るのは絶対位置ではなく「開始位置からどれだけ進めたか」。\n'
+    '     絶対位置で比べると、末尾から試したときに ^ が落ちるだけの回が\n'
+    '     いつも最遠になってしまい（pos = 文字列長）、診断が役に立たなくなる。 */':
+    '/* Remember the furthest point reached; if several expectations fail there, keep them all.\n'
+    '     Note that this measures progress from the start position, not absolute position.\n'
+    '     Compared absolutely, an attempt near the end that only fails on ^ would always\n'
+    '     look furthest (pos = length of the string) and the diagnosis would be useless. */',
+
+    '/* 後読みの中（逆向きに読んでいるとき）は記録しない。逆向きの失敗は\n'
+    '     「pos の1つ前の文字が合わない」ことなので、そのまま混ぜると\n'
+    '     画面の「N文字目で止まった／待っていたのは X」が嘘になる。\n'
+    '     後読みそのものが落ちたことは、その group ノードとして別に記録される。 */':
+    '/* Nothing is recorded inside a lookbehind (while reading backwards). A backward\n'
+    '     failure means the character before pos did not fit, so mixing it in would make\n'
+    '     the on-screen "stopped at character N, waiting for X" a lie.\n'
+    '     That the lookbehind itself failed is recorded separately, as its group node. */',
+
+    '// 空回りの禁止（下限を満たしたあと、1回まわって位置が進まないなら打ち切る）':
+    '// No spinning in place: once the minimum is met, a lap that does not advance ends it',
+    '// 逆向きに読んでいるときは、終わりから始まりへ進んでいる':
+    '// While reading backwards, we are moving from the end towards the start',
+
+    '/* 先読みは前向き、後読みは後ろ向きに読む（外側がどちら向きでも変わらない）。\n'
+    '       どちらも位置を動かさないので、成否だけを見て pos のまま次へ渡す。 */':
+    '/* Lookahead reads forward and lookbehind backward, whichever way the outside runs.\n'
+    '       Neither moves the position, so only success matters and pos is passed on unchanged. */',
+
+    '// 参加していないグループは空文字に当たる': '// A group that did not take part matches the empty string',
+    '// 再帰が深すぎた（長い入力）': '// The recursion went too deep (a long input)',
+    '/* ---- 待っていたものを日本語にする ---------------------------------------- */':
+    '/* ---- Putting what it was waiting for into words --------------------------- */',
+    '/* 見えない文字・紛らわしい文字の名前。ここに載っているものは画面で名指しする。 */':
+    '/* Names of invisible and lookalike characters; anything listed here is named on screen. */',
+    '/* ---- 紛らわしい文字を拾う ------------------------------------------------ */':
+    '/* ---- Picking out the lookalike characters -------------------------------- */',
+
+    '/* ---- 「1か所だけ変えて当て直す」 ----------------------------------------\n'
+    '   推測を書くのではなく、変えた式・文字列を本物の RegExp に当てて、\n'
+    '   当たったものだけを出す。 */':
+    '/* ---- Change one thing and run it again -----------------------------------\n'
+    '   Nothing here is a guess: the changed pattern or string is run against the\n'
+    '   real RegExp, and only what actually matched is shown. */',
+
+    '/* ---- 式を前から伸ばして当てる（ブラウザだけを使う独立の調べ方） ---------- */':
+    '/* ---- Grow the pattern from the front (an independent test, browser only) -- */',
+    '/* ---- 自己検査（自前の結果をブラウザの結果と突き合わせる） ---------------- */':
+    '/* ---- Self-check (our results against the browser results) ----------------- */',
+    '/* ---- 画面 ---------------------------------------------------------------- */':
+    '/* ---- Screen -------------------------------------------------------------- */',
+    '/* 文字1つを画面用の HTML に。見えない文字は記号にして枠をつける。 */':
+    '/* One character as HTML for the screen; an invisible one becomes a boxed symbol. */',
+    '// 本物の RegExp。組み合わせ爆発の形で入力が長いときは、当てるとページが固まるので当てない。':
+    '// The real RegExp. With a blow-up shape and a long input, running it freezes the page, so we do not.',
+    '/* --- 判定 --- */': '/* --- The verdict --- */',
+    '/* --- どこまで進んだか --- */': '/* --- How far it got --- */',
+    '/* --- 式のどこまでなら当たるか --- */': '/* --- How much of the pattern still matches --- */',
+    '/* --- こうすればマッチします --- */': '/* --- Do this and it matches --- */',
+    '/* --- 紛れている文字 --- */': '/* --- Characters hiding in there --- */',
+    '/* --- 自己検査 --- */': '/* --- Self-check --- */',
+})
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -343,6 +450,19 @@ def main():
             if x != y:
                 sys.exit('コードが一致しません（%d行目）:\n  ja: %s\n  en: %s' % (k + 1, x, y))
         sys.exit('コードの行数が違います（ja %d / en %d）' % (a.count('\n'), b.count('\n')))
+
+    # ★（2026-09-03 夜）JS のコメントも訳す
+    s0 = en.index("<script>") + len("<script>")
+    e0 = en.index("</script>", s0)
+    core_en, cmt_missing = translate_comments(en[s0:e0], COMMENTS)
+    if cmt_missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(cmt_missing), "\n  ".join(x[:100] for x in cmt_missing[:8])))
+    left_c = re.findall("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？]+",
+                        "\n".join(comments(core_en)))
+    if left_c:
+        sys.exit("コメントに日本語が %d 箇所残っています: %s" % (len(left_c), left_c[:12]))
+    en = en[:s0] + core_en + en[e0:]
 
     en_path.parent.mkdir(parents=True, exist_ok=True)
     # ★（2026-09-03 夜）CSS のコメントも訳す（<script> の外なので誰も見ていなかった）

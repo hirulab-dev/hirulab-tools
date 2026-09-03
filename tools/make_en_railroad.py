@@ -17,7 +17,181 @@ import re, sys, pathlib
 
 import pathlib as _pl, sys as _sys
 _sys.path.insert(0, str(_pl.Path(__file__).resolve().parent))
-from en_common import translate_css_comments
+from en_common import comments, translate_comments, translate_css_comments
+
+# ★2026-09-03 夜 追加。**解析器のコメントは3ページ(鉄道図・なぜマッチしないか・置換)で共有する**。
+#   解析器は3ページでバイト一致していることを検証で確かめているので、
+#   コメントだけ片方で訳すと**そのバイト一致が壊れる**(実際に壊した)。
+#   文字列の訳(`TR`)を3ページで共有しているのと同じ理由・同じ置き場所。
+PARSER_COMMENTS = {
+    '/* ---- 正規表現の解析 ------------------------------------------------------\n'
+    '   ECMAScript の正規表現を、位置つきで再帰下降で読む。エラーは必ず\n'
+    '   「どこで」を持たせる（キャレット行を出すため）。                        */':
+    '/* ---- Parsing the pattern --------------------------------------------------\n'
+    '   Reads an ECMAScript pattern by recursive descent, carrying positions. Every\n'
+    '   error knows where it happened, so a caret line can be drawn.             */',
+
+    '/* u（と v）フラグの有無で「読める式」が変わる。付いていないときの ECMAScript は\n'
+    '   壊れたエスケープをエラーにせず「\\ のあとの1文字そのもの」として読み流す（Annex B）。\n'
+    '   ここを厳しくすると、ブラウザが通す式をこの道具だけが拒むことになる。 */':
+    '/* Which patterns parse depends on the u (and v) flag. Without it, ECMAScript does\n'
+    '   not error on a broken escape: it reads the character after the \\ as itself (Annex B).\n'
+    '   Being stricter here would reject patterns that every browser accepts. */',
+
+    '// 名前つきグループは前方参照 \\k<name> があるので先に名前を集めておく':
+    '// Named groups can be referenced forward with \\k<name>, so collect the names first',
+    '// 後読みはくり返せない。先読みは u フラグ無しのときだけ通る（後方互換の名残）':
+    '// Lookbehind cannot be quantified; lookahead can, but only without the u flag (legacy)',
+    '// くり返しの直後にもう1つくり返しは書けない（a** や a?{2} など）。':
+    '// A quantifier cannot follow a quantifier (a** or a?{2} and the like).',
+    '// ただし a?? の2つめの ? は「最小一致」として readQuantifier が食べているので、ここには来ない。':
+    '// The second ? of a?? is the lazy marker and readQuantifier already ate it, so it never lands here.',
+
+    '/* いまの位置からくり返しの記号が始まるか。{ は「数の形」になっているときだけ数える\n'
+    '     （{abc} はただの文字列として通るのが ECMAScript の挙動）。 */':
+    '/* Does a quantifier start here? A { counts only when it has the shape of a count\n'
+    '     ({abc} passes as plain text; that is how ECMAScript behaves). */',
+
+    '// {abc} はただの文字列（ECMAScript の挙動）': '// {abc} is plain text (how ECMAScript behaves)',
+    '// u フラグ無しの ECMAScript は { } ] をそのままの文字として通すが、u があると通らない':
+    '// Without u, ECMAScript passes { } ] as literal characters; with u it does not',
+    '// \\k は、式のどこかに名前つきグループがあるときだけ「参照」になる。':
+    '// \\k is a reference only when the pattern has a named group somewhere.',
+    '// 1つも無ければ ECMAScript は \\k をただの文字 k として扱う（Annex B の後方互換）。':
+    '// With none at all, ECMAScript treats \\k as the plain letter k (Annex B legacy).',
+    '// u フラグがあるときは後方互換が効かないので、いつでも参照として読む。':
+    '// With the u flag the legacy rule is off, so it is always read as a reference.',
+
+    '/* \\x \\u \\c は、形が揃っていないとエラー…にはならない。ECMAScript（u フラグなし）は\n'
+    '       「\\ のあとの1文字そのもの」として読み流す。ここを厳しくすると、ブラウザが通す式を\n'
+    '       この道具だけが拒んでしまう。u フラグ付きでは本当にエラーになるので注記だけ出す。 */':
+    '/* A malformed \\x \\u \\c is not an error. ECMAScript without the u flag reads the\n'
+    '       character after the \\ as itself. Being stricter here would reject patterns every\n'
+    '       browser accepts. With u it really is an error, so we only add a note. */',
+
+    '// \\u{…} が符号位置になるのは u フラグがあるときだけ。無いときは':
+    '// \\u{...} is a code point only with the u flag. Without it, it reads as',
+    '// 「u」1文字 + {…} のくり返し指定として読まれる（/\\u{2}/ は "uu" にマッチする）。':
+    '// the single letter u followed by a {...} count (/\\u{2}/ matches "uu").',
+    '// \\c のあとが英字でないときは「\\」そのもの。c は次の文字として読み直す':
+    '// If a letter does not follow \\c, the \\ is itself and the c is re-read as the next character',
+    '// [] は空集合（何にもマッチしない）': '// [] is the empty set (it matches nothing)',
+    '// [\\d-x] のように範囲にできない組み合わせ。u フラグ無しの ECMAScript は':
+    '// A combination that cannot be a range, as in [\\d-x]. Without the u flag ECMAScript',
+    '// 「-」をただの文字として扱うが、u があるとエラーになる':
+    '// treats the - as a plain character; with u it is an error',
+
+    '/* \\3 と書いてあってもグループが2個しか無いことがある。u フラグがあればエラーだが、\n'
+    '     無ければ ECMAScript は 8進エスケープ（\\3 = \\x03）として読む。\n'
+    '     グループの総数は最後まで読まないと分からないので、ここでまとめて直す。 */':
+    '/* A pattern may say \\3 while having only two groups. With the u flag that is an error;\n'
+    '     without it ECMAScript reads it as an octal escape (\\3 = \\x03).\n'
+    '     The group count is not known until the end, so these are fixed up together here. */',
+
+    '/* 同じ名前のグループを2つ書けるのは「同じ | の別の枝にあるとき」だけ。\n'
+    '     どちらも同時に成立しうる置き方だとエラーになる（1つのマッチで名前が2つの値を\n'
+    '     持てないため）。どの枝にいるかは、根から辿った道を突き合わせて調べる。 */':
+    '/* Two groups may share a name only when they sit in different branches of the same |.\n'
+    '     Placed where both could hold at once it is an error, because one match cannot give\n'
+    '     a name two values. Which branch a group is in is found by comparing paths from the root. */',
+}
+
+# この道具だけが持つコメント（解析器のぶんは上の PARSER_COMMENTS）
+COMMENTS = dict(PARSER_COMMENTS)
+COMMENTS.update({
+    '/* ---- 鉄道図のレイアウト --------------------------------------------------\n'
+    '   各要素は { w, up, down, draw(x, y) } を持つ。y は「線路の高さ」で、\n'
+    '   up は線路より上に、down は下に、それぞれどれだけはみ出すか。\n'
+    '   これだけ決めておくと、並べる・分岐する・ループするの3つで全部組める。 */':
+    '/* ---- Laying out the railroad diagram -------------------------------------\n'
+    '   Every element has { w, up, down, draw(x, y) }. y is the height of the track;\n'
+    '   up and down say how far it sticks out above and below that line.\n'
+    '   With just that, everything is built from three moves: row, branch, loop. */',
+
+    '// 曲がり角の半径': '// Radius of a corner',
+    '// 分岐どうしの縦の間隔': '// Vertical gap between branches',
+    '// 横に並べるときの間隔': '// Gap when laying elements out in a row',
+    '/* 角を1つ曲がる。y は下向きが正なので、時計回り(sweep=1)の向きに注意。 */':
+    '/* Turn one corner. y grows downwards, so mind which way clockwise (sweep=1) points. */',
+    '// 横→下': '// Across, then down',
+    '// 下→横': '// Down, then across',
+    '// 横→上': '// Across, then up',
+    '// 上→横': '// Up, then across',
+    '// 下→左': '// Down, then left',
+    '// 左→上': '// Left, then up',
+    '/* 文字幅は推測せず canvas で実測する。フォントが違う環境でも箱からはみ出さない。 */':
+    '/* Text width is measured with canvas rather than guessed, so it never overflows a box. */',
+    '/* 箱ひとつ。main は等幅（式そのまま）、sub は日本語の補足。 */':
+    '/* One box. main is monospace (the pattern as written); sub is the note underneath. */',
+    '/* 線だけ（空の選択肢＝「何も通らない」道）。 */':
+    '/* Just the line (an empty alternative: the path where nothing is consumed). */',
+    '/* 縦に積む分岐。1本目が線路の高さに乗り、2本目以降が下にぶら下がる。 */':
+    '/* Branches stacked vertically. The first sits on the track; the rest hang below it. */',
+    '/* 省略できる道（?）。上をまっすぐ通れる。 */':
+    '/* An optional path (?). You can go straight over the top. */',
+    '/* くり返し。下に戻り線を回す。label は「2〜5回」など。 */':
+    '/* A repeat, with the return line looping underneath. label reads like "2 to 5 times". */',
+    '/* グループの破線囲み。label はグループの説明。 */':
+    '/* The dashed box around a group; label describes the group. */',
+    '/* ---- AST → 図 ------------------------------------------------------------ */':
+    '/* ---- From the AST to the diagram ----------------------------------------- */',
+    '/* 連続する「ふつうの1文字」は1つの箱にまとめる。abc が3箱に割れると読みにくい。 */':
+    '/* Consecutive plain characters share one box; abc split across three boxes reads badly. */',
+    '/* ---- 読み下し ------------------------------------------------------------ */':
+    '/* ---- Reading it back in words -------------------------------------------- */',
+    '/* ---- 落とし穴の検出 ------------------------------------------------------ */':
+    '/* ---- Pitfall detection --------------------------------------------------- */',
+    '/* 「空文字にもマッチしうるか」。(a?)* のような無限ループの検出に使う。 */':
+    '/* Can this match the empty string? Used to spot endless loops such as (a?)*. */',
+    '// 参照先が空なら空': '// Empty if what it refers to is empty',
+    '// 入れ子のくり返し: (a+)+ のような形。マッチしない入力で指数時間になりうる':
+    '// A nested repeat such as (a+)+, which can take exponential time on input that fails',
+    '// 空マッチしうる中身の * や +': '// A * or + around something that can match empty',
+
+    '/* ---- 図から例文字列を作る ------------------------------------------------\n'
+    '   解析した構造だけを見て文字列を組み立て、それを元の正規表現に当て直す。\n'
+    '   一致しなければ、図の読み方か解析のどちらかが間違っているということ。   */':
+    '/* ---- Building an example string from the diagram -------------------------\n'
+    '   A string is built from the parsed structure alone, then run against the\n'
+    '   original pattern. A miss means either the diagram or the parse is wrong. */',
+
+    '// 無限のくり返しは最大3回まで': '// An unbounded repeat is taken at most three times',
+
+    '/* 例文字列を作るときの、それぞれの記号の見本。\n'
+    '   長さは必ずここから取ること（数を別に書くと、片方だけ直したときに\n'
+    '   範囲外を引いて空文字が混ざる。実際にやらかした）。 */':
+    '/* The sample characters each token draws from when an example is built.\n'
+    '   Always take the length from here: writing the count separately means fixing one\n'
+    '   and not the other, indexing out of range and mixing in empty strings (it happened). */',
+
+    '// 先読み・後読みは文字を消費しないので、図だけを見て「条件を満たす文字列」を':
+    '// Lookahead and lookbehind consume nothing, so a string that satisfies them cannot',
+    '// 組み立てることができない。作った例が当たらなくても式の誤りではないので、':
+    '// be built from the diagram alone. A miss is then not evidence of a wrong pattern,',
+    '// 確かなことは言えない印（unsure）を立てておく。':
+    '// so we raise the unsure flag and say nothing definite.',
+    '// {100000} のような式で延々と作り続けないための止め木':
+    '// A stop so a pattern like {100000} does not keep building forever',
+    '/* 決まった種から擬似乱数を作る。同じ式なら毎回同じ例が出るようにするため。 */':
+    '/* Pseudo-random from a fixed seed, so the same pattern always gives the same example. */',
+
+    '/* 例文字列を当てる前に、その式が「外れたときに指数時間になる形」かを見る。\n'
+    '   マッチする文字列を当てるぶんには普通は速いが、こちらの生成が間違っていた場合、\n'
+    '   外れた瞬間にブラウザごと固まってしまう。長さを詰めておけば最悪でも一瞬で済む。 */':
+    '/* Before running the example, check whether the pattern is one that goes exponential\n'
+    '   on a miss. Running a matching string is normally fast, but if our generation was\n'
+    '   wrong the miss freezes the whole browser. Capping the length keeps it instant. */',
+
+    '/* ---- 画面 ---------------------------------------------------------------- */':
+    '/* ---- Screen -------------------------------------------------------------- */',
+    '// キャプチャ一覧': '// The list of captures',
+    '// 落とし穴': '// Pitfalls',
+    '// 図から作った例で確かめる': '// Check with the example built from the diagram',
+    '// 先読み・後読みが入っていると、図だけからは条件を満たす文字列を組み立てられない。':
+    '// With a lookahead or lookbehind, no satisfying string can be built from the diagram alone.',
+    '// 当たらないのは当然なので、不具合として出さない。':
+    '// A miss is then expected, so it is not reported as a fault.',
+})
 
 # ── スクリプト内の文字列リテラル（引用符ごと突き合わせるので、
 #    '回' が '回ちょうど' の中を書き換えてしまう事故は起きない）──────────────
@@ -337,6 +511,19 @@ def main():
             if x != y:
                 sys.exit('コードが一致しません（%d行目）:\n  ja: %s\n  en: %s' % (k + 1, x, y))
         sys.exit('コードの行数が違います（ja %d / en %d）' % (a.count('\n'), b.count('\n')))
+
+    # ★（2026-09-03 夜）JS のコメントも訳す
+    s0 = en.index("<script>") + len("<script>")
+    e0 = en.index("</script>", s0)
+    core_en, cmt_missing = translate_comments(en[s0:e0], COMMENTS)
+    if cmt_missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(cmt_missing), "\n  ".join(x[:100] for x in cmt_missing[:8])))
+    left_c = re.findall("[぀-ヿ㐀-鿿、。「」『』（）［］｛｝！？]+",
+                        "\n".join(comments(core_en)))
+    if left_c:
+        sys.exit("コメントに日本語が %d 箇所残っています: %s" % (len(left_c), left_c[:12]))
+    en = en[:s0] + core_en + en[e0:]
 
     en_path.parent.mkdir(parents=True, exist_ok=True)
     # ★（2026-09-03 夜）CSS のコメントも訳す（<script> の外なので誰も見ていなかった）

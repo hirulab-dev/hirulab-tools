@@ -30,7 +30,9 @@ import pathlib, re, sys
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from jsblank import blank, literals  # noqa: E402
-from en_common import (JA_CHARS, code_japanese, script_span,  # noqa: E402
+from en_common import (translate_css_comments,
+                       translate_comments,  # noqa: E402
+                       JA_CHARS, code_japanese, script_span,  # noqa: E402
                        translate_literals)
 
 SITE = "https://hirulab-dev.github.io/hirulab-tools"
@@ -421,6 +423,81 @@ EN_NAV = '''  <nav class="hl-nav">
 # 全部「画面に出す文言」だった。
 KEEP = {}
 
+# ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
+COMMENTS = {
+    '/* ============================================================\n'
+    '   QRコード符号化（JIS X 0510 / ISO 18004）\n'
+    '   ライブラリ不使用。以下は全部この場で計算している。\n'
+    '   ============================================================ */':
+    '/* ============================================================\n'
+    '   QR code encoding (JIS X 0510 / ISO 18004)\n'
+    '   No library. Everything below is computed right here.\n'
+    '   ============================================================ */',
+
+    '// 誤り訂正レベル: ord = 表の添字, fmt = 形式情報に埋める2ビット':
+    '// Error-correction level: ord = index into the tables, fmt = the 2 bits in the format info',
+    '// 1ブロックあたりの誤り訂正語数（添字0は未使用）':
+    '// Error-correction codewords per block (index 0 is unused)',
+    '// ブロック数': '// Number of blocks',
+    '// N1 は「並んだ数-2」なので定数を持たない': '// N1 is (run length - 2), so it has no constant',
+    '// ---- 型番ごとの生モジュール数 ----': '// ---- Raw module count per version ----',
+    '// ---- セグメント（モード選択） ----': '// ---- Segments (choosing the mode) ----',
+    '// ---- 本体 ----': '// ---- The encoder itself ----',
+    '// 収まる最小の型番を探す': '// Find the smallest version it fits in',
+    '// ビット列を組み立てる': '// Build the bit stream',
+    '// 終端': '// Terminator',
+    '// バイト境界まで': '// Up to the byte boundary',
+    '// タイミングパターン': '// Timing pattern',
+    '// 位置検出パターン（3隅）': '// Finder patterns (three corners)',
+    '// 位置合わせパターン': '// Alignment patterns',
+    '// 形式情報・型番情報の場所を「機能パターンだが白」として予約しておく。':
+    '// Reserve where the format and version info go, as function pattern but white.',
+    '// 規格 7.8.3 に従い、マスクの評価はこの情報を入れる前の状態で行う（入れるのは最後）。':
+    '// Per 7.8.3, masks are scored before that information is written (it goes in last).',
+    '// 常に黒のモジュール。場所だけ押さえて、色は最後に入れる':
+    '// The always-dark module. Reserve the spot now, colour it last',
+    '// データ語をジグザグに置く': '// Lay the data codewords in a zig-zag',
+    '// 8通りのマスクを評価（形式情報・型番情報はまだ入っていない状態で評価する）':
+    '// Score all 8 masks (scored while the format and version info are still absent)',
+    '// 戻す（XORなので同じ操作で元に戻る）': '// Undo it (XOR, so the same operation reverses it)',
+    '// ここで初めて形式情報と型番情報を書き込む':
+    '// Only now are the format info and the version info written',
+    '// 常に黒のモジュール': '// The always-dark module',
+    '// 形式情報15ビットが入る場所（2か所ぶん、ビット0から順）':
+    '// Where the 15 format bits go (two places, starting from bit 0)',
+    '// 型番情報18ビット×2か所': '// The 18 version bits, in two places',
+    '// ---- 評価点（減点方式・規格 7.8.3.1 の4規則） ----':
+    '// ---- Scoring (penalties; the four rules of 7.8.3.1) ----',
+    '//  N1: 同じ色が5マス以上並ぶ        → (並んだ数 - 2) 点':
+    '//  N1: a run of 5 or more same-colour modules -> (run length - 2) points',
+    '//  N2: 同じ色の 2×2 のかたまり      → 3点':
+    '//  N2: a 2x2 block of one colour              -> 3 points',
+    '//  N3: 1:1:3:1:1 の並び（位置検出パターンの見間違い）が、片側4マス以上の白を伴う → 40点':
+    '//  N3: a 1:1:3:1:1 run (mistakable for a finder) next to 4+ light modules -> 40 points',
+    '//  N4: 黒の割合が50%からずれるほど  → 5%ごとに10点':
+    '//  N4: the further the dark share is from 50% -> 10 points per 5%',
+    '// N3 で探す並び: 黒 白 黒黒黒 白 黒':
+    '// The run N3 looks for: dark light dark dark dark light dark',
+
+    '/* ============================================================\n'
+    '   画面まわり\n'
+    '   ============================================================ */':
+    '/* ============================================================\n'
+    '   Screen plumbing\n'
+    '   ============================================================ */',
+
+    '// Wi-Fi / SMS などの特殊文字のエスケープ（\\ ; , : " は \\ で逃がす）':
+    '// Escaping for Wi-Fi, SMS and friends (\\ ; , : " are escaped with \\)',
+    '// 前景と背景のコントラストを見て、読み取りにくい配色は注意する':
+    '// Check foreground against background and warn about hard-to-scan colour pairs',
+    '// canvas に描く': '// Draw it on the canvas',
+    '// 内訳': '// The breakdown',
+    '/* ---- 保存 ---- */': '/* ---- Saving ---- */',
+    '/* ---- イベント ---- */': '/* ---- Events ---- */',
+    '// 検証用の入口（テストからのみ使う。通常の操作では触れない）':
+    '// An entry point for the tests (used by them only; never touched in normal use)',
+}
+
 # ── 文字列の中身だけの差し替え(TR辞書) ────────────────────────────────────
 TR = {
     # --- 誤り訂正レベルの復元率(ECL 表の recover) ---
@@ -533,7 +610,11 @@ def main():
     en = en[:nav.start()] + EN_NAV + en[nav.end():]
 
     s, e = script_span(en)
-    core_en, missing = translate_literals(en[s:e], TR, KEEP)
+    core_en, missing = translate_comments(en[s:e], COMMENTS)
+    if missing:
+        sys.exit("訳されていないコメントが %d 件あります:\n  %s"
+                 % (len(missing), "\n  ".join(m[:100] for m in missing[:8])))
+    core_en, missing = translate_literals(core_en, TR, KEEP)
     if missing:
         sys.exit("訳されていない文字列が %d 件あります:\n  %s"
                  % (len(missing), "\n  ".join(sorted(set(missing))[:12])))
@@ -564,6 +645,12 @@ def main():
         sys.exit("コードの行数が違います(ja %d / en %d)" % (a.count("\n"), b.count("\n")))
 
     en_path.parent.mkdir(parents=True, exist_ok=True)
+    # ★2026-09-03 夜: CSS のコメントも訳す(<script> の外なので、それまで誰も見ていなかった)
+    en, css_missing = translate_css_comments(en)
+    if css_missing:
+        sys.exit("訳されていない CSS のコメントが %d 件あります:\n  %s"
+                 % (len(css_missing), "\n  ".join(x[:100] for x in css_missing[:8])))
+
     en_path.write_text(en, encoding="utf-8", newline="\n")
     print("書き出した: %s" % en_path)
     print("訳した文字列: %d 件" % len(TR))
