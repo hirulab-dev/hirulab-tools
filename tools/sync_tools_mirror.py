@@ -358,6 +358,19 @@ def main(argv=None):
     if not dest.is_dir():
         sys.exit("× tools が無い: %s" % dest)
 
+    # ★2026-09-04 昼: **公開側に写したこれを回すと、嘘を並べる**。
+    #   HERE が写し先そのものになるので「手元(=公開側)に同名が無い」と 26 行の ★ を出す。
+    #   この道具は README が名指すので現物を置いてあるが、**回すものではない**。
+    #   ⚠ 9/3未明の `check_en_parity`・9/4朝の `test_char_counter` と同じ
+    #     「公開側で回すと動かない/嘘を言う」の3本目。写した40本を全部実際に回して数えたら、
+    #     **該当はこの1本だけ**だった(`run_published_tests.py --helpers` が同じ数え方をする)。
+    if HERE.resolve() == dest.resolve():
+        print("この道具は**手元(`lab/scripts/`)から回すもの**です。"
+              "公開側に置いてあるのは、README が名指しているので現物を見せるためだけ。")
+        print("  ここから回すと、写し元と写し先が同じ場所になるので"
+              "「手元に同名が無い」を全部の検証について並べます(=嘘)。")
+        return 2
+
     if a.sabotage:
         return sabotage(dest)
 
