@@ -235,7 +235,8 @@ HTML_PARTS = [
         これらは<b>CSV自体は正しい</b>のにExcelが勝手に変える箇所なので、警告として分けています。</li>
       <li><b>見ていないこと</b>: 中身が業務的に正しいか（重複した顧客IDが本当に間違いか等）は判断しません。
         また、<b>100MBを超えるような巨大ファイルは想定していません</b>（全部メモリに載せます）。</li>
-      <li><b>確かめかた</b>: 解析結果は Python の <code>csv</code> モジュールを基準にして突き合わせ検証しています。
+      <li><b>確かめかた</b>: 解析結果は Python の <code>csv</code> モジュールを基準に、
+        ランダムに作った 800 ファイル・17,010 セルで突き合わせ検証しています。
         検証スクリプトは<a href="https://github.com/hirulab-dev/hirulab-tools/tree/main/tools/tests">ソース側</a>に置いてあります。</li>
     </ul>''',
      '''    <summary>What this tool looks at (and what it does not)</summary>
@@ -262,7 +263,7 @@ HTML_PARTS = [
       <li><b>Not checked</b>: whether the content makes business sense, and files large enough to matter
         (everything is held in memory).</li>
       <li><b>How it is verified</b>: the parser and the detectors are checked against Python's
-        <code>csv</code> module over 2,300 generated files and 52,353 cells. The test script is
+        <code>csv</code> module over 800 generated files and 17,010 cells. The test script is
         <a href="https://github.com/hirulab-dev/hirulab-tools/tree/main/tools/tests">in the repository</a>,
         and it is run against this English page as well.
         <b>This page is generated from the Japanese one</b>: blank out the contents of every string

@@ -19,7 +19,9 @@ import argparse
 import csv
 import io
 import json
+import os
 import random
+import re
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -101,6 +103,90 @@ def check_dup_rows(page):
         out.append("つなげると同じなだけの行を「同じ」と言っている(指摘の数 %d → %d)"
                    % (base, split))
     return out
+
+
+# ---------------------------------------------------------------- 名乗りの見張り
+#
+# 2026-09-04 18:00枠。**英語版のページだけが「over 2,300 generated files and 52,353 cells」と
+# 名乗っていて、日本語版には数が1つも無かった**(訳すときに原文に無い数を足していた)。
+# しかもその数は、README の使い方(`--cases 800`)では**二度と出ない数**だった
+# = 9/3 の 132,996・9/4 未明の jwt 57 / qr 111 と同じ形の6本目。
+# → 日英の両方に「使い方どおりに回したときの数」を置き、**数を出した当人がここで見張る**。
+#
+# ⚠ この数は `--cases` に依る。**設定が違う回では比べずに「比べていない」と言う**
+#   (黙って通すと合っているように読める。9/4 昼の `test_timezone` と同じ決まり)。
+CLAIM_CASES = 800          # 名乗りを出す設定(= README の使い方)
+CLAIM_PATTERNS = [
+    re.compile(r"([0-9][0-9,]*)\s*ファイル[・, ]\s*([0-9][0-9,]*)\s*セル"),
+    re.compile(r"([0-9][0-9,]*)\s+(?:generated\s+)?files\s+and\s+([0-9][0-9,]*)\s+cells", re.I),
+]
+
+
+def _docs_dir(page):
+    d = os.path.dirname(os.path.abspath(page))
+    for _ in range(6):
+        if os.path.basename(d) == "docs":
+            return d
+        nxt = os.path.dirname(d)
+        if nxt == d:
+            break
+        d = nxt
+    return None
+
+
+def check_claims(page, arg_cases, n_cases, n_cells):
+    """公開フォルダの全ページから「N ファイル・M セル」の名乗りを拾って実測と比べる。"""
+    if arg_cases != CLAIM_CASES:
+        print("名乗りの見張り: 比べていない(名乗りは --cases %d の数。この回は %d)"
+              % (CLAIM_CASES, arg_cases))
+        return []
+    docs = _docs_dir(page)
+    if docs is None:
+        print("名乗りの見張り: 公開フォルダが分からないので見ていない (%s)" % page)
+        return []
+    found, bad = [], []
+    for dirpath, _dirs, files in os.walk(docs):
+        for fn in sorted(files):
+            if not fn.endswith(".html"):
+                continue
+            rel = os.path.relpath(os.path.join(dirpath, fn), docs).replace(os.sep, "/")
+            text = open(os.path.join(dirpath, fn), encoding="utf-8").read()
+            for pat in CLAIM_PATTERNS:
+                for m in pat.finditer(text):
+                    got = (int(m.group(1).replace(",", "")),
+                           int(m.group(2).replace(",", "")))
+                    found.append(rel)
+                    if got != (n_cases, n_cells):
+                        bad.append("%s の名乗り %s ≠ 実測 (%d, %d)"
+                                   % (rel, got, n_cases, n_cells))
+    if not found:
+        return ["名乗りの見張り: この数(%d ファイル・%d セル)を書いてあるページが1枚も無い。"
+                "書くなら日英の両方に置くこと" % (n_cases, n_cells)]
+    print("名乗りの見張り: %d 枚が名乗っている (%s)"
+          % (len(found), " / ".join(sorted(set(found)))))
+    if bad:
+        return bad
+    # 空振り確認: 1つずらしたら鳴るか(読んでいる場所が本当にそこか)
+    if not _would_complain(docs, n_cases + 1, n_cells):
+        return ["!! 数をずらしても鳴らない(名乗りの見張りが空振りしている)"]
+    print("  (件数を1ずらすと鳴ることも確認)")
+    return []
+
+
+def _would_complain(docs, n_cases, n_cells):
+    """この数を実測だと思って読み直したら、どれかのページと食い違うか。"""
+    for dirpath, _dirs, files in os.walk(docs):
+        for fn in files:
+            if not fn.endswith(".html"):
+                continue
+            text = open(os.path.join(dirpath, fn), encoding="utf-8").read()
+            for pat in CLAIM_PATTERNS:
+                for m in pat.finditer(text):
+                    got = (int(m.group(1).replace(",", "")),
+                           int(m.group(2).replace(",", "")))
+                    if got != (n_cases, n_cells):
+                        return True
+    return False
 
 
 def main():
@@ -190,6 +276,7 @@ def main():
         browser.close()
 
     print("試した件数: %d / 一致したセル: %d" % (stats["cases"], stats["cells"]))
+    failures += check_claims(args.page, args.cases, stats["cases"], stats["cells"])
     print("行の重複の名指し: %s" % ("OK" if not dup_problems else "★NG"))
     print("解析の不一致: %d" % stats["parse_ng"])
     print("文字コードの誤判定: %d (ASCIIのみで判定不要だったもの: %d)"
