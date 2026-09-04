@@ -158,14 +158,69 @@ def _local_imports(path, available):
     return out
 
 
+def table_shape(txt):
+    """(5) README の表が**表として成立しているか**(2026-09-04 昼 新設)。
+
+    (4) は「表の行に名前が在るか」しか見ない。**名前は在るのに表が壊れている**形が
+    実在した: セルの中に**生の改行**が入っていて(改行そのものを ``…`` で囲もうとした)、
+    `test_regex_tester` の行が途中で切れ、続きの断片が表の外に落ちていた。
+    GitHub では**その行が尻切れになり、以降が本文として出る**。名前は全部在るので (4) は通る。
+
+    見るのは3つ。どれも「読む人の画面で表がどう出るか」に直に効くものだけ:
+      (a) 表の領域(見出し行〜次の空行)に、`|` で始まらない行が混ざっていないか
+      (b) 各行のセルの数が見出しと同じか(区切りの `|` を数える。`` ` `` の中と `\\|` は除く)
+      (c) 行が `|` で終わっているか
+    """
+    lines = txt.split("\n")
+    out = []
+    heads = [i for i, l in enumerate(lines)
+             if l.startswith("|") and i + 1 < len(lines)
+             and re.match(r"^\|[\s:|-]+\|\s*$", lines[i + 1])]
+    for h in heads:
+        end = next((i for i in range(h, len(lines)) if lines[i].strip() == ""), len(lines))
+        want = _cells(lines[h])
+        for i in range(h, end):
+            l = lines[i]
+            if not l.startswith("|"):
+                out.append("★ README の表が壊れている: %d 行目が `|` で始まらない"
+                           "(セルの中に生の改行が入っていないか) — %r" % (i + 1, l[:40]))
+                continue
+            if not l.rstrip().endswith("|"):
+                out.append("★ README の表が壊れている: %d 行目が `|` で終わっていない" % (i + 1))
+                continue
+            n = _cells(l)
+            if n != want:
+                out.append("★ README の表が壊れている: %d 行目のセルが %d 個(見出しは %d 個)"
+                           % (i + 1, n, want))
+    return out
+
+
+def _cells(line):
+    """行の区切りの `|` を数えてセルの数を出す。`` ` `` の中と `\\|` は区切りではない。"""
+    n, tick, i = 0, False, 0
+    s = line.strip()
+    while i < len(s):
+        c = s[i]
+        if c == "\\":
+            i += 2
+            continue
+        if c == "`":
+            tick = not tick
+        elif c == "|" and not tick:
+            n += 1
+        i += 1
+    return max(n - 1, 0)
+
+
 def check_tests(dest):
     """`tools/tests/` を見る。**写しはしない**(意図的な差があるので手で写す)。
 
-    見るのは4つ:
+    見るのは5つ:
       (1) 差が `TESTS_DIFF_OK` に書いた行数と合っているか(=そこ以外が動いていないか)
       (2) 公開側が import しているものが公開側に**在るか**(動かない検証を置いていないか)
       (3) 手元にあって公開側に無い本が `TESTS_NOT_PUBLISHED` に理由つきで書いてあるか
       (4) 公開側の README が全部を載せているか
+      (5) その README の表が**表として成立しているか**(2026-09-04 昼に追加)
     """
     tdir = dest / TESTS_DIR_NAME
     if not tdir.is_dir():
@@ -232,6 +287,7 @@ def check_tests(dest):
             elif p.name not in rows:
                 lost.append("・README の表に無い: tests/%s(使い方の例にあるだけでは足りない)"
                             % p.name)
+        lost += table_shape(txt)
 
     print("tests: 見た %d 本 / 一致 %d 本 / 意図した差 %d 本(既知 %d) / 手元に同名が無い %d 本"
           % (len(pub), same, diff_ok, len(TESTS_DIFF_OK), len(orphan)))
@@ -248,6 +304,42 @@ def avail_names(pub):
     return {p.name for p in pub}
 
 
+def sabotage(dest):
+    """(5) の空振り確認。**現物は書き換えず**、読んだ文字列を壊して鳴るかだけを見る。
+
+    ⚠ 4つめは「**鳴ってはいけない形**」(2026-09-04 未明の申し送り)。
+    壊して鳴るかだけを見ていると、**何にでも鳴る検査が満点を取る**。
+    """
+    txt = (dest / TESTS_DIR_NAME / "README.md").read_text(encoding="utf-8")
+    lines = txt.split("\n")
+    h = next(i for i, l in enumerate(lines) if l.startswith("| スクリプト |"))
+    row = next(i for i in range(h + 2, len(lines)) if lines[i].startswith("|"))
+
+    def cut(i, at):        # セルの中に生の改行を入れる(今日の実バグと同じ形)
+        s = lines[i]
+        return lines[:i] + [s[:at], s[at:]] + lines[i + 1:]
+
+    cases = [
+        ("セルの中に生の改行", "\n".join(cut(row, 60)), True),
+        ("行末の `|` が落ちる", "\n".join(lines[:row] + [lines[row].rstrip()[:-1]]
+                                        + lines[row + 1:]), True),
+        ("セルが1つ増える", "\n".join(lines[:row] + [lines[row] + " 余り |"]
+                                    + lines[row + 1:]), True),
+        ("★鳴ってはいけない: `|` を `` ` `` の中に書いた正しい行",
+         "\n".join(lines[:row] + [lines[row][:-1] + "(`a|b` のような書き方) |"]
+                   + lines[row + 1:]), False),
+    ]
+    bad = 0
+    for name, broken, want in cases:
+        rang = bool(table_shape(broken))
+        ok = (rang == want)
+        bad += 0 if ok else 1
+        print("%s %s → %s" % ("○" if ok else "×", name,
+                              "鳴った" if rang else "鳴らない"))
+    print("空振り確認: %d/%d" % (len(cases) - bad, len(cases)))
+    return 1 if bad else 0
+
+
 def targets():
     names = sorted(p.name for p in HERE.glob("make_en_*.py"))
     return [(HERE, n) for n in names + HELPERS] + [(ASSETS_DIR, n) for n in ASSETS]
@@ -258,11 +350,16 @@ def main(argv=None):
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--repo", default=str(DEFAULT_REPO))
     ap.add_argument("--check", action="store_true", help="写さずに、ずれているものを並べるだけ")
+    ap.add_argument("--sabotage", action="store_true",
+                    help="README の表をわざと壊して、(5) が鳴るかを見る(現物は書き換えない)")
     a = ap.parse_args(argv)
 
     dest = pathlib.Path(os.path.expanduser(a.repo)) / "tools"
     if not dest.is_dir():
         sys.exit("× tools が無い: %s" % dest)
+
+    if a.sabotage:
+        return sabotage(dest)
 
     missing_src, stale, added, same = [], [], [], 0
     for where, name in targets():

@@ -262,17 +262,36 @@ def main():
     #   9/3 に直したのはページだけなので **README は 132,996 のまま残っていた**
     #   (=3か所目。「置いた場所を増やすほど転記が古くなる」の実例がまた1件)。
     #   → 名乗りうる場所を**全部この検証が読む**。読めない場所があれば黙らずに言う。
+    # ★2026-09-04 昼 追記: **この数は `--n` に依るのに、どの回でも比べていた**。
+    #   照合の数は 108×n + 105,996 で、名乗りの 149,196 は**既定の `--n 400`** の回のもの。
+    #   ところが README の使い方に書いてあるのは `--n 250` で、そちらは **132,996** になる
+    #   (=8/31 に英語版が名乗っていた数そのもの。9/3 に「古い」と呼んだが、
+    #     実際は「**公開してある手順どおりに回したときの数**」だった)。
+    #   つまり **再現手順に従った人の画面で、うちの検証が「ページを直せ」と言う**状態だった。
+    #   → `test_regex_why` [5] と同じく、**名乗りを出した設定のときだけ比べる**。
+    #     違う設定のときは黙って通さず「比べていない」と言う(黙って通すと合って見える)。
+    CLAIM_N, CLAIM_SEED = 400, 42
     PAT = re.compile(r"([0-9][0-9,]{4,})\s*(?:件を比較|件|comparisons)")
-    places = [("ページ", src)]
-    for cand in (pathlib.Path(__file__).resolve().parent / "README.md",
-                 pathlib.Path.home() / "hirulab-tools" / "tools" / "tests" / "README.md"):
-        if cand.exists():
-            block = [ln for ln in cand.read_text(encoding="utf-8").splitlines()
-                     if "test_timezone.py" in ln]
-            places.append(("検証のREADME", "\n".join(block)))
-            break
+    if (args.n, args.seed) != (CLAIM_N, CLAIM_SEED):
+        print("  ⚠ この回は --n %d なので、名乗りとは比べていません"
+              "(ページとREADMEの数は既定の --n %d / --seed %d で出したもの)"
+              % (args.n, CLAIM_N, CLAIM_SEED))
+        places = []
     else:
-        print("  ⚠ 検証のREADMEが見つからないので、そこの記載は見ていません")
+        places = [("ページ", src)]
+    if (args.n, args.seed) == (CLAIM_N, CLAIM_SEED):
+        for cand in (pathlib.Path(__file__).resolve().parent / "README.md",
+                     pathlib.Path.home() / "hirulab-tools" / "tools" / "tests" / "README.md"):
+            if cand.exists():
+                # ⚠ **表の行だけ**を見る(2026-09-04 昼)。使い方の例にも数を書いたので、
+                #   ファイル全体から拾うと「軽く回すと 132,996 件」の行に当たって
+                #   実測(149,196)と食い違うと鳴る。名乗りは表の行、例は例。
+                block = [ln for ln in cand.read_text(encoding="utf-8").splitlines()
+                         if ln.startswith("|") and "test_timezone.py" in ln]
+                places.append(("検証のREADME", "\n".join(block)))
+                break
+        else:
+            print("  ⚠ 検証のREADMEが見つからないので、そこの記載は見ていません")
 
     for where, text in places:
         claimed = PAT.findall(text)

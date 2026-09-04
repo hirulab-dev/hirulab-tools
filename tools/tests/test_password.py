@@ -29,6 +29,7 @@ import argparse
 import math
 import os
 import pathlib
+import re
 import sys
 
 import numpy as np
@@ -250,6 +251,81 @@ def check_pitfalls(pg, sw):
     return len(bad) == 0
 
 
+# ------------------------------------------------- [7] 名乗っている種類の数の見張り
+# 2026-09-04 昼 新設。きっかけ: **トップページが「約20種類の名指し」と書いていたが、
+# 道具が持っている種類は 13 だった**(日英とも。`約` が付いているので嘘とまでは言えないが、
+# 5割増しは「だいたい」の範囲を超えている)。
+# しかもこの数は**トップページにしか無い**ので、道具側を見ても比べる相手がいない
+# = 9/3 の timezone・9/4 未明の jwt 57 / qr 111 と同じ形の5本目。
+# → **数を出した当人(この検証)に見張らせる**。見るのは3つ:
+#     (a) ページの `add()` が名乗りうる code を、この検証が全部試しているか
+#     (b) 逆に、この検証が試している code がページに実在するか
+#     (c) 一覧ページ(日英)が名乗っている数が、実際の種類の数と合っているか
+# ⚠ (c) は**一覧ページを読む**ので、この検証はパスワードのページだけを見ていれば
+#   よいわけではない。見つからないときは黙って通さず「見ていない」と言う。
+ADD_RE = re.compile(r'add\(\s*"([a-z0-9-]+)"')
+CLAIM_RE = re.compile(r"(?:約)?\s*([0-9]+)\s*種類|(?:about\s+)?([0-9]+)\s+named traps")
+
+
+def check_kind_count(text, page, sw):
+    on_page = sorted(set(ADD_RE.findall(text)))
+    tested = sorted({c for _, c in PITFALL_CASES})
+    ok = True
+    miss = [c for c in on_page if c not in tested]
+    extra = [c for c in tested if c not in on_page]
+    print("[7] 落とし穴の種類: ページ %d 種 / この検証が試している %d 種"
+          % (len(on_page), len(tested)))
+    if miss:
+        ok = False
+        print("   ★ページにあるのに試していない: %s" % ", ".join(miss))
+    if extra:
+        ok = False
+        print("   ★試しているのにページに無い: %s" % ", ".join(extra))
+
+    # (c) 一覧ページの名乗り。docs/ を上にたどって探す
+    docs = page.resolve().parent.parent
+    seen = 0
+    for rel in ("index.html", "en/index.html"):
+        p = docs / rel
+        if not p.exists():
+            print("   ⚠ 一覧ページが見つからないので見ていません: %s" % p)
+            continue
+        # パスワードの札の中だけを見る(ほかの道具の「◯種類」に当たらないように)。
+        # ⚠ 最初は `password/` を素朴に探したが、**日本語は `./password/`・英語は
+        #   `./password.html`** で綴りが違い、しかも先に別の所で当たって短い切り出しになった。
+        #   → href から札の `<a …>…</a>` を丸ごと切り出す。
+        html = p.read_text(encoding="utf-8", errors="replace")
+        m = re.search(r'href="\./password(?:/|\.html)"', html)
+        i = html.rfind("<a ", 0, m.start()) if m else -1
+        j = html.find("</a>", i) if i >= 0 else -1
+        if i < 0 or j < 0:
+            print("   ⚠ %s にパスワードの札が見つかりません" % rel)
+            continue
+        card = html[i:j]
+        for m in CLAIM_RE.finditer(card):
+            seen += 1
+            n = int(m.group(1) or m.group(2))
+            if n != len(on_page):
+                ok = False
+                print("   ★%s の名乗り %d 種類 ≠ 実際の %d 種類" % (rel, n, len(on_page)))
+            else:
+                print("   %s の名乗り %d 種類 = 実際 と一致" % (rel, n))
+        # ★毎回「1ずらすと鳴るか」を確かめる(2026-09-04 未明の申し送り)。
+        #   数が合っていることだけを見ていると、**読んでいる場所がそもそも違っても
+        #   通ってしまう**(9/4 未明に色指定の中の数字を拾っていた実例がある)。
+        if seen:
+            bumped = CLAIM_RE.sub(lambda m: (m.group(0).replace(
+                m.group(1) or m.group(2), str(len(on_page) + 1), 1)), card, count=1)
+            hit = [int(x.group(1) or x.group(2)) for x in CLAIM_RE.finditer(bumped)]
+            if len(on_page) + 1 not in hit:
+                ok = False
+                print("   ★%s: 数を1ずらしても読み取りが変わらない(見ている場所が違う)" % rel)
+    if seen == 0:
+        print("   ⚠ どの一覧ページも種類の数を名乗っていません(名乗るなら %d)" % len(on_page))
+    sw.check("[7] 名乗っている種類の数", skipped=0, total=max(len(on_page), 1))
+    return ok
+
+
 # ---------------------------------------------------------------- [4] eachClass 回帰検査
 def check_each_class(pg, sw, trials):
     configs = [
@@ -348,6 +424,7 @@ def main():
         results.append(check_pitfalls(pg, sw))
         results.append(check_each_class(pg, sw, trials=3000))
         results.append(check_self_check(pg))
+        results.append(check_kind_count(text, page, sw))
         br.close()
 
     print("\nページの実行時エラー:", len(errors))

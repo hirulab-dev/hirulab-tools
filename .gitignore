@@ -6,3 +6,6 @@ tools/tests/qr-reference.json
 # わざと壊した道具なので、公開に混ざると実害が出る。
 # (git_push_tools.py は `git add -A` するので、無視指定が無いと入る)
 _sabotage_*.html
+
+# SkipWatch がその場で作る基準ファイル(手元の実行環境ごとに違うので公開しない)
+tools/tests/skip-baseline.json

@@ -44,6 +44,16 @@ def extract_qr_module(path):
 
 def main():
     js = extract_qr_module(HTML)
+    # 参照データ(660KB)は git に入れていないので、無いときは**何をすればよいかを言う**。
+    # ⚠ 2026-09-04 昼に公開側で実際に回したら、ここが生の FileNotFoundError で落ちていた。
+    #   読む人にとっては「公開されている検証が動かない」に見える(手順は README にあるのに)。
+    if not os.path.exists(REF):
+        raise SystemExit(
+            "参照データが無い: %s\n"
+            "  先に `python %s/make_qr_reference.py` を回してください"
+            "(660KB あるので git には入れていません)。\n"
+            "  別の場所に置いてあるなら環境変数 QR_REF でパスを渡せます。"
+            % (REF, os.path.basename(HERE)))
     ref = json.load(open(REF, encoding="utf-8"))
 
     runner = js + """
