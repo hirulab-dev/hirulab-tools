@@ -322,7 +322,7 @@ def check_all(page, cases, cps, lang, label):
     # --- 符号位置を1つずつ(範囲の境目を必ず含む) ---
     got = page.evaluate(CALL_CP, cps)
     diffs = []
-    for cp, g in zip(cps, got):
+    for cp, g in zip(cps, got, strict=True):
         w = ref_weight(chr(cp))
         if g == w:
             n["cp"] += 1

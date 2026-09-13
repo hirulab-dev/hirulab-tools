@@ -404,7 +404,7 @@ def check_all(page, cases, lang, tol):
 
     # --- (1) 比: 道具の contrast() vs Python の参照 ------------------------
     got = page.evaluate(CALL_RATIO, [[list(f), list(b)] for f, b in cases])
-    for (f, b), g in zip(cases, got):
+    for (f, b), g in zip(cases, got, strict=True):
         want = ratio(f, b)
         if abs(g - want) > 1e-9:
             fails.append("比が違う %s on %s: 道具 %.6f / 参照 %.6f" % (to_hex(f), to_hex(b), g, want))
@@ -414,7 +414,7 @@ def check_all(page, cases, lang, tol):
     # --- (3) APCA: 道具の apca() vs Python の参照 --------------------------
     got = page.evaluate(CALL_APCA, [[list(f), list(b)] for f, b in cases])
     tiny_bad = []
-    for (f, b), g in zip(cases, got):
+    for (f, b), g in zip(cases, got, strict=True):
         want = apca(f, b)
         if abs(g - want) > 1e-9:
             fails.append("APCA が違う %s on %s: 道具 %.4f / 参照 %.4f" % (to_hex(f), to_hex(b), g, want))
@@ -435,7 +435,7 @@ def check_all(page, cases, lang, tol):
             sim_in.append([list(f), kind])
             sim_in.append([list(b), kind])
     got = page.evaluate(CALL_SIM, sim_in)
-    for (rgb, kind), out in zip([(tuple(c), k) for c, k in sim_in], got):
+    for (rgb, kind), out in zip([(tuple(c), k) for c, k in sim_in], got, strict=True):
         out = tuple(out)
         if kind == "normal":
             if out != tuple(rgb):
@@ -474,8 +474,8 @@ def check_all(page, cases, lang, tol):
             for kind in SIM_KINDS[1:]:
                 once_out.append((rgb, kind))
     first = page.evaluate(CALL_SIM, [[list(r), k] for r, k in once_out])
-    second = page.evaluate(CALL_SIM, [[list(v), k] for v, (_, k) in zip(first, once_out)])
-    for (rgb, kind), a, b2 in zip(once_out, first, second):
+    second = page.evaluate(CALL_SIM, [[list(v), k] for v, (_, k) in zip(first, once_out, strict=True)])
+    for (rgb, kind), a, b2 in zip(once_out, first, second, strict=True):
         if max(abs(x - y) for x, y in zip(a, b2)) > 1:
             fails.append("2回かけると変わる(%s) %s: 1回 %s / 2回 %s"
                          % (kind, to_hex(rgb), to_hex(a), to_hex(b2)))
@@ -493,7 +493,7 @@ def check_all(page, cases, lang, tol):
             return False
         return t is None or tuple(t) == rgb_of(c)
 
-    for s, t, c in zip(PARSE_CASES, tool, css):
+    for s, t, c in zip(PARSE_CASES, tool, css, strict=True):
         if same_as_browser(t, c):
             n["parse"] += 1
         elif s in KNOWN_PARSE_DIFFS:

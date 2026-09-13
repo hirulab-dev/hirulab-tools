@@ -518,7 +518,7 @@ def main():
             # [1] 分解 vs Headers
             got = pg.evaluate(JS_PARSE, blocks)
             bad1, skip1, n1 = [], 0, 0
-            for pairs, g in zip(blocks, got):
+            for pairs, g in zip(blocks, got, strict=True):
                 if g["threw"] or g["theirs"] is None:
                     skip1 += 1                       # ブラウザ側が受け付けなかった束は比べようがない
                     continue
@@ -539,7 +539,7 @@ def main():
             # [2] 受け付ける/拒む
             gotv = pg.evaluate(JS_VALID, valids)
             bad2, bad2b, gap2 = [], [], 0
-            for pair, g in zip(valids, gotv):
+            for pair, g in zip(valids, gotv, strict=True):
                 want_rfc, want_fetch = rfc_reject(pair[0], pair[1]), fetch_reject(pair[0], pair[1])
                 if g["we"] != want_rfc:
                     bad2.append((pair, g["we"], want_rfc))
@@ -562,7 +562,7 @@ def main():
             # [3] 日付
             gotd = pg.evaluate(JS_DATE, dates)
             bad3, skip3, n3, lenient = [], 0, 0, 0
-            for s, mine in zip(dates, gotd):
+            for s, mine in zip(dates, gotd, strict=True):
                 try:
                     dt = email.utils.parsedate_to_datetime(s)
                 except (TypeError, ValueError):
@@ -595,7 +595,7 @@ def main():
             gott = pg.evaluate(JS_DATE, two_digit)
             agree, differ, wrong = 0, 0, []
             now_year = datetime.datetime.now(datetime.timezone.utc).year
-            for s, mine in zip(two_digit, gott):
+            for s, mine in zip(two_digit, gott, strict=True):
                 yy = int(s.split("-")[2].split(" ")[0])
                 rfc_year = 2000 + yy - (100 if (2000 + yy) - now_year > 50 else 0)
                 py = email.utils.parsedate_to_datetime(s)
@@ -622,7 +622,7 @@ def main():
             # [4] Set-Cookie
             gotc = pg.evaluate(JS_COOKIE, cookies)
             bad4, skip4, n4 = [], 0, 0
-            for s, mine in zip(cookies, gotc):
+            for s, mine in zip(cookies, gotc, strict=True):
                 sc = http.cookies.SimpleCookie()
                 try:
                     sc.load(s)
@@ -654,7 +654,7 @@ def main():
             # [5] Content-Type
             gotct = pg.evaluate(JS_CT, ctypes)
             bad5 = []
-            for s, mine in zip(ctypes, gotct):
+            for s, mine in zip(ctypes, gotct, strict=True):
                 msg = email.message.EmailMessage()
                 msg["Content-Type"] = s
                 want_type = msg.get_content_type()
@@ -673,7 +673,7 @@ def main():
             # [6] キャッシュの寿命
             gotk = pg.evaluate(JS_CACHE, caches)
             bad6 = []
-            for c, mine in zip(caches, gotk):
+            for c, mine in zip(caches, gotk, strict=True):
                 want = c[2]
                 if mine["store"] != want["store"] or (want["store"] and mine["lifetime"] != want["lifetime"]):
                     bad6.append((c[0].replace("\n", " / "), c[1], mine, want))

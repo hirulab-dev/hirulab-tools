@@ -86,7 +86,7 @@ def check_entropy(pg, sw):
         "(cs) => cs.map(([n, L]) => entropyBits(n, L))", [list(c) for c in combos]
     )
     bad = []
-    for (n, L), g in zip(combos, got):
+    for (n, L), g in zip(combos, got, strict=True):
         want = L * math.log2(n)
         if abs(g - want) > 1e-6:
             bad.append((n, L, g, want))
@@ -112,7 +112,7 @@ def check_pvalue_approx(pg, sw):
     )
     errs = []
     agree = 0
-    for (chi2, df), p_approx in zip(pairs, got):
+    for (chi2, df), p_approx in zip(pairs, got, strict=True):
         p_exact = float(stats.chi2.sf(chi2, df))
         errs.append(abs(p_approx - p_exact))
         # 実用上の判定(有意/非有意)が0.01と0.05のしきい値で一致するかも見る
@@ -241,7 +241,7 @@ def check_pitfalls(pg, sw):
         "(pws) => pws.map(pw => detectPitfalls(pw, {}).map(n => n.code))", pw_list
     )
     bad = []
-    for (pw, want_code), codes in zip(PITFALL_CASES, results):
+    for (pw, want_code), codes in zip(PITFALL_CASES, results, strict=True):
         if want_code not in codes:
             bad.append((pw, want_code, codes))
     print("[3] 落とし穴の名指し: %d/%d 一致" % (len(PITFALL_CASES) - len(bad), len(PITFALL_CASES)))

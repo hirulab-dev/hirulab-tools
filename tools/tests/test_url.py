@@ -492,7 +492,7 @@ def main():
 
             got = pg.evaluate(JS_PUNY, [labels])
             puny_bad, puny_skip = [], 0
-            for lab, mine in zip(labels, got):
+            for lab, mine in zip(labels, got, strict=True):
                 try:
                     want = lab.encode("punycode").decode("ascii")
                 except Exception:
@@ -509,7 +509,7 @@ def main():
 
             gotq = pg.evaluate(JS_QUERY, [queries])
             q_bad, q_skip, q_n = [], 0, 0
-            for q, mine in zip(queries, gotq):
+            for q, mine in zip(queries, gotq, strict=True):
                 if mine is None:
                     q_skip += 1
                     continue

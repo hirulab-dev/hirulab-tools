@@ -145,7 +145,7 @@ def run(url):
                 return out;
             }""")
 
-            for (name, w, h, alpha), got in zip(SOURCES, outs):
+            for (name, w, h, alpha), got in zip(SOURCES, outs, strict=True):
                 label = "%s %s=%s %s q=%s" % (name, mode, n, fmt.split("/")[1], q)
                 if got is None:
                     notes.append("!! 出力が無い: " + label); bad += 1; continue

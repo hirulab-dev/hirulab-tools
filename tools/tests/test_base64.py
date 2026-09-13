@@ -375,7 +375,7 @@ def main():
             dec_got = pg.evaluate(JS_DECODE, strs)
 
             bad_enc, bad_dec, skip1 = [], [], 0
-            for c, want_s, got_s, got_d in zip(b64_cases, strs, enc_got, dec_got):
+            for c, want_s, got_s, got_d in zip(b64_cases, strs, enc_got, dec_got, strict=True):
                 if got_s != want_s:
                     bad_enc.append((c["alpha"], c["pad"], len(c["bytes"]), want_s, got_s))
                 try:
@@ -401,7 +401,7 @@ def main():
             urls = [u for u, _d, _m in du_cases]
             du_got = pg.evaluate(JS_ANALYZE, urls)
             bad2, skip2, n2 = [], 0, 0
-            for (url, want_bytes, want_mime), g in zip(du_cases, du_got):
+            for (url, want_bytes, want_mime), g in zip(du_cases, du_got, strict=True):
                 try:
                     py_bytes, py_mime = py_dataurl(url)
                 except Exception:
@@ -432,7 +432,7 @@ def main():
                           for b, _m, _n in files]
                 k_got = pg.evaluate(JS_ANALYZE, inputs)
                 bad3 = []
-                for (raw, want_mime, name), g in zip(files, k_got):
+                for (raw, want_mime, name), g in zip(files, k_got, strict=True):
                     if g.get("threw") or g.get("kindMime") != want_mime:
                         bad3.append((name, want_mime, g.get("kindMime")))
                     elif bytes(g["bytes"]) != raw:
@@ -448,7 +448,7 @@ def main():
             # ------------------------------------------------ [4] 落とし穴の名指し
             p_got = pg.evaluate(JS_ANALYZE, [src for _c, _d, src in pits])
             miss = []
-            for (code, desc, _src), g in zip(pits, p_got):
+            for (code, desc, _src), g in zip(pits, p_got, strict=True):
                 if g.get("threw") or code not in (g.get("codes") or []):
                     miss.append((code, desc, (g.get("codes") or [])[:4]))
             print("  [4] 落とし穴の名指し: %d/%d" % (len(pits) - len(miss), len(pits)))

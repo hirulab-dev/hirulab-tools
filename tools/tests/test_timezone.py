@@ -197,7 +197,7 @@ def main():
                      const p = tzParts(zone, ms);
                      return [tzOffsetSec(zone, ms), p.y, p.mo, p.d, p.h, p.mi, p.s];
                    })""", [zone, stamps])
-            for ms, g in zip(stamps, got):
+            for ms, g in zip(stamps, got, strict=True):
                 counts["A"] += 1
                 want = py_offset_and_wall(zone, ms)
                 if tuple(g) != want:
@@ -222,7 +222,7 @@ def main():
                                   "h": d.hour, "mi": d.minute, "s": 0})
             got = page.evaluate(
                 "([zone, list]) => list.map(w => wallToInstants(zone, w))", [zone, walls])
-            for w, g in zip(walls, got):
+            for w, g in zip(walls, got, strict=True):
                 counts["B"] += 1
                 want = py_wall_to_instants(zone, w)
                 if [int(x) for x in g] != want:

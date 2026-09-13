@@ -132,7 +132,7 @@ def check_nudge(page, cases):
 
     n_ok = n_null = 0
     bad_ratio, bad_hue, bad_null, bad_minimal = [], [], [], []
-    for (col, fg, need), res in zip(cases, results):
+    for (col, fg, need), res in zip(cases, results, strict=True):
         if res is None or res[2]:            # null か、上限を超えて寄せなかった
             n_null += 1
             reach, nearest = best_possible(col, fg, need)
@@ -233,7 +233,7 @@ def check_badge_boundary(page):
         for bg, fg, r in boundary_pairs(need):
             cases.append((bg, fg, need, r))
     got = page.evaluate(CALL_BADGE, [[c[0], c[1], c[2]] for c in cases])
-    for (bg, fg, need, r), html in zip(cases, got):
+    for (bg, fg, need, r), html in zip(cases, got, strict=True):
         m = re.search(r">\s*([○×])\s+([\d.]+)<", html)
         if not m:
             fails.append("バッジが読めない %r" % html)

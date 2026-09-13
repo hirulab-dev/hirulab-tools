@@ -777,7 +777,7 @@ def main():
             # ---------------- [1] 分解 vs Python
             got = pg.evaluate(JS_PARSE, [{"t": t, "now": now_ms} for t in tokens])
             bad1, skip1, n1 = [], 0, 0
-            for t, g in zip(tokens, got):
+            for t, g in zip(tokens, got, strict=True):
                 h, p, _s = t.split(".")
                 try:
                     ph = json.loads(b64u_dec(h).decode("utf-8"))
@@ -805,7 +805,7 @@ def main():
             segs = seg_cases()
             gotb = pg.evaluate(JS_SEG, [s for _lbl, s in segs])
             badb, badslack = [], []
-            for (lbl, s), g in zip(segs, gotb):
+            for (lbl, s), g in zip(segs, gotb, strict=True):
                 want = py_seg(s)
                 if g["stage"] != want["stage"]:
                     badb.append((lbl, s, g["stage"], want["stage"]))
@@ -831,7 +831,7 @@ def main():
             # ---------------- [2] クレームの判定 vs PyJWT
             got2 = pg.evaluate(JS_PARSE, [{"t": c["t"], "now": now_ms} for c in claim_cases])
             bad2, n2 = [], 0
-            for c, g in zip(claim_cases, got2):
+            for c, g in zip(claim_cases, got2, strict=True):
                 want = pyjwt_verdict(c)
                 if want.startswith("other:"):
                     continue
@@ -856,7 +856,7 @@ def main():
             # ---------------- [3] 署名の検証 vs Python
             got3 = pg.evaluate(JS_VERIFY, [{"t": c[1], "key": c[2]} for c in sig_cases])
             bad3 = []
-            for c, g in zip(sig_cases, got3):
+            for c, g in zip(sig_cases, got3, strict=True):
                 want = c[3]
                 if g is not want:
                     bad3.append((c[0], g, want))
@@ -879,7 +879,7 @@ def main():
             got4 = pg.evaluate(JS_PARSE, [{"t": c["t"], "now": now_ms} for c in enc_cases])
             strict_reject = impl_reject = both = named = 0
             bad4 = []
-            for c, g in zip(enc_cases, got4):
+            for c, g in zip(enc_cases, got4, strict=True):
                 parts = c["t"].split(".")
                 sr = any(rfc_strict_reject(x) for x in parts)
                 ir = pyjwt_reject(c["t"])
@@ -904,7 +904,7 @@ def main():
             # ---------------- [5] 落とし穴の名指し
             got5 = pg.evaluate(JS_PARSE, [{"t": t, "now": now_ms} for _c, t in pits])
             bad5 = []
-            for (code, tok), g in zip(pits, got5):
+            for (code, tok), g in zip(pits, got5, strict=True):
                 codes = set(g["notes"] or [])
                 if code not in codes:
                     bad5.append((code, sorted(codes)[:8]))
