@@ -81,13 +81,48 @@ from PIL import Image, ImageChops
 
 REPO = os.path.join(os.path.expanduser("~"), "hirulab-tools")
 DOCS = os.path.join(REPO, "docs")
-sys.path.insert(0, os.path.join(REPO, "tools"))
+
+# ★2026-09-14 夕: **原本(`lab/assets/`)を先に探す**ように直した。
+#   それまでは公開リポジトリ側のミラー(`~/hirulab-tools/tools/`)を無条件に読んでいたので、
+#   **原本の表を直して画像を作り直すと、古い表と新しい画像を比べて「副題が表と違う」と出た**
+#   (2026-09-04 の申し送り。踏んだ当人が「先に `sync_tools_mirror.py` を回すこと」と
+#    書いて閉じたが、**手順を増やすのは直したことにならない**ので、読む側を原本に寄せる)。
+#   探す順は `make_ogp._find_out_dir()` と同じ「実在から選ぶ」形。公開側に写した現物は
+#   `lab/assets/` が無いので (2) に落ちる = **同じファイルのまま両方で動く**
+#   (2026-09-03未明 `check_en_parity` / 09-04朝 `test_char_counter` と同じ縛り)。
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIRS = [
+    os.path.join(os.path.dirname(_HERE), "assets"),   # (1) 原本 lab/assets/
+    _HERE,                                            # (2) 公開側に写したときの隣
+    os.path.join(REPO, "tools"),                      # (3) 従来の既定
+]
+
+
+def _pick(name):
+    """`name` を (1)→(3) の順に探し、**選んだ場所と、選ばなかった写しとの異同を返す**。
+
+    ⚠ 黙って選ばない。どこから読んだかを画面に出す(タイムゾーンの自己診断と同じ手)。
+    原本と写しが**食い違っていたら ★** — 9/3夕の「両者を比べる者がいない」は
+    `sync_tools_mirror` が対象に足して塞がったが、あれは**回したときだけ**の見張りなので、
+    実際に読む側でも同じことを言えるようにしておく。
+    """
+    found = [d for d in _SRC_DIRS if os.path.isfile(os.path.join(d, name))]
+    if not found:
+        sys.exit("× %s がどこにも無い(探した: %s)" % (name, " / ".join(_SRC_DIRS)))
+    head = open(os.path.join(found[0], name), "rb").read()
+    others = [d for d in found[1:]
+              if open(os.path.join(d, name), "rb").read() != head]
+    return found[0], others
+
+
+_ogp_src = []
+for _name in ("make_ogp.py", "regen_ogp.py"):
+    _d, _diff = _pick(_name)
+    _ogp_src.append((_name, _d, _diff))
+sys.path.insert(0, _ogp_src[1][1])
+sys.path.insert(0, _ogp_src[0][1])
 import make_ogp  # noqa: E402  (パスを通してから)
 import regen_ogp  # noqa: E402  (副題の候補はここの表しか出どころが無い)
-# ⚠ この `regen_ogp` は**公開リポジトリ側のミラー**(`~/hirulab-tools/tools/`)。
-#   見ている画像もページも公開側なので揃ってはいるが、**原本(`lab/assets/`)を直した直後は
-#   `sync_tools_mirror.py` を回してから**でないと古い表と比べることになる
-#   (2026-09-04 に実際に踏んだ。表を直したのに「副題が表と違う」と出た)。
 
 # 題を描く領域。make_ogp の x=88 / max_w=740 / y0=128 と、フラスコの左端(cx=1005-152=853)から。
 TITLE_X0, TITLE_X1 = 80, 840
@@ -507,6 +542,14 @@ def main():
         return sabotage(a.docs, bg)
 
     problems = []
+    # ★ どの表を読んだかを毎回名乗る。黙って選ぶと、次に踏んだ人がまた「表と違う」を疑う
+    for name, d, diff in _ogp_src:
+        print("表の出どころ: %s ← %s%s"
+              % (name, d, "" if not diff else "  ★写しと中身が違う: " + " / ".join(diff)))
+        for other in diff:
+            problems.append("%s: 原本(%s)と写し(%s)の中身が違う。"
+                            "`python lab/scripts/sync_tools_mirror.py` で揃えること"
+                            % (name, d, other))
     seen_images = set()
     table = subtitle_table()
     n_pages = n_title_ok = n_sub_ok = 0
