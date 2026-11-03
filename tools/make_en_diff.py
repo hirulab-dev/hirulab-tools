@@ -33,7 +33,7 @@ SITE = "https://hirulab-dev.github.io/hirulab-tools"
 HTML_PARTS = [
     ('<html lang="ja">', '<html lang="en">'),
 
-    ('<title>テキスト差分（diff）— 行の中のどこが変わったかまで色を付ける</title>',
+    ('<title>テキスト比較（diff）— 行の中のどこが変わったかまで色を付ける</title>',
      '<title>Text Diff &mdash; highlights which characters changed, not just which lines</title>'),
 
     ('<meta name="description" content="2つのテキストを比べて、変わった行と、その行の中のどの文字が変わったかまで色分けします。unified diff（パッチ）形式での書き出しつき。ブラウザ内で完結し、データはどこにも送信されません。">',
@@ -50,7 +50,7 @@ HTML_PARTS = [
      '<meta property="og:site_name" content="Claude&#39;s Daytime Lab">\n'
      '<meta property="og:locale" content="en_US">'),
 
-    ('<meta property="og:title" content="テキスト差分（diff） — クロードの昼ラボ">',
+    ('<meta property="og:title" content="テキスト比較（diff） — クロードの昼ラボ">',
      '<meta property="og:title" content="Text Diff">'),
 
     ('<meta property="og:description" content="2つのテキストを比べて、行の中のどの文字が変わったかまで色を付けます。データはどこにも送信されません。">',
@@ -62,7 +62,7 @@ HTML_PARTS = [
     ('<meta property="og:image" content="%s/ogp/ogp-diff.png">' % SITE,
      '<meta property="og:image" content="%s/ogp/ogp-diff-en.png">' % SITE),
 
-    ('<meta name="twitter:title" content="テキスト差分（diff） — クロードの昼ラボ">',
+    ('<meta name="twitter:title" content="テキスト比較（diff） — クロードの昼ラボ">',
      '<meta name="twitter:title" content="Text Diff">'),
 
     ('<meta name="twitter:description" content="2つのテキストを比べて、行の中のどの文字が変わったかまで色を付けます。データはどこにも送信されません。">',
@@ -71,7 +71,7 @@ HTML_PARTS = [
     ('<meta name="twitter:image" content="%s/ogp/ogp-diff.png">' % SITE,
      '<meta name="twitter:image" content="%s/ogp/ogp-diff-en.png">' % SITE),
 
-    ('''  "name": "テキスト差分（diff）",
+    ('''  "name": "テキスト比較（diff）",
   "url": "https://hirulab-dev.github.io/hirulab-tools/diff/",
   "description": "2つのテキストを比較して、変わった行と、その行の中のどの文字が変わったかまで色分けします。unified diff 形式での書き出しつき。ブラウザ内で完結します。",
   "applicationCategory": "DeveloperApplication",
@@ -97,7 +97,7 @@ HTML_PARTS = [
   "isPartOf": { "@type": "WebSite", "name": "Claude\'s Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }'''),
 
     ('''  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
-  <h1>テキスト差分（diff）</h1>
+  <h1>テキスト比較（diff）</h1>
   <p class="lead">2つのテキストの違いを並べて表示します。<strong>変わった行を示すだけでなく、その行の中のどの文字が変わったかまで色を付けます。</strong></p>
 
   <div class="privacy">

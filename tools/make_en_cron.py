@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""「cron式の読み下し」の英語版を、日本語版から作る(2026-08-28)。
+"""「cron式チェッカー（読み下し）」の英語版を、日本語版から作る(2026-08-28)。
 
 `make_en_qr.py` / `make_en_base64.py` と同じ方式。**日本語版が唯一の原本**。
 
@@ -45,7 +45,7 @@ HTML_PARTS = [
     ('  /* 色を指定しないとブラウザ既定の青になり、ダークモードで 1.89:1 まで落ちる */',
      '  /* Without a colour this falls back to the browser default blue, which drops to 1.89:1 in dark mode */'),
 
-    ('<title>cron式の読み下し — 日本語の意味・次の実行時刻・落とし穴の検出</title>',
+    ('<title>cron式チェッカー（読み下し） — 日本語の意味・次の実行時刻・落とし穴の検出</title>',
      '<title>Cron Expression Explainer — what it means, when it runs next, what will bite you</title>'),
 
     ('<meta name="description" content="cron式（* * * * *）を日本語に読み下し、次の実行時刻を20件並べ、1年あたりの実行回数と最短・最長の間隔まで出します。「日と曜日を両方書くとORになる」「*/7 は折り返しで間隔が飛ぶ」といった定番の落とし穴を自動で検出します。ブラウザ内で完結し、データはどこにも送信されません。">',
@@ -61,7 +61,7 @@ HTML_PARTS = [
     ('<meta property="og:site_name" content="クロードの昼ラボ">\n<meta property="og:locale" content="ja_JP">',
      '<meta property="og:site_name" content="Claude&#39;s Daytime Lab">\n<meta property="og:locale" content="en_US">'),
 
-    ('<meta property="og:title" content="cron式の読み下し — 日本語の意味・次の実行時刻・落とし穴の検出">',
+    ('<meta property="og:title" content="cron式チェッカー（読み下し） — 日本語の意味・次の実行時刻・落とし穴の検出">',
      '<meta property="og:title" content="Cron Expression Explainer">'),
 
     ('<meta property="og:description" content="cron式を日本語に読み下し、次の実行時刻を20件、1年あたりの実行回数と最短・最長の間隔まで出します。「日と曜日はORになる」等の定番の罠を自動検出。ブラウザ内で完結します。">',
@@ -73,7 +73,7 @@ HTML_PARTS = [
     ('<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-cron.png">',
      '<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-cron-en.png">'),
 
-    ('<meta name="twitter:title" content="cron式の読み下し — 日本語の意味・次の実行時刻・落とし穴の検出">',
+    ('<meta name="twitter:title" content="cron式チェッカー（読み下し） — 日本語の意味・次の実行時刻・落とし穴の検出">',
      '<meta name="twitter:title" content="Cron Expression Explainer">'),
 
     ('<meta name="twitter:description" content="cron式を日本語に読み下し、次の実行時刻と1年あたりの実行回数・最短最長の間隔まで出します。定番の罠を自動検出。ブラウザ内で完結します。">',
@@ -82,7 +82,7 @@ HTML_PARTS = [
     ('<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-cron.png">',
      '<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-cron-en.png">'),
 
-    ('''  "name": "cron式の読み下し",
+    ('''  "name": "cron式チェッカー（読み下し）",
   "url": "https://hirulab-dev.github.io/hirulab-tools/cron/",
   "description": "cron式を日本語に読み下し、次の実行時刻を20件並べ、1年あたりの実行回数と最短・最長の間隔を出します。日と曜日の同時指定がORになる件や、範囲の幅で割り切れないステップで間隔が飛ぶ件などを自動で検出します。ブラウザ内で完結します。",
   "applicationCategory": "DeveloperApplication",
@@ -108,7 +108,7 @@ HTML_PARTS = [
   "isPartOf": { "@type": "WebSite", "name": "Claude\'s Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }'''),
 
     ('''  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
-  <h1>cron式の読み下し</h1>
+  <h1>cron式チェッカー（読み下し）</h1>
   <p class="lead"><code>0 9 * * 1-5</code> のような式を<strong>日本語の文</strong>にして、
     <strong>次の実行時刻</strong>と<strong>1年で何回動くか・間隔は最短何分か</strong>まで出します。
     「日と曜日を両方書くと <strong>かつ</strong> ではなく <strong>または</strong> になる」といった

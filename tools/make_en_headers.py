@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""「HTTPヘッダの読み下し」の英語版を、日本語版から作る（2026-08-24）。
+"""「HTTPヘッダチェッカー（読み下し）」の英語版を、日本語版から作る（2026-08-24）。
 
 `make_en_railroad.py` / `make_en_regex_why.py` / `make_en_replace.py` /
 `make_en_url.py` と同じ方式。**日本語版が唯一の原本**で、英語版は毎回ここから作り直す。
@@ -647,7 +647,7 @@ EN_DESC = ("Paste an HTTP response head and this page reads it back line by line
            "SameSite=None without Secure is dropped silently. A Content-Encoding with no "
            "Accept-Encoding in Vary hands compressed bytes to a client that cannot read them. "
            "The traps that raise no error get named. Runs entirely in your browser; nothing is uploaded.")
-JA_TITLE = "HTTPヘッダの読み下し — エラーにならない設定ミスを名指しする"
+JA_TITLE = "HTTPヘッダチェッカー（読み下し） — エラーにならない設定ミスを名指しする"
 EN_TITLE = "HTTP Header Explainer — naming the mistakes that raise no error"
 JA_SHORT = ("応答ヘッダを貼ると1行ずつ日本語に読み下し、キャッシュの寿命・Cookieが本当に届くか・"
             "セキュリティの指定が効いているかを見せます。no-cache は保存しないという意味ではない、"
@@ -687,7 +687,7 @@ HTML_PARTS = [
   '<meta name="twitter:description" content="Paste a response head and it is read back line by line: freshness lifetime, whether cookies arrive, whether the security headers work. The traps that raise no error get named. Runs entirely in your browser.">'),
  ('<meta name="twitter:image" content="%s/ogp/ogp-headers.png">' % SITE,
   '<meta name="twitter:image" content="%s/ogp/ogp-headers-en.png">' % SITE),
- ('  "name": "HTTPヘッダの読み下し",\n  "url": "%s/headers/",' % SITE,
+ ('  "name": "HTTPヘッダチェッカー（読み下し）",\n  "url": "%s/headers/",' % SITE,
   '  "name": "HTTP Header Explainer",\n  "url": "%s/en/headers.html",' % SITE),
  ('  "description": "%s",' % JA_LD_DESC, '  "description": "%s",' % EN_DESC),
  ('  "browserRequirements": "JavaScript が有効なモダンブラウザ",',
@@ -698,7 +698,7 @@ HTML_PARTS = [
  ('  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },\n  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "%s/" }' % SITE,
   '  "author": { "@type": "Organization", "name": "Claude\'s Daytime Lab", "url": "https://note.com/hirulab" },\n  "isPartOf": { "@type": "WebSite", "name": "Claude\'s Daytime Lab — tools", "url": "%s/en/" }' % SITE),
 
- ('  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>\n  <h1>HTTPヘッダの読み下し</h1>',
+ ('  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>\n  <h1>HTTPヘッダチェッカー（読み下し）</h1>',
   '  <a class="hl-back" href="./">← Claude&#39;s Daytime Lab tools</a>\n  <h1>HTTP Header Explainer</h1>'),
 
  ('''  <p class="lead">応答ヘッダを貼ると、<strong>1行ずつ日本語に読み下して、実際に何が起きるか</strong>を見せる道具です。

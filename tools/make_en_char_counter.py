@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""「文字数カウンタ」の英語版を、日本語版から作る(2026-09-03 朝)。
+"""「文字数カウンター」の英語版を、日本語版から作る(2026-09-03 朝)。
 
 **手書きの英語版を生成に置き換えた4本目**(palette 9/1 → csv 9/1 → regex-tester 9/2 → これ)。
 残る手書きは `timezone` の1本。
@@ -49,7 +49,7 @@ OGP = BASE + "ogp/ogp-en-char-counter.png"
 HTML_PARTS = [
     ('<html lang="ja">', '<html lang="en">'),
 
-    ('<title>文字数カウンタ — X換算・原稿用紙換算つき</title>',
+    ('<title>文字数カウンター — X換算・原稿用紙換算つき</title>',
      '<title>Character Counter &mdash; with X (Twitter) weighted count</title>'),
 
     ('<meta name="description" content="文字数・単語数・行数に加え、X(旧Twitter)の重み付きカウントや原稿用紙換算まで一目でわかる。AI(Claude)が作ったブラウザ完結ツール。データは送信されません。">',
@@ -67,7 +67,7 @@ HTML_PARTS = [
     ('<meta property="og:locale" content="ja_JP">',
      '<meta property="og:locale" content="en_US">'),
 
-    ('<meta property="og:title" content="文字数カウンタ — クロードの昼ラボ">',
+    ('<meta property="og:title" content="文字数カウンター — クロードの昼ラボ">',
      '<meta property="og:title" content="Character Counter &mdash; words, reading time and X weighted count">'),
     ('<meta property="og:description" content="文字数・行数・段落数を数えます。Xの重み付きカウント、原稿用紙換算、読了時間の目安つき。">',
      '<meta property="og:description" content="Characters, words, reading time, and the weighted count X actually uses &mdash; CJK rules included.">'),
@@ -76,7 +76,7 @@ HTML_PARTS = [
     ('<meta property="og:image" content="%sogp/ogp-char-counter.png">' % BASE,
      '<meta property="og:image" content="%s">' % OGP),
 
-    ('<meta name="twitter:title" content="文字数カウンタ — クロードの昼ラボ">',
+    ('<meta name="twitter:title" content="文字数カウンター — クロードの昼ラボ">',
      '<meta name="twitter:title" content="Character Counter &mdash; words, reading time and X weighted count">'),
     ('<meta name="twitter:description" content="文字数・行数・段落数を数えます。Xの重み付きカウント、原稿用紙換算、読了時間の目安つき。">',
      '<meta name="twitter:description" content="Characters, words, reading time, and the weighted count X actually uses &mdash; CJK rules included.">'),
@@ -85,7 +85,7 @@ HTML_PARTS = [
 
     # JSON-LD。⚠ `<script>` の中は生テキストなので**実体参照を書かない**
     #   (2026-09-02 昼に英語12ページで `Claude&#39;s` がそのまま構造化データに渡っていた)
-    ('  "name": "文字数カウンタ",', '  "name": "Character Counter",'),
+    ('  "name": "文字数カウンター",', '  "name": "Character Counter",'),
     ('  "url": "%schar-counter/",' % BASE, '  "url": "%sen/char-counter.html",' % BASE),
     ('  "description": "文字数・行数・段落数に加えて、Xの重み付きカウント・原稿用紙換算・読了時間を出します。",',
      '  "description": "Characters, words, reading time, and the weighted count X actually uses — CJK rules included.",'),
@@ -106,7 +106,7 @@ HTML_PARTS = [
     # 本文
     ('  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>',
      '  <a class="hl-back" href="./">← Claude&#39;s Daytime Lab — Tools</a>'),
-    ('  <h1>文字数カウンタ</h1>', '  <h1>Character Counter</h1>'),
+    ('  <h1>文字数カウンター</h1>', '  <h1>Character Counter</h1>'),
     ('  <div class="tagline">貼るだけで、文字数・X(旧Twitter)換算・原稿用紙換算まで一目で。すべてブラウザ内で完結し、入力した文章はどこにも送信されません。</div>',
      '  <div class="tagline">Paste your text and get every count at a glance &mdash; including the weighted count X (Twitter) actually uses. Everything runs inside your browser; your text is never sent anywhere.</div>'),
     ('<textarea id="src" placeholder="ここに文章を貼り付け(または入力)" spellcheck="false"></textarea>',

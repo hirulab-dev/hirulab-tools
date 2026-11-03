@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JWTの読み下し — 中身は暗号化されていない、を目で見る道具</title>
+<title>JWTデコード（読み下し） — 中身は暗号化されていない、を目で見る道具</title>
 <meta name="description" content="JWT（JSON Web Token）を貼ると、3つの部分に分けて1つずつ日本語に読み下し、有効期限がいつ切れるか・署名が本当に正しいか・危ない書き方をしていないかを見せる道具です。exp をミリ秒で入れて数万年先になっている、alg が none、ペイロードにパスワードが入っている、ES256 の署名が DER 形式になっている、といった「エラーにならないので気づけない」ところを名指しします。ブラウザ内で完結し、貼ったトークンはどこにも送信されません。">
 <style>
   :root {
@@ -148,21 +148,21 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="クロードの昼ラボ">
 <meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="JWTの読み下し — 中身は暗号化されていない、を目で見る道具">
+<meta property="og:title" content="JWTデコード（読み下し） — 中身は暗号化されていない、を目で見る道具">
 <meta property="og:description" content="JWTを貼ると3つの部分に分けて読み下し、期限がいつ切れるか・署名が正しいか・危ない書き方をしていないかを見せます。exp をミリ秒で入れて数万年先、alg が none、ペイロードにパスワード。エラーにならない落とし穴を57種類、名指しします。">
 <meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/jwt/">
 <meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-jwt.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="JWTの読み下し — 中身は暗号化されていない、を目で見る道具">
+<meta name="twitter:title" content="JWTデコード（読み下し） — 中身は暗号化されていない、を目で見る道具">
 <meta name="twitter:description" content="JWTを3つの部分に分けて読み下し、期限・署名・危ない書き方を見せます。エラーにならない落とし穴を57種類、名指しします。貼ったトークンはどこにも送信されません。">
 <meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-jwt.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "JWTの読み下し",
+  "name": "JWTデコード（読み下し）",
   "url": "https://hirulab-dev.github.io/hirulab-tools/jwt/",
   "description": "JWT（JSON Web Token）を貼ると、3つの部分に分けて1つずつ日本語に読み下し、有効期限がいつ切れるか・署名が本当に正しいか・危ない書き方をしていないかを見せる道具です。exp をミリ秒で入れて数万年先になっている、alg が none、ペイロードにパスワードが入っている、ES256 の署名が DER 形式になっている、といった「エラーにならないので気づけない」ところを名指しします。ブラウザ内で完結し、貼ったトークンはどこにも送信されません。",
   "applicationCategory": "DeveloperApplication",
@@ -181,7 +181,7 @@
 <div class="wrap">
 
   <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
-  <h1>JWTの読み下し</h1>
+  <h1>JWTデコード（読み下し）</h1>
   <p class="lead">JWT を貼ると、<strong>3つの部分に分けて1つずつ日本語に読み下し、実際に何が起きるか</strong>を見せる道具です。
     JWT でいちばん多い誤解は<strong>「中身は暗号化されている」</strong>で、実際は
     <strong>base64 で書いてあるだけ</strong>です。誰でも読めます。
@@ -283,29 +283,29 @@
   <nav class="hl-nav">
     <h2>ほかの道具</h2>
     <ul>
-      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../regex/">正規表現テスター</a></li>
       <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
-      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
-      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
+      <li><a href="../railroad/">正規表現の可視化（鉄道図）</a></li>
+      <li><a href="../replace/">正規表現 置換テスター</a></li>
       <li><a href="../url/">URLの分解・組み立て</a></li>
-      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
-      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../headers/">HTTPヘッダチェッカー（読み下し）</a></li>
+      <li><a href="../char-counter/">文字数カウンター</a></li>
       <li><a href="../contrast/">コントラスト比チェッカー</a></li>
       <li><a href="../date/">日付計算機</a></li>
       <li><a href="../image/">画像リサイズ・圧縮</a></li>
       <li><a href="../take-home/">手取り計算機</a></li>
       <li><a href="../json/">JSON整形・検証</a></li>
-      <li><a href="../diff/">テキスト差分（diff）</a></li>
+      <li><a href="../diff/">テキスト比較（diff）</a></li>
       <li><a href="../unit/">単位換算</a></li>
       <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
       <li><a href="../qr/">QRコード作成</a></li>
       <li><a href="../palette/">カラーパレット生成</a></li>
       <li><a href="../frima-profit/">フリマ利益計算機</a></li>
-      <li><a href="../cron/">cron式の読み下し</a></li>
+      <li><a href="../cron/">cron式チェッカー（読み下し）</a></li>
       <li><a href="../tz/">タイムゾーン変換</a></li>
-      <li><a href="../csv/">CSVプレビュー・診断</a></li>
+      <li><a href="../csv/">CSV文字コード変換・診断</a></li>
       <li><a href="../password/">パスワード生成・強度診断</a></li>
-      <li><a href="../base64/">Base64・データURLの分解</a></li>
+      <li><a href="../base64/">Base64デコード・データURLの分解</a></li>
       <li><a href="../pattern/">和柄シームレスパターン作成</a></li>
       <li><a href="../en/jwt.html">English version</a></li>
     </ul>

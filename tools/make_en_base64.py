@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""「Base64・データURLの分解」の英語版を、日本語版から作る(2026-08-27)。
+"""「Base64デコード・データURLの分解」の英語版を、日本語版から作る(2026-08-27)。
 
 `make_en_railroad.py` 以降と同じ方式。**日本語版が唯一の原本**で、英語版は毎回ここから作り直す。
 
@@ -47,7 +47,7 @@ SITE = "https://hirulab-dev.github.io/hirulab-tools"
 HTML_PARTS = [
     ('<html lang="ja">', '<html lang="en">'),
 
-    ('<title>Base64・データURLの分解 — 宣言と中身が合っているか確かめる道具</title>',
+    ('<title>Base64デコード・データURLの分解 — 宣言と中身が合っているか確かめる道具</title>',
      '<title>Base64 &amp; Data URL Explainer — check that the declaration matches the content</title>'),
 
     ('<meta name="description" content="Base64の文字列やデータURL(data:...)を貼ると、部品に分けて中身を読み下します。差別化点は「エラーにならないので気づけない」ところを名指しすること — 宣言したMIMEと中身のマジックナンバーの食い違い、余ったビットが0でないbase64(別の文字列が同じバイト列に戻る)、;base64を書き忘れて文字列として解釈されている、非base64のデータURLで+が空白にならない、など。復号は自前実装で、読み込みのたびにブラウザのatobと突き合わせます。ブラウザ内で完結し、通信は一切行いません。">',
@@ -63,7 +63,7 @@ HTML_PARTS = [
     ('<meta property="og:site_name" content="クロードの昼ラボ">\n<meta property="og:locale" content="ja_JP">',
      '<meta property="og:site_name" content="Claude&#39;s Daytime Lab">\n<meta property="og:locale" content="en_US">'),
 
-    ('<meta property="og:title" content="Base64・データURLの分解 — 宣言と中身が合っているか確かめる道具">',
+    ('<meta property="og:title" content="Base64デコード・データURLの分解 — 宣言と中身が合っているか確かめる道具">',
      '<meta property="og:title" content="Base64 &amp; Data URL Explainer — check that the declaration matches the content">'),
 
     ('<meta property="og:description" content="Base64やデータURLを部品に分けて読み下します。宣言したMIMEと中身の食い違い、余ったビットが0でないbase64、;base64の書き忘れなど、エラーにならないので気づけないところを名指しします。通信は一切行いません。">',
@@ -75,7 +75,7 @@ HTML_PARTS = [
     ('<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-base64.png">',
      '<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-base64-en.png">'),
 
-    ('<meta name="twitter:title" content="Base64・データURLの分解 — 宣言と中身が合っているか確かめる道具">',
+    ('<meta name="twitter:title" content="Base64デコード・データURLの分解 — 宣言と中身が合っているか確かめる道具">',
      '<meta name="twitter:title" content="Base64 &amp; Data URL Explainer — check that the declaration matches the content">'),
 
     ('<meta name="twitter:description" content="宣言したMIMEと中身のマジックナンバーの食い違い、余ったビットが0でないbase64など、エラーにならないので気づけないところを名指しします。通信は一切行いません。">',
@@ -84,7 +84,7 @@ HTML_PARTS = [
     ('<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-base64.png">',
      '<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-base64-en.png">'),
 
-    ('''  "name": "Base64・データURLの分解",
+    ('''  "name": "Base64デコード・データURLの分解",
   "url": "https://hirulab-dev.github.io/hirulab-tools/base64/",
   "description": "Base64の文字列やデータURL(data:...)を部品に分けて読み下す道具です。宣言されたMIMEと中身のマジックナンバーの食い違い、余ったビットが0でないbase64(別の文字列が同じバイト列に戻る)、;base64の書き忘れ、非base64のデータURLでのプラス記号の扱いなど、エラーにならないので気づけないところを名指しします。復号は自前実装で、読み込みのたびにブラウザのatobと突き合わせます。ブラウザ内で完結し、入力はどこにも送信されません。",
   "applicationCategory": "DeveloperApplication",
@@ -109,7 +109,7 @@ HTML_PARTS = [
   "author": { "@type": "Organization", "name": "Claude's Daytime Lab", "url": "https://note.com/hirulab" },
   "isPartOf": { "@type": "WebSite", "name": "Claude's Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }'''),
 
-    ('  <a class="hl-back" href="../">&larr; クロードの昼ラボ 道具箱</a>\n  <h1>Base64・データURLの分解</h1>',
+    ('  <a class="hl-back" href="../">&larr; クロードの昼ラボ 道具箱</a>\n  <h1>Base64デコード・データURLの分解</h1>',
      '  <a class="hl-back" href="./">&larr; Claude&#39;s Daytime Lab &mdash; tools</a>\n  <h1>Base64 &amp; Data URL Explainer</h1>'),
 
     ('''  <p class="lead">Base64 の文字列や <code>data:</code> で始まるデータURLを貼ると、部品に分けて中身を読み下します。
@@ -310,7 +310,7 @@ EN_NAV = '''  <nav class="hl-nav">
 # ★2026-09-03 夜 追加(コメントも訳す)。⚠ 訳は行数を変えない・訳の中に日本語を書かない。
 COMMENTS = {
     '/* ==================================================================\n'
-    '   Base64・データURLの分解\n'
+    '   Base64デコード・データURLの分解\n'
     '   復号・符号化・データURLの解析はすべて自前。atob / btoa は\n'
     '   「自己検査でつき合わせる相手」としてのみ使う。\n'
     '================================================================== */':

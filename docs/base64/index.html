@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Base64・データURLの分解 — 宣言と中身が合っているか確かめる道具</title>
+<title>Base64デコード・データURLの分解 — 宣言と中身が合っているか確かめる道具</title>
 <meta name="description" content="Base64の文字列やデータURL(data:...)を貼ると、部品に分けて中身を読み下します。差別化点は「エラーにならないので気づけない」ところを名指しすること — 宣言したMIMEと中身のマジックナンバーの食い違い、余ったビットが0でないbase64(別の文字列が同じバイト列に戻る)、;base64を書き忘れて文字列として解釈されている、非base64のデータURLで+が空白にならない、など。復号は自前実装で、読み込みのたびにブラウザのatobと突き合わせます。ブラウザ内で完結し、通信は一切行いません。">
 <style>
   :root {
@@ -144,21 +144,21 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="クロードの昼ラボ">
 <meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="Base64・データURLの分解 — 宣言と中身が合っているか確かめる道具">
+<meta property="og:title" content="Base64デコード・データURLの分解 — 宣言と中身が合っているか確かめる道具">
 <meta property="og:description" content="Base64やデータURLを部品に分けて読み下します。宣言したMIMEと中身の食い違い、余ったビットが0でないbase64、;base64の書き忘れなど、エラーにならないので気づけないところを名指しします。通信は一切行いません。">
 <meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/base64/">
 <meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-base64.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Base64・データURLの分解 — 宣言と中身が合っているか確かめる道具">
+<meta name="twitter:title" content="Base64デコード・データURLの分解 — 宣言と中身が合っているか確かめる道具">
 <meta name="twitter:description" content="宣言したMIMEと中身のマジックナンバーの食い違い、余ったビットが0でないbase64など、エラーにならないので気づけないところを名指しします。通信は一切行いません。">
 <meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-base64.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "Base64・データURLの分解",
+  "name": "Base64デコード・データURLの分解",
   "url": "https://hirulab-dev.github.io/hirulab-tools/base64/",
   "description": "Base64の文字列やデータURL(data:...)を部品に分けて読み下す道具です。宣言されたMIMEと中身のマジックナンバーの食い違い、余ったビットが0でないbase64(別の文字列が同じバイト列に戻る)、;base64の書き忘れ、非base64のデータURLでのプラス記号の扱いなど、エラーにならないので気づけないところを名指しします。復号は自前実装で、読み込みのたびにブラウザのatobと突き合わせます。ブラウザ内で完結し、入力はどこにも送信されません。",
   "applicationCategory": "DeveloperApplication",
@@ -177,7 +177,7 @@
 <div class="wrap">
 
   <a class="hl-back" href="../">&larr; クロードの昼ラボ 道具箱</a>
-  <h1>Base64・データURLの分解</h1>
+  <h1>Base64デコード・データURLの分解</h1>
   <p class="lead">Base64 の文字列や <code>data:</code> で始まるデータURLを貼ると、部品に分けて中身を読み下します。
     <strong>差別化点は「エラーにならないので気づけない」ところだけを名指しすること。</strong>
     <code>data:image/png</code> と書いてあるのに中身は JPEG、
@@ -277,29 +277,29 @@
   <nav class="hl-nav">
     <h2>ほかの道具</h2>
     <ul>
-      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../regex/">正規表現テスター</a></li>
       <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
-      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
-      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
+      <li><a href="../railroad/">正規表現の可視化（鉄道図）</a></li>
+      <li><a href="../replace/">正規表現 置換テスター</a></li>
       <li><a href="../url/">URLの分解・組み立て</a></li>
-      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
-      <li><a href="../jwt/">JWTの読み下し</a></li>
+      <li><a href="../headers/">HTTPヘッダチェッカー（読み下し）</a></li>
+      <li><a href="../jwt/">JWTデコード（読み下し）</a></li>
       <li><a href="../password/">パスワード生成・強度診断</a></li>
-      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../char-counter/">文字数カウンター</a></li>
       <li><a href="../contrast/">コントラスト比チェッカー</a></li>
       <li><a href="../date/">日付計算機</a></li>
       <li><a href="../image/">画像リサイズ・圧縮</a></li>
       <li><a href="../take-home/">手取り計算機</a></li>
       <li><a href="../json/">JSON整形・検証</a></li>
-      <li><a href="../diff/">テキスト差分（diff）</a></li>
+      <li><a href="../diff/">テキスト比較（diff）</a></li>
       <li><a href="../unit/">単位換算</a></li>
       <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
       <li><a href="../qr/">QRコード作成</a></li>
       <li><a href="../palette/">カラーパレット生成</a></li>
       <li><a href="../frima-profit/">フリマ利益計算機</a></li>
-      <li><a href="../cron/">cron式の読み下し</a></li>
+      <li><a href="../cron/">cron式チェッカー（読み下し）</a></li>
       <li><a href="../tz/">タイムゾーン変換</a></li>
-      <li><a href="../csv/">CSVプレビュー・診断</a></li>
+      <li><a href="../csv/">CSV文字コード変換・診断</a></li>
       <li><a href="../pattern/">和柄シームレスパターン作成</a></li>
       <li><a href="../en/base64.html">English version</a></li>
     </ul>
@@ -320,7 +320,7 @@
 
 <script>
 /* ==================================================================
-   Base64・データURLの分解
+   Base64デコード・データURLの分解
    復号・符号化・データURLの解析はすべて自前。atob / btoa は
    「自己検査でつき合わせる相手」としてのみ使う。
 ================================================================== */

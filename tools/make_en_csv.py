@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""「CSVプレビュー・診断」の英語版を、日本語版から作る(2026-09-01 昼)。
+"""「CSV文字コード変換・診断」の英語版を、日本語版から作る(2026-09-01 昼)。
 
 `make_en_palette.py` / `make_en_contrast.py` と同じ方式。**日本語版が唯一の原本**。
 
@@ -47,7 +47,7 @@ from en_common import (translate_css_comments,
 HTML_PARTS = [
     ('<html lang="ja">', '<html lang="en">'),
 
-    ('<title>CSVプレビュー・診断 — 文字コードと壊れた行を見つける</title>',
+    ('<title>CSV文字コード変換・診断 — 文字コードと壊れた行を見つける</title>',
      '<title>CSV Preview &amp; Diagnostics — find the broken rows before Excel eats them</title>'),
 
     ('<meta name="description" content="CSVを開いて中身を表で確認し、文字コード（Shift_JIS/UTF-8/EUC-JP）を自動判定。引用符の閉じ忘れ・列数の食い違い・Excelで壊れる列を行と列で指摘します。ファイルはブラウザの中だけで処理され、どこにも送信されません。">',
@@ -75,7 +75,7 @@ HTML_PARTS = [
     ('<meta property="og:locale" content="ja_JP">',
      '<meta property="og:locale" content="en_US">'),
 
-    ('<meta property="og:title" content="CSVプレビュー・診断 — 文字コードと壊れた行を見つける">',
+    ('<meta property="og:title" content="CSV文字コード変換・診断 — 文字コードと壊れた行を見つける">',
      '<meta property="og:title" content="CSV Preview &amp; Diagnostics — find the broken rows before Excel eats them">'),
 
     ('<meta property="og:description" content="CSVを表で確認し、文字コードと区切り文字を自動判定。引用符の閉じ忘れ・列数の食い違い・Excelで壊れる列を行と列で指摘します。ブラウザ内で完結します。">',
@@ -87,7 +87,7 @@ HTML_PARTS = [
     ('<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-csv.png">',
      '<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-csv-en.png">'),
 
-    ('<meta name="twitter:title" content="CSVプレビュー・診断 — 文字コードと壊れた行を見つける">',
+    ('<meta name="twitter:title" content="CSV文字コード変換・診断 — 文字コードと壊れた行を見つける">',
      '<meta name="twitter:title" content="CSV Preview &amp; Diagnostics">'),
 
     ('<meta name="twitter:description" content="文字コードと区切りを自動判定し、壊れている場所を行と列で指します。ファイルは送信されません。">',
@@ -97,7 +97,7 @@ HTML_PARTS = [
      '<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-csv-en.png">'),
 
     # ---- JSON-LD ----
-    ('''  "name": "CSVプレビュー・診断",
+    ('''  "name": "CSV文字コード変換・診断",
   "url": "https://hirulab-dev.github.io/hirulab-tools/csv/",
   "description": "CSVファイルを表で確認し、文字コード（Shift_JIS / UTF-8 / EUC-JP / UTF-16）と区切り文字を自動判定します。引用符の閉じ忘れ、列数の食い違い、改行コードの混在、Excelで開くと壊れる列を、行と列を指して警告します。ファイルはブラウザの中だけで処理され、送信されません。",''',
      '''  "name": "CSV Preview & Diagnostics",
@@ -132,7 +132,7 @@ HTML_PARTS = [
   "isPartOf": { "@type": "WebSite", "name": "Claude's Daytime Lab — Tools", "url": "https://hirulab-dev.github.io/hirulab-tools/en/" }'''),
 
     # ---- 本文 ----
-    ('  <a class="hl-back" href="../">← 道具箱のトップ</a>\n  <h1>CSVプレビュー・診断</h1>',
+    ('  <a class="hl-back" href="../">← 道具箱のトップ</a>\n  <h1>CSV文字コード変換・診断</h1>',
      '  <a class="hl-back" href="./">&larr; Claude\'s Daytime Lab — Tools</a>\n'
      '  <h1>CSV Preview &amp; Diagnostics</h1>'),
 

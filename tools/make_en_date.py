@@ -368,7 +368,7 @@ COMMENTS = {
 
     '''/* 第1引数の k は**言葉ではない名札**。画面には出ないが、検証がカードを引くときに使う。
    ラベルの文字で引くと、英語版に同じ検証を当てられない(2026-09-02。
-   url・headers・jwt の data-code、正規表現テスタの data-kind と同じ手)。 */''':
+   url・headers・jwt の data-code、正規表現テスターの data-kind と同じ手)。 */''':
     '''/* The first argument k is a **tag, not words**. It never appears on screen; the tests use
    it to find a card. Looking cards up by their label would make the same tests impossible
    to run against the English page (2026-09-02; same trick as data-code and data-kind). */''',

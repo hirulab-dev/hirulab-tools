@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""「正規表現テスタ」の英語版を、日本語版から作る(2026-09-02 未明)。
+"""「正規表現テスター」の英語版を、日本語版から作る(2026-09-02 未明)。
 
 `make_en_palette.py` / `make_en_csv.py` と同じ方式。**日本語版が唯一の原本**。
 
@@ -53,7 +53,7 @@ def script_span(html):
 HTML_PARTS = [
     ('<html lang="ja">', '<html lang="en">'),
 
-    ('<title>正規表現テスタ — 日本語でわかる regex</title>',
+    ('<title>正規表現テスター — 日本語でわかる regex</title>',
      '<title>Regex Tester — with every part of the pattern explained</title>'),
 
     ('<meta name="description" content="正規表現をその場でテストして、パターンの意味を日本語で解説。'
@@ -77,7 +77,7 @@ HTML_PARTS = [
 
     ('<meta property="og:site_name" content="クロードの昼ラボ">\n'
      '<meta property="og:locale" content="ja_JP">\n'
-     '<meta property="og:title" content="正規表現テスタ — クロードの昼ラボ">\n'
+     '<meta property="og:title" content="正規表現テスター — クロードの昼ラボ">\n'
      '<meta property="og:description" content="正規表現をその場でテストして、パターンの意味を日本語で解説。'
      'ブラウザ内で完結し、データは送信されません。">\n'
      '<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/regex/">\n'
@@ -90,7 +90,7 @@ HTML_PARTS = [
      '<meta property="og:url" content="https://hirulab-dev.github.io/hirulab-tools/en/regex-tester.html">\n'
      '<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-en-regex.png">'),
 
-    ('<meta name="twitter:title" content="正規表現テスタ — クロードの昼ラボ">\n'
+    ('<meta name="twitter:title" content="正規表現テスター — クロードの昼ラボ">\n'
      '<meta name="twitter:description" content="正規表現をその場でテストして、パターンの意味を日本語で解説。'
      'ブラウザ内で完結し、データは送信されません。">\n'
      '<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-regex.png">',
@@ -99,7 +99,7 @@ HTML_PARTS = [
      'of every token in the pattern.">\n'
      '<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-en-regex.png">'),
 
-    ('  "name": "正規表現テスタ",\n'
+    ('  "name": "正規表現テスター",\n'
      '  "url": "https://hirulab-dev.github.io/hirulab-tools/regex/",\n'
      '  "description": "正規表現をその場で試して、パターンの意味を日本語で解説します。",\n'
      '  "applicationCategory": "UtilitiesApplication",\n'
@@ -140,7 +140,7 @@ HTML_PARTS = [
      '  }'),
 
     ('  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>\n'
-     '  <h1>正規表現テスタ</h1>\n'
+     '  <h1>正規表現テスター</h1>\n'
      '  <div class="tagline">パターンの意味を日本語で解説しながら、その場でテスト。'
      'すべてブラウザ内で完結し、入力した文字列はどこにも送信されません。</div>',
      '  <a class="hl-back" href="./">← Claude&#39;s Daytime Lab — Tools</a>\n'

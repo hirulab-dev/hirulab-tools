@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""「正規表現の置換プレビュー」の英語版を、日本語版から作る（2026-08-23）。
+"""「正規表現 置換テスター」の英語版を、日本語版から作る（2026-08-23）。
 
 `make_en_railroad.py` / `make_en_regex_why.py` と同じ方式。
 **日本語版が唯一の原本**で、英語版は毎回ここから作り直す。手で両方を直すことはしない。
@@ -378,7 +378,7 @@ def main():
 HTML_PARTS = [
  ('<html lang="ja">', '<html lang="en">'),
 
- ('<title>正規表現の置換プレビュー — $1 が何に化けるかを1つずつ見せる</title>',
+ ('<title>正規表現 置換テスター — $1 が何に化けるかを1つずつ見せる</title>',
   '<title>Regex Replacement Preview — see what $1 turns into, one token at a time</title>'),
 
  ('<meta name="description" content="正規表現の置換を、置き換わる前に見せる道具です。置換テンプレートの $1 $&amp; $&lt;name&gt; を1つずつ読み下し、マッチごとに何がどこから来たかを対応づけて表示します。番号の無いグループがそのまま文字として出る、名前の綴り違いが黙って空文字になる、g を付け忘れて1件しか変わらない、といった落とし穴を自動で指摘します。ブラウザ内で完結し、データはどこにも送信されません。">',
@@ -390,7 +390,7 @@ HTML_PARTS = [
  ('<meta property="og:locale" content="ja_JP">', '<meta property="og:locale" content="en_US">'),
  ('<meta property="og:site_name" content="クロードの昼ラボ">',
   '<meta property="og:site_name" content="Claude\'s Daytime Lab">'),
- ('<meta property="og:title" content="正規表現の置換プレビュー — $1 が何に化けるかを1つずつ見せる">',
+ ('<meta property="og:title" content="正規表現 置換テスター — $1 が何に化けるかを1つずつ見せる">',
   '<meta property="og:title" content="Regex Replacement Preview — see what $1 turns into, one token at a time">'),
  ('<meta property="og:description" content="置換テンプレートを1つずつ読み下し、マッチごとに何がどこから来たかを対応づけます。番号の無いグループがそのまま文字として出る、名前の綴り違いが黙って空文字になる、といった落とし穴を自動で指摘します。ブラウザ内で完結します。">',
   '<meta property="og:description" content="Every token of the replacement template is spelled out, and each piece of the result is traced back to the token that produced it. Traps that raise no error — a group number that does not exist, a misspelled group name — are called out. Runs entirely in your browser.">'),
@@ -398,7 +398,7 @@ HTML_PARTS = [
   '<meta property="og:url" content="%s/en/replace.html">' % SITE),
  ('<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-replace.png">',
   '<meta property="og:image" content="%s/ogp/ogp-replace-en.png">' % SITE),
- ('<meta name="twitter:title" content="正規表現の置換プレビュー — $1 が何に化けるかを1つずつ見せる">',
+ ('<meta name="twitter:title" content="正規表現 置換テスター — $1 が何に化けるかを1つずつ見せる">',
   '<meta name="twitter:title" content="Regex Replacement Preview — see what $1 turns into, one token at a time">'),
  ('<meta name="twitter:description" content="置換テンプレートを1つずつ読み下し、マッチごとに何がどこから来たかを対応づけます。落とし穴も自動で指摘します。ブラウザ内で完結します。">',
   '<meta name="twitter:description" content="Every token of the replacement template is spelled out and traced to the part of the result it produced. The traps that raise no error are called out. Runs entirely in your browser.">'),
@@ -406,7 +406,7 @@ HTML_PARTS = [
   '<meta name="twitter:image" content="%s/ogp/ogp-replace-en.png">' % SITE),
 
  # JSON-LD
- ('''  "name": "正規表現の置換プレビュー",
+ ('''  "name": "正規表現 置換テスター",
   "url": "https://hirulab-dev.github.io/hirulab-tools/replace/",
   "description": "正規表現の置換を、置き換わる前に見せる道具です。置換テンプレートの記号を1つずつ読み下し、マッチごとに置換後の文字がどこから来たかを対応づけて表示します。番号の無いグループがそのまま文字として出る、名前の綴り違いが黙って空文字になる、g を付け忘れて1件しか変わらない、といった落とし穴を自動で指摘します。ブラウザ内で完結します。",''',
   '''  "name": "Regex Replacement Preview",
@@ -424,7 +424,7 @@ HTML_PARTS = [
 
  # 本文
  ('''  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
-  <h1>正規表現の置換プレビュー</h1>
+  <h1>正規表現 置換テスター</h1>
   <p class="lead">正規表現の置換を、<strong>置き換える前に</strong>見せる道具です。
     置換テンプレートに書いた <code>$1</code> や <code>$&amp;</code> を<strong>1つずつ読み下し</strong>、
     <strong>置換後のどの文字がどこから来たか</strong>を対応づけて表示します。
@@ -540,29 +540,29 @@ HTML_PARTS = [
  ('''  <nav class="hl-nav">
     <h2>ほかの道具</h2>
     <ul>
-      <li><a href="../regex/">正規表現テスタ</a></li>
+      <li><a href="../regex/">正規表現テスター</a></li>
       <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
-      <li><a href="../railroad/">正規表現を鉄道図にする</a></li>
-      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../railroad/">正規表現の可視化（鉄道図）</a></li>
+      <li><a href="../char-counter/">文字数カウンター</a></li>
       <li><a href="../contrast/">コントラスト比チェッカー</a></li>
       <li><a href="../date/">日付計算機</a></li>
       <li><a href="../image/">画像リサイズ・圧縮</a></li>
       <li><a href="../take-home/">手取り計算機</a></li>
       <li><a href="../json/">JSON整形・検証</a></li>
-      <li><a href="../diff/">テキスト差分（diff）</a></li>
+      <li><a href="../diff/">テキスト比較（diff）</a></li>
       <li><a href="../unit/">単位換算</a></li>
       <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
       <li><a href="../qr/">QRコード作成</a></li>
       <li><a href="../palette/">カラーパレット生成</a></li>
       <li><a href="../frima-profit/">フリマ利益計算機</a></li>
-      <li><a href="../cron/">cron式の読み下し</a></li>
+      <li><a href="../cron/">cron式チェッカー（読み下し）</a></li>
       <li><a href="../tz/">タイムゾーン変換</a></li>
-      <li><a href="../csv/">CSVプレビュー・診断</a></li>
+      <li><a href="../csv/">CSV文字コード変換・診断</a></li>
       <li><a href="../url/">URLの分解・組み立て</a></li>
-      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
-      <li><a href="../jwt/">JWTの読み下し</a></li>
+      <li><a href="../headers/">HTTPヘッダチェッカー（読み下し）</a></li>
+      <li><a href="../jwt/">JWTデコード（読み下し）</a></li>
       <li><a href="../password/">パスワード生成・強度診断</a></li>
-      <li><a href="../base64/">Base64・データURLの分解</a></li>
+      <li><a href="../base64/">Base64デコード・データURLの分解</a></li>
       <li><a href="../pattern/">和柄シームレスパターン作成</a></li>
       <li><a href="../en/replace.html">English version</a></li>
     </ul>

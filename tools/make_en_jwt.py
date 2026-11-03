@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""「JWTの読み下し」の英語版を、日本語版から作る（2026-08-24）。
+"""「JWTデコード（読み下し）」の英語版を、日本語版から作る（2026-08-24）。
 
 `make_en_railroad.py` / `make_en_regex_why.py` / `make_en_replace.py` /
 `make_en_url.py` / `make_en_headers.py` と同じ方式。**日本語版が唯一の原本**で、
@@ -608,7 +608,7 @@ EN_DESC = ("Paste a JWT and this page splits it into its three parts and reads e
 HTML_PARTS = [
  ('<html lang="ja">', '<html lang="en">'),
 
- ('<title>JWTの読み下し — 中身は暗号化されていない、を目で見る道具</title>',
+ ('<title>JWTデコード（読み下し） — 中身は暗号化されていない、を目で見る道具</title>',
   '<title>JWT Explainer — see for yourself that the payload is not encrypted</title>'),
 
  ('<meta name="description" content="' + JA_DESC + '">',
@@ -623,7 +623,7 @@ HTML_PARTS = [
  ('<meta property="og:site_name" content="クロードの昼ラボ">',
   '<meta property="og:site_name" content="Claude&#39;s Daytime Lab">'),
 
- ('<meta property="og:title" content="JWTの読み下し — 中身は暗号化されていない、を目で見る道具">',
+ ('<meta property="og:title" content="JWTデコード（読み下し） — 中身は暗号化されていない、を目で見る道具">',
   '<meta property="og:title" content="JWT Explainer — see for yourself that the payload is not encrypted">'),
 
  ('<meta property="og:description" content="JWTを貼ると3つの部分に分けて読み下し、期限がいつ切れるか・署名が正しいか・危ない書き方をしていないかを見せます。exp をミリ秒で入れて数万年先、alg が none、ペイロードにパスワード。エラーにならない落とし穴を57種類、名指しします。">',
@@ -635,7 +635,7 @@ HTML_PARTS = [
  ('<meta property="og:image" content="' + SITE + '/ogp/ogp-jwt.png">',
   '<meta property="og:image" content="' + SITE + '/ogp/ogp-jwt-en.png">'),
 
- ('<meta name="twitter:title" content="JWTの読み下し — 中身は暗号化されていない、を目で見る道具">',
+ ('<meta name="twitter:title" content="JWTデコード（読み下し） — 中身は暗号化されていない、を目で見る道具">',
   '<meta name="twitter:title" content="JWT Explainer — see for yourself that the payload is not encrypted">'),
 
  ('<meta name="twitter:description" content="JWTを3つの部分に分けて読み下し、期限・署名・危ない書き方を見せます。エラーにならない落とし穴を57種類、名指しします。貼ったトークンはどこにも送信されません。">',
@@ -644,7 +644,7 @@ HTML_PARTS = [
  ('<meta name="twitter:image" content="' + SITE + '/ogp/ogp-jwt.png">',
   '<meta name="twitter:image" content="' + SITE + '/ogp/ogp-jwt-en.png">'),
 
- ('  "name": "JWTの読み下し",\n  "url": "' + SITE + '/jwt/",\n  "description": "' + JA_DESC + '",',
+ ('  "name": "JWTデコード（読み下し）",\n  "url": "' + SITE + '/jwt/",\n  "description": "' + JA_DESC + '",',
   '  "name": "JWT Explainer",\n  "url": "' + SITE + '/en/jwt.html",\n  "description": "' + EN_DESC + '",'),
 
  ('  "browserRequirements": "JavaScript が有効なモダンブラウザ",',
@@ -655,7 +655,7 @@ HTML_PARTS = [
  ('"image": "' + SITE + '/ogp/ogp-jwt.png",\n  "author": { "@type": "Organization", "name": "クロードの昼ラボ", "url": "https://note.com/hirulab" },\n  "isPartOf": { "@type": "WebSite", "name": "クロードの昼ラボ — ツール置き場", "url": "' + SITE + '/" }',
   '"image": "' + SITE + '/ogp/ogp-jwt-en.png",\n  "author": { "@type": "Organization", "name": "Claude\'s Daytime Lab", "url": "https://note.com/hirulab" },\n  "isPartOf": { "@type": "WebSite", "name": "Claude\'s Daytime Lab — Tools", "url": "' + SITE + '/" }'),
 
- ('  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>\n  <h1>JWTの読み下し</h1>',
+ ('  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>\n  <h1>JWTデコード（読み下し）</h1>',
   '  <a class="hl-back" href="./">&larr; Claude&#39;s Daytime Lab tools</a>\n  <h1>JWT Explainer</h1>'),
 
  ('''  <p class="lead">JWT を貼ると、<strong>3つの部分に分けて1つずつ日本語に読み下し、実際に何が起きるか</strong>を見せる道具です。

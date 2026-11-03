@@ -543,7 +543,7 @@ SITE = 'https://hirulab-dev.github.io/hirulab-tools'
 HTML_PARTS = [
  ('<html lang="ja">', '<html lang="en">'),
 
- ('<title>正規表現を鉄道図にする — 図・読み下し・落とし穴の検出</title>',
+ ('<title>正規表現の可視化（鉄道図） — 図・読み下し・落とし穴の検出</title>',
   '<title>Regex Railroad Diagrams — draw it, read it, and catch the traps</title>'),
 
  ('<meta name="description" content="正規表現を鉄道図（railroad diagram）に描き、日本語に読み下し、キャプチャ番号を並べます。破滅的バックトラックや「日と曜日」ならぬ「. は改行にマッチしない」といった落とし穴も自動で指摘します。さらに図から例文字列を作り、その場でマッチするか確かめて図と式が食い違っていないことを見せます。ブラウザ内で完結し、データはどこにも送信されません。">',
@@ -557,7 +557,7 @@ HTML_PARTS = [
  ('<meta property="og:locale" content="ja_JP">', '<meta property="og:locale" content="en_US">'),
  ('<meta property="og:site_name" content="クロードの昼ラボ">',
   '<meta property="og:site_name" content="Claude\'s Daytime Lab">'),
- ('<meta property="og:title" content="正規表現を鉄道図にする — 図・読み下し・落とし穴の検出">',
+ ('<meta property="og:title" content="正規表現の可視化（鉄道図） — 図・読み下し・落とし穴の検出">',
   '<meta property="og:title" content="Regex Railroad Diagrams — draw it, read it, and catch the traps">'),
  ('<meta property="og:description" content="正規表現を鉄道図に描き、日本語に読み下し、キャプチャ番号を並べます。破滅的バックトラック等の落とし穴も自動指摘。図から例文字列を作って、その場で図と式が食い違っていないか確かめます。ブラウザ内で完結します。">',
   '<meta property="og:description" content="Draw a regular expression as a railroad diagram, read it back in plain English, and list its capture groups. Traps are flagged automatically, and example strings built from the diagram are tested against the pattern on the spot. Runs entirely in your browser.">'),
@@ -565,14 +565,14 @@ HTML_PARTS = [
   '<meta property="og:url" content="%s/en/railroad.html">' % SITE),
  ('<meta property="og:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-railroad.png">',
   '<meta property="og:image" content="%s/ogp/ogp-railroad-en.png">' % SITE),
- ('<meta name="twitter:title" content="正規表現を鉄道図にする — 図・読み下し・落とし穴の検出">',
+ ('<meta name="twitter:title" content="正規表現の可視化（鉄道図） — 図・読み下し・落とし穴の検出">',
   '<meta name="twitter:title" content="Regex Railroad Diagrams">'),
  ('<meta name="twitter:description" content="正規表現を鉄道図に描いて日本語に読み下し、落とし穴を自動で指摘します。図から例文字列を作って、その場で図と式が合っているか確かめます。ブラウザ内で完結します。">',
   '<meta name="twitter:description" content="Draw a regular expression as a railroad diagram, read it back in plain English, and catch the traps. Example strings built from the diagram are tested against the pattern on the spot.">'),
  ('<meta name="twitter:image" content="https://hirulab-dev.github.io/hirulab-tools/ogp/ogp-railroad.png">',
   '<meta name="twitter:image" content="%s/ogp/ogp-railroad-en.png">' % SITE),
 
- ('''  "name": "正規表現を鉄道図にする",
+ ('''  "name": "正規表現の可視化（鉄道図）",
   "url": "https://hirulab-dev.github.io/hirulab-tools/railroad/",
   "description": "正規表現を鉄道図（railroad diagram）に描き、日本語に読み下し、キャプチャ番号を一覧にします。破滅的バックトラックや、. が改行にマッチしないといった落とし穴を自動で検出します。図から例文字列を生成してその場でマッチを確かめるため、図と式が食い違っていないことを確認できます。ブラウザ内で完結します。",''',
   '''  "name": "Regex Railroad Diagrams",
@@ -589,7 +589,7 @@ HTML_PARTS = [
   '  "isPartOf": { "@type": "WebSite", "name": "Claude\'s Daytime Lab — Tools", "url": "%s/en/" }' % SITE),
 
  ('''  <a class="hl-back" href="../">← クロードの昼ラボ 道具箱</a>
-  <h1>正規表現を鉄道図にする</h1>
+  <h1>正規表現の可視化（鉄道図）</h1>
   <p class="lead">正規表現を<strong>鉄道図</strong>（線路のように分岐とループで描いた図）にして、
     <strong>日本語の読み下し</strong>と<strong>キャプチャ番号</strong>を並べます。
     <code>(a+)+</code> のような<strong>破滅的バックトラック</strong>や、
@@ -635,7 +635,7 @@ HTML_PARTS = [
  ('''    <p class="lead" style="margin:10px 0 0">
       図（＝解析した構造）だけを見て文字列を組み立て、それを<strong>元の正規表現そのもの</strong>に
       当てています。全部 ✓ なら、図の読み方と式の意味はここまでは食い違っていません。
-      文字列を入れて試したいときは <a href="../regex/">正規表現テスタ</a> へ。
+      文字列を入れて試したいときは <a href="../regex/">正規表現テスター</a> へ。
     </p>''',
   '''    <p class="lead" style="margin:10px 0 0">
       Each example is assembled from the parsed structure alone &mdash; the same structure the diagram
@@ -697,29 +697,29 @@ HTML_PARTS = [
  ('''  <nav class="hl-nav">
     <h2>ほかの道具</h2>
     <ul>
-      <li><a href="../regex/">正規表現テスタ</a></li>
-      <li><a href="../char-counter/">文字数カウンタ</a></li>
+      <li><a href="../regex/">正規表現テスター</a></li>
+      <li><a href="../char-counter/">文字数カウンター</a></li>
       <li><a href="../contrast/">コントラスト比チェッカー</a></li>
       <li><a href="../date/">日付計算機</a></li>
       <li><a href="../image/">画像リサイズ・圧縮</a></li>
       <li><a href="../take-home/">手取り計算機</a></li>
       <li><a href="../json/">JSON整形・検証</a></li>
-      <li><a href="../diff/">テキスト差分（diff）</a></li>
+      <li><a href="../diff/">テキスト比較（diff）</a></li>
       <li><a href="../unit/">単位換算</a></li>
       <li><a href="../page-contrast/">ページまるごとコントラスト診断</a></li>
       <li><a href="../qr/">QRコード作成</a></li>
       <li><a href="../palette/">カラーパレット生成</a></li>
       <li><a href="../frima-profit/">フリマ利益計算機</a></li>
-      <li><a href="../cron/">cron式の読み下し</a></li>
+      <li><a href="../cron/">cron式チェッカー（読み下し）</a></li>
       <li><a href="../tz/">タイムゾーン変換</a></li>
-      <li><a href="../csv/">CSVプレビュー・診断</a></li>
+      <li><a href="../csv/">CSV文字コード変換・診断</a></li>
       <li><a href="../url/">URLの分解・組み立て</a></li>
-      <li><a href="../headers/">HTTPヘッダの読み下し</a></li>
+      <li><a href="../headers/">HTTPヘッダチェッカー（読み下し）</a></li>
       <li><a href="../regex-why/">正規表現がなぜマッチしないか診断</a></li>
-      <li><a href="../replace/">正規表現の置換プレビュー</a></li>
-      <li><a href="../jwt/">JWTの読み下し</a></li>
+      <li><a href="../replace/">正規表現 置換テスター</a></li>
+      <li><a href="../jwt/">JWTデコード（読み下し）</a></li>
       <li><a href="../password/">パスワード生成・強度診断</a></li>
-      <li><a href="../base64/">Base64・データURLの分解</a></li>
+      <li><a href="../base64/">Base64デコード・データURLの分解</a></li>
       <li><a href="../pattern/">和柄シームレスパターン作成</a></li>
       <li><a href="../en/railroad.html">English version</a></li>
     </ul>
